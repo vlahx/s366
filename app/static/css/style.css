@@ -1,0 +1,93 @@
+
+                
+            
+        
+		
+/* Stiluri personalizate pentru sidebar */
+       
+/* Seteaza font-ul Inter ca font principal pentru intregul corp */
+body {
+            font-family: 'Inter', sans-serif;
+        }
+
+	   .sidebar {
+            width: 300px;
+        }
+
+        /* Stil pentru a ascunde scrollbar-ul pe diverse browsere */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        
+        /* Stilurile pentru animația butonului de voce (este singurul stil personalizat) */
+        .recording-animation {
+            animation: pulse-recording 1.5s infinite;
+        }
+
+        @keyframes pulse-recording {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(100, 116, 139, 0.4); /* slate-400 */
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 10px rgba(100, 116, 139, 0);
+            }
+        }		        
+		
+/*
+ * Stiluri pentru mesaje de notificare (flash messages)
+ * Aplicația ta le va folosi pentru a afișa mesaje de succes, eroare etc.
+ */
+.flashes-container {
+            width: 100%;
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .flashes {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            width: 80%;
+            max-width: 600px;
+        }
+
+        .flash {
+            padding: 1rem 1.5rem;
+            margin-bottom: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            font-family: 'Arial', sans-serif;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .error, .danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success {
+            background-color: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+        }
+
+        .warning {
+            background-color: #fff3cd;
+            color: #664d03;
+            border: 1px solid #ffeeba;
+        }
+		

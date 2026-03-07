@@ -1,0 +1,151 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<style>
+    /* Folosim variabile CSS care respectă tema sistemului */
+    .feature-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 20px;
+        padding: 30px;
+        transition: all 0.3s ease;
+        background-color: var(--bs-tertiary-bg);
+    }
+
+    .feature-card:hover {
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transform: translateY(-5px);
+        border-color: var(--bs-primary);
+    }
+
+    .step-icon {
+        width: 60px;
+        height: 60px;
+        background-color: var(--bs-primary-border-subtle);
+        color: var(--bs-primary-text-emphasis);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 15px;
+        margin-bottom: 20px;
+    }
+
+    /* Efectul de puncte animate adaptabil */
+    .loading-dots:after {
+        content: '.';
+        animation: dots 1.5s steps(5, end) infinite;
+    }
+
+    @keyframes dots {
+
+        0%,
+        20% {
+            color: rgba(0, 0, 0, 0);
+            text-shadow: .25em 0 0 rgba(0, 0, 0, 0), .5em 0 0 rgba(0, 0, 0, 0);
+        }
+
+        40% {
+            color: var(--bs-primary);
+            text-shadow: .25em 0 0 rgba(0, 0, 0, 0), .5em 0 0 rgba(0, 0, 0, 0);
+        }
+
+        60% {
+            text-shadow: .25em 0 0 var(--bs-primary), .5em 0 0 rgba(0, 0, 0, 0);
+        }
+
+        80%,
+        100% {
+            text-shadow: .25em 0 0 var(--bs-primary), .5em 0 0 var(--bs-primary);
+        }
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 text-center">
+
+            <div class="mb-5">
+                <h1 class="display-5 fw-bold mb-3 text-body-emphasis">Salutare, {{ firstname }}! 👋</h1>
+                <h2 class="text-body-secondary fw-light">Pregătim biroul digital pentru firma ta</h2>
+                <div class="mt-4">
+                    <span
+                        class="badge rounded-pill bg-primary-subtle text-primary-emphasis px-4 py-2 fs-6 border border-primary-subtle">
+                        <span class="loading-dots">Se verifică datele</span>
+                    </span>
+                </div>
+            </div>
+
+            <p class="lead text-body-secondary mb-5">
+                În timp ce noi activăm toate sistemele, iată cum te va ajuta asistentul tău inteligent din prima zi:
+            </p>
+
+            <div class="row g-4 text-start">
+                <div class="col-md-6">
+                    <div class="feature-card h-100">
+                        <div class="step-icon"><i class="bi bi-file-earmark-text-fill fs-3"></i></div>
+                        <h4 class="fw-bold text-body-emphasis">Expertul tău în acte</h4>
+                        <p class="text-body-secondary small">Încarcă orice contract sau procedură internă. De acum, poți
+                            să întrebi asistentul direct: <em>"Când expiră contractul cu furnizorul X?"</em> și el îți
+                            răspunde pe loc.</p>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="feature-card h-100">
+                        <div class="step-icon bg-success-subtle text-success-emphasis"><i
+                                class="bi bi-chat-dots-fill fs-3"></i></div>
+                        <h4 class="fw-bold text-body-emphasis">Comunicare prietenoasă</h4>
+                        <p class="text-body-secondary small">Firma ta va avea o voce proprie, caldă și umană. Asistentul
+                            poate răspunde clienților sau angajaților tăi, explicându-le tot ce au nevoie să știe.</p>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="feature-card h-100">
+                        <div class="step-icon bg-warning-subtle text-warning-emphasis"><i
+                                class="bi bi-lightning-charge-fill fs-3"></i></div>
+                        <h4 class="fw-bold text-body-emphasis">Adio, rapoarte complicate!</h4>
+                        <p class="text-body-secondary small">Nu mai căuta prin Excel-uri. Întrebi direct: <em>"Câte
+                                produse mai avem în stoc?"</em>, iar asistentul îți face calculul într-o secundă.</p>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="feature-card h-100">
+                        <div class="step-icon bg-danger-subtle text-danger-emphasis"><i
+                                class="bi bi-mortarboard-fill fs-3"></i></div>
+                        <h4 class="fw-bold text-body-emphasis">Colegul care știe tot</h4>
+                        <p class="text-body-secondary small">Ai un angajat nou? Lasă asistentul să îi explice regulile
+                            firmei. El are răbdare infinită și e disponibil 24 de ore din 24.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5 p-4 rounded-4 shadow-sm border border-primary-subtle bg-primary-subtle text-start">
+                <div class="d-flex align-items-center">
+                    <div class="me-4 d-none d-md-block text-primary">
+                        <i class="bi bi-info-circle-fill display-4"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-1 text-primary-emphasis">Ești aproape gata!</h5>
+                        <p class="mb-0 text-primary-emphasis opacity-75">Aprobarea contului durează, de obicei, câteva
+                            minute. Te rugăm să rămâi pe această pagină sau să revii mai târziu.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="my-5">
+                <button onclick="window.location.reload();"
+                    class="btn btn-primary btn-lg px-5 py-3 rounded-pill shadow">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Verifică activarea
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // Refresh la 5 minute pentru a verifica dacă contul a fost aprobat
+    setTimeout(() => { window.location.reload(); }, 300000);
+</script>
+{% endblock %}

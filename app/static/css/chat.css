@@ -1,0 +1,387 @@
+:root {
+    --bg: #ffffff;
+    --text: #0f0f0f;
+    --chat-bg: #f8f9fa;
+    --user-bg: #0066ff;
+    --user-text: white;
+    --bot-bg: #e9ecef;
+    --bot-text: #212529;
+    --input-bg: white;
+    --input-border: #ced4da;
+    --sidebar-bg: #f1f3f5;
+    --sidebar-text: #212529;
+    --border: #dee2e6;
+}
+
+[data-bs-theme="dark"],
+.dark-mode {
+    --bg: #0d1117;
+    --text: #e6edf3;
+    --chat-bg: #161b22;
+    --user-bg: #1f6feb;
+    --user-text: white;
+    --bot-bg: #21262d;
+    --bot-text: #c9d1d9;
+    --input-bg: #0d1117;
+    --input-border: #30363d;
+    --sidebar-bg: #161b22;
+    --sidebar-text: #c9d1d9;
+    --border: #30363d;
+}
+
+
+#wrapper {
+    display: flex;
+    flex: 1;
+    /* Ocupă tot spațiul dintre navbar și footer */
+    height: 100%;
+    /* Se întinde pe toată înălțimea lui <main> */
+    overflow: hidden;
+    /* Nu lasă scroll-ul să iasă din el */
+}
+
+#sidebar-left {
+    width: 280px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    border-right: 1px solid var(--border);
+    transition: transform 0.3s ease;
+    position: fixed;
+    top: 56px;
+    /* sub navbar */
+    left: 0;
+    bottom: 0;
+    z-index: 1040;
+    transform: translateX(-100%);
+}
+
+#sidebar-left.show {
+    transform: translateX(0);
+}
+
+@media (min-width: 992px) {
+
+    /* lg breakpoint bootstrap */
+    #sidebar-left {
+        position: relative;
+        transform: translateX(0) !important;
+        width: 280px;
+        /*position: fixed; */
+        overflow-y: scroll;
+        top: 0;
+        bottom: 0;
+    }
+
+    #sidebar-hamburger {
+        display: none !important;
+    }
+}
+
+#chat-container {
+    flex: 1;
+    /* Ocupă tot spațiul orizontal rămas */
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    /* Forțează lățimea completă */
+    min-width: 0;
+    /* Magic fix pentru flexbox overflow pe orizontală */
+}
+
+
+
+.msg-bubble {
+    max-width: 75%;
+    /* Puțin mai mic, să respire pe mobil */
+    padding: 12px 16px;
+    border-radius: 18px;
+    line-height: 1.45;
+    position: relative;
+    word-wrap: break-word;
+    /* Să nu iasă textul din bulă */
+    margin-bottom: 10px;
+    display: inline-block;
+    /* Foarte important: să nu ocupe tot rândul */
+}
+
+.user-msg {
+    background: var(--user-bg);
+    color: var(--user-text);
+    border-bottom-right-radius: 4px;
+    margin-left: auto !important;
+    /* FORȚĂM trecerea la dreapta */
+    align-self: flex-end;
+}
+
+.bot-msg {
+    background: var(--bot-bg);
+    color: var(--bot-text);
+    border-bottom-left-radius: 4px;
+    margin-right: auto !important;
+    /* Rămâne la stânga */
+    align-self: flex-start;
+}
+
+/* Și containerul părinte trebuie să fie flex ca align-self să meargă */
+#chat-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+    /* Spațiu în jurul mesajelor */
+    overflow-y: auto;
+    /* Scroll vertical dacă e nevoie */
+}
+
+.typing {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    background: currentColor;
+    border-radius: 50%;
+    opacity: 0.4;
+    animation: typingBounce 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+
+    0%,
+    80%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+
+    40% {
+        transform: translateY(-6px);
+        opacity: 1;
+    }
+}
+
+.save-btn {
+    font-size: 0.8rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    margin-top: 6px;
+    align-self: flex-start;
+}
+
+.save-btn:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+#chat-form {
+    padding: 16px 24px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+}
+
+#user-input {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text);
+}
+
+
+#voice-panel {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: 360px;
+    background: var(--chat-bg);
+    color: var(--text);
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 1050;
+    border-left: 1px solid var(--border);
+}
+
+#voice-panel.active {
+    transform: translateX(0);
+}
+
+.session-item {
+    transition: background 0.2s;
+}
+
+.session-item:hover,
+.session-item.active {
+    background: rgba(100, 100, 100, 0.12);
+}
+
+.dark-mode .session-item:hover,
+.dark-mode .session-item.active {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Containerul sesiunii */
+.session-wrapper {
+    transition: background 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.session-wrapper:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    /* Un gri foarte fin pe hover */
+}
+
+/* Sesiunea ACTIVĂ (nu mai este albă!) */
+.active-session {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Dropdown-ul (Meniul mic) */
+.custom-dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 80%;
+    background-color: #212529;
+    /* Culoare de fundal închisă (specifică Bootstrap dark) */
+    min-width: 140px;
+    z-index: 1050;
+    border-radius: 8px;
+    padding: 5px 0;
+    border: 1px solid #444;
+    /* Border discret să se vadă pe negru */
+}
+
+.custom-dropdown-content.show {
+    display: block;
+}
+
+/* Elementele din meniu */
+.menu-item {
+    padding: 8px 15px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #eee;
+    /* Text deschis la culoare */
+}
+
+.menu-item:hover:not(.disabled) {
+    background-color: #343a40;
+    /* Gri mai deschis la hover în interiorul meniului */
+}
+
+.menu-item.disabled {
+    color: #666;
+    /* Text stins pentru cele inactive */
+    cursor: not-allowed;
+}
+
+.menu-item.text-danger {
+    color: #ff6b6b !important;
+    /* Roșu mai vizibil pe fundal închis */
+}
+
+.menu-item.text-danger:hover {
+    background-color: rgba(255, 107, 107, 0.1);
+}
+
+.dots-icon {
+    cursor: pointer;
+    font-size: 1.5rem;
+    /* Mai mari */
+    font-weight: 900;
+    /* Mai groase */
+    color: #fff;
+    /* Alb curat pe fundalul tău dark */
+    padding: 0 10px;
+    line-height: 1;
+    transition: transform 0.2s;
+}
+
+.dots-icon:hover {
+    transform: scale(1.2);
+    /* Se mărește puțin la hover */
+    color: #ff6b6b;
+    /* Se face roșiatic când te apropii de meniu */
+}
+
+.dropdown-custom-container {
+    position: relative;
+    margin-right: 10px;
+}
+
+.custom-dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background-color: #fff;
+    min-width: 130px;
+    z-index: 1000;
+    border-radius: 8px;
+    padding: 5px 0;
+}
+
+.custom-dropdown-content.show {
+    display: block;
+}
+
+.menu-item {
+    padding: 8px 15px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.menu-item:hover:not(.disabled) {
+    background-color: #f8f9fa;
+}
+
+.menu-item.disabled {
+    color: #ccc;
+    cursor: not-allowed;
+}
+
+.menu-item.text-danger:hover {
+    background-color: #fff5f5;
+}
+
+/* Efect când butonul PTT este apăsat */
+#ptt-voice-btn.recording {
+    background-color: var(--bs-danger) !important;
+    border-color: var(--bs-danger) !important;
+    color: white !important;
+    box-shadow: 0 0 15px rgba(220, 53, 69, 0.5);
+    transform: scale(0.95);
+}
+
+/* Stil pentru Layer-ul central de care vorbeam */
+#voice-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 2000;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+#voice-overlay.active {
+    display: flex;
+}

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+*.sqlite
+*.db
+/data/users_data/
+/data/companies_data/
+

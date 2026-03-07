@@ -1,0 +1,242 @@
+<div class="container-fluid px-4 py-5">
+    <div class="row mb-4">
+        <div class="col-12 text-center text-md-start">
+            <h2 class="fw-bold"><i class="bi bi-speedometer2 text-primary"></i> System Mission Control</h2>
+            <p class="text-secondary">Monitorizare resurse: 2x Intel Xeon E5-2680 v4 | RTX 3060 Ti | Debian</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-6">
+            <div class=" card shadow-sm border-0 h-100 stat-card bg-body-tertiary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary mb-3"><i class="bi bi-cpu"></i> Procesor (56 Threads)</h5>
+                    <div class="display-6 fw-bold mb-2" id="cpu-val">{{ stats.cpu }}%</div>
+                    <div class="progress" style="height: 8px;">
+                        <div id="cpu-bar" class="progress-bar bg-primary" role="progressbar"
+                            style="width: {{ stats.cpu }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class=" card shadow-sm border-0 h-100 stat-card bg-body-tertiary">
+                <div class="card-body">
+                    <h5 class="card-title text-success mb-3"><i class="bi bi-memory"></i> Memorie RAM</h5>
+                    <div class="display-6 fw-bold mb-2">{{ stats.ram_percent }}%</div>
+                    <p class="small text-secondary mb-2">{{ stats.ram_used }} GB / {{ stats.ram_total }} GB</p>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ stats.ram_percent }}%">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+
+    <div class="col-md-12 mb-4">
+        <div class="card bg-dark border-secondary h-100 shadow-sm">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="card-title mb-0 text-white text-uppercase small fw-bold">
+                        <i class="bi bi-device-ssd-fill text-info me-2"></i>Stocare NVMe RAID
+                    </h6>
+                    <span class="badge bg-info text-dark" style="font-size: 0.7rem;">
+                        {{ stats.nvme.total }} Total
+                    </span>
+                </div>
+
+                <div class="d-flex justify-content-between mb-1 small">
+                    <span class="text-muted">Utilizat: <strong class="text-white">{{ stats.nvme.used }}</strong></span>
+                    <span class="text-muted">Liber: <strong class="text-info">{{ stats.nvme.free }}</strong></span>
+                </div>
+
+                <div class="progress bg-secondary mb-2" style="height: 12px; border-radius: 6px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
+                        style="width: {{ stats.nvme.percent }}%;" aria-valuenow="{{ stats.nvme.percent }}"
+                        aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+
+                <div class="text-end">
+                    <span class="fw-bold text-info" style="font-size: 1.1rem;">{{ stats.nvme.percent }}%</span>
+                    <small class="text-muted ms-1">folosit</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-4 d-flex align-items-center">
+                <span class="badge bg-success me-2 border-0">LIVE</span> GPU Hardware
+            </h4>
+        </div>
+
+        {% if stats.gpus and stats.gpus|length > 0 %}
+        {% for gpu in stats.gpus %}
+        <div class="col-12 mb-4">
+            <div class="card text-danger border-0 shadow-lg overflow-hidden bg-body-tertiary">
+                <div class="card-headerder-bottom border-secondary bg-transparent py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong class="text-info"><i class="bi bi-cpu-fill"></i> {{ gpu.name }}</strong>
+                        <span
+                            class="badge {% if gpu.temp_c > 75 %}bg-danger{% elif gpu.temp_c > 60 %}bg-warning{% else %}bg-success{% endif %} rounded-pill">
+                            {{ gpu.temp_c }}°C
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="text-info">VRAM Usage</small>
+                                <small class="fw-bold">{{ gpu.vram_used_mb }} / {{ gpu.vram_total_mb }} MB</small>
+                            </div>
+                            <div class="progress" style="height: 12px; background-color: #333;">
+                                <div class="progress-bar bg-info" style="width: {{ gpu.vram_percent }}%;"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="text-info">Core Load</small>
+                                <small class="fw-bold">{{ gpu.load_percent }}%</small>
+                            </div>
+                            <div class="progress" style="height: 12px; background-color: #333;">
+                                <div class="progress-bar {% if gpu.load_percent > 80 %}bg-danger{% else %}bg-success{% endif %}"
+                                    style="width: {{ gpu.load_percent }}%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 text-center pb-3">
+                    <small class="text-secondary small italic">Ventilator: {{ gpu.fan_percent }}% | Status:
+                        Optimal</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-warning border-0 shadow-sm"><i class="bi bi-exclamation-triangle"></i> GPU Offline
+                sau Driver lipsă.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="row mt-2">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 overflow-hidden bg-body-tertiary">
+                <div class="card-header py-3 bg-transparent">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-box-seam"></i> Docker Stack Status</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Container</th>
+                                    <th>Imagine</th>
+                                    <th>Status</th>
+                                    <th class="text-end pe-4">Control</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for container in stats.docker %}
+                                <tr>
+                                    <td class="ps-4"><strong>{{ container.name }}</strong></td>
+                                    <td><code class="text-secondary small">{{ container.image }}</code></td>
+                                    <td>
+                                        {% if container.status == 'running' %}
+                                        <span class="badge rounded-pill badge-active px-3">Activ</span>
+                                        {% else %}
+                                        <span class="badge rounded-pill badge-stopped px-3">Oprit</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group btn-group-sm">
+                                            <button onclick="controlContainer('restart', '{{ container.name }}', this)"
+                                                class="btn btn-outline-warning"><i
+                                                    class="bi bi-arrow-clockwise"></i></button>
+                                            <button onclick="controlContainer('start', '{{ container.name }}', this)"
+                                                class="btn btn-outline-success"><i class="bi bi-play-fill"></i></button>
+                                            <button onclick="controlContainer('stop', '{{ container.name }}', this)"
+                                                class="btn btn-outline-danger"><i class="bi bi-stop-fill"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        border-radius: 12px;
+    }
+
+    /* Soft Badges for dynamic theme */
+    .badge-active {
+        background-color: rgba(25, 135, 84, 0.2);
+        color: #198754;
+    }
+
+    .badge-stopped {
+        background-color: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+
+    [data-bs-theme="dark"] .badge-active {
+        background-color: rgba(25, 135, 84, 0.3);
+        color: #2ecc71;
+    }
+
+    [data-bs-theme="dark"] .badge-stopped {
+        background-color: rgba(220, 53, 69, 0.3);
+        color: #e74c3c;
+    }
+
+    .table thead th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: var(--bs-secondary-color);
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+</style>
+
+<script>
+    // Logica de control ramane aceeasi, am curatat doar interactiunea cu butoanele
+    async function controlContainer(action, name, btnElement) {
+        if (!confirm(`Confirmi ${action} pe ${name}?`)) return;
+        const icon = btnElement.innerHTML;
+        btnElement.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        btnElement.disabled = true;
+        try {
+            const res = await fetch(`/admin/container/${action}/${name}`, { method: 'POST' });
+            if (res.ok) location.reload();
+            else alert('Eroare!');
+        } catch (e) { alert('Server inaccesibil'); }
+        finally { btnElement.innerHTML = icon; btnElement.disabled = false; }
+    }
+
+    // Refresh Live CPU
+    setInterval(async () => {
+        try {
+            const res = await fetch('/admin/api/stats');
+            const data = await res.json();
+            if (data.cpu) {
+                document.getElementById('cpu-val').innerText = data.cpu + '%';
+                document.getElementById('cpu-bar').style.width = data.cpu + '%';
+            }
+        } catch (e) { }
+    }, 5000);
+</script>

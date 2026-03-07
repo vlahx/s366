@@ -1,0 +1,135 @@
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-primary mb-0">
+            <i class="bi bi-brain me-2"></i>Baza de Cunoștințe (RAG)
+        </h4>
+        <button class="btn btn-primary btn-sm px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+            <i class="bi bi-file-earmark-arrow-up me-2"></i>Încarcă Document
+        </button>
+    </div>
+
+    <div class="card shadow-sm border-secondary-subtle bg-body-tertiary">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Document</th>
+                        <th>Tip</th>
+                        <th>Status Vectori</th>
+                        <th>Data Upload</th>
+                        <th class="text-end pe-4">Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documents %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-file-pdf fs-4 text-danger me-3"></i>
+                                <div>
+                                    <div class="fw-bold">{{ doc.filename }}</div>
+                                    <div class="small text-muted">{{ (doc.size / 1024)|round(1) }} KB</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge bg-secondary-subtle text-secondary border">{{ doc.ext }}</span></td>
+                        <td class="status-cell" data-doc-id="{{ doc.id }}">
+                            {% if doc.status == 'uploaded' %}
+                            <span class="badge bg-warning text-dark animated-pulse">
+                                <i class="bi bi-hourglass-split"></i> Se procesează...
+                            </span>
+                            {% else %}
+                            <span class="badge bg-success">Ready</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">{{ doc.created_at }}</td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-outline-danger btn-sm border-0" onclick="deleteDoc('{{ doc.id }}')">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            Nu există documente încărcate pentru acest sediu.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="uploadDocModal" tabindex="-1" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-body-emphasis shadow-lg">
+            <div class="modal-header border-bottom border-secondary-subtle">
+                <h5 class="modal-title fw-bold text-primary"><i class="bi bi-upload me-2"></i>Adaugă Fișier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/company_admin/dashboard/rag/upload" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <p class="small text-muted mb-4">Încarcă meniul, procedurile sau cataloagele firmei. AI-ul le va
+                        folosi ca sursă de adevăr.</p>
+                    <div class="mb-3">
+                        <input type="file" name="file" class="form-control bg-transparent border-secondary-subtle"
+                            accept=".pdf,.txt,.docx" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary-subtle">
+                    <button type="submit" class="btn btn-primary w-100">Trimite pe NVMe</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    function deleteDoc(docId) {
+        // O confirmare rapidă, să nu plângă după fișier mai târziu
+        if (confirm("Ești sigur că vrei să ștergi acest document? Acțiunea este ireversibilă.")) {
+
+            // Folosim fetch pentru a trimite cererea POST către ruta creată
+            fetch(`/company_admin/dashboard/rag/delete/${docId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => {
+                    if (response.redirected) {
+                        // Dacă serverul ne trimite înapoi la listă (RedirectResponse)
+                        window.location.href = response.url;
+                    } else {
+                        // Dacă s-a întâmplat ceva neprevăzut
+                        location.reload();
+                    }
+                })
+                .catch(err => {
+                    console.error("Eroare la ștergere:", err);
+                    alert("A apărut o eroare la ștergerea documentului.");
+                });
+        }
+    }
+    function checkProcessingDocs() {
+        // Căutăm toate celulele care au status de procesare
+        const processingDocs = document.querySelectorAll('.status-cell:has(.bg-warning)');
+
+        if (processingDocs.length > 0) {
+            console.log("🔄 [RAG] Verific statusul documentelor...");
+
+            // Dacă avem documente în lucru, dăm un refresh la pagină după 3 secunde
+            // Sau, și mai bine, am putea face un fetch la o rută de status, 
+            // dar pentru simplitate acum, facem un reload la pagină.
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        }
+    }
+
+    // Pornim verificarea când se încarcă pagina
+    document.addEventListener('DOMContentLoaded', checkProcessingDocs);
+</script>

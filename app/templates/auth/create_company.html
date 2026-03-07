@@ -1,0 +1,120 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<style>
+    .setup-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 24px;
+        background-color: var(--bs-tertiary-bg);
+        transition: all 0.3s ease;
+    }
+
+    .input-group-text {
+        background-color: var(--bs-secondary-bg);
+        border-color: var(--bs-border-color);
+        color: var(--bs-secondary-color);
+    }
+
+    .form-control {
+        padding: 0.8rem 1rem;
+        border-radius: 12px;
+    }
+
+    .slug-preview {
+        font-family: monospace;
+        font-size: 0.85rem;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-5">
+
+            <div class="text-center mb-5">
+                <i class="bi bi-rocket-takeoff text-primary display-3 mb-3"></i>
+                <h1 class="fw-bold text-body-emphasis">Configurează-ți Firma</h1>
+                <p class="text-body-secondary lead">Ești la un pas de a activa motorul s366_turbo pentru afacerea ta.
+                </p>
+            </div>
+
+            <div class="card setup-card shadow-lg p-4">
+                <div class="card-body">
+                    <form action="/auth/create_company" method="POST" id="setupForm">
+
+                        <div class="mb-4">
+                            <label
+                                class="form-label fw-bold text-body-secondary small text-uppercase tracking-wider">Numele
+                                Afacerii</label>
+                            <input type="text" name="name" id="companyName"
+                                class="form-control bg-body border-secondary-subtle text-body" required
+                                placeholder="ex: Turbo Soft SRL" autofocus>
+                        </div>
+
+                        <div class="mb-4">
+                            <label
+                                class="form-label fw-bold text-body-secondary small text-uppercase tracking-wider">CUI /
+                                Cod Identificare</label>
+                            <input type="text" name="cui" id="companyCUI"
+                                class="form-control bg-body border-secondary-subtle text-body" required
+                                placeholder="RO12345678">
+                        </div>
+
+                        <div class="mb-4">
+                            <label
+                                class="form-label fw-bold text-body-secondary small text-uppercase tracking-wider">Adresa
+                                ta Unică (Slug)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">s366.ro/</span>
+                                <input type="text" name="slug" id="companySlug"
+                                    class="form-control bg-body border-secondary-subtle text-body" required
+                                    placeholder="nume-firma">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-bold rounded-pill shadow">
+                            <i class="bi bi-check2-circle me-2"></i>Creează Sediul Digital
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {% if error %}
+            <div class="alert alert-danger mt-4 rounded-4 border-0 shadow-sm d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                <div>{{ error }}</div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // Magie vizuală: Generăm slug-ul automat pe măsură ce scrii numele
+    const nameInput = document.getElementById('companyName');
+    const slugInput = document.getElementById('companySlug');
+    const previewText = document.getElementById('previewText');
+
+    nameInput.addEventListener('input', function () {
+        if (slugInput.dataset.manual !== "true") {
+            const slug = this.value
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/[\s_-]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            slugInput.value = slug;
+            updatePreview(slug);
+        }
+    });
+
+    slugInput.addEventListener('input', function () {
+        this.dataset.manual = "true";
+        updatePreview(this.value);
+    });
+
+    function updatePreview(val) {
+        previewText.textContent = val ? val : "...";
+    }
+</script>
+{% endblock %}

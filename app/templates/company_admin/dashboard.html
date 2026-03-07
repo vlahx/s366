@@ -1,0 +1,76 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Dashboard - {{ company_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid border-bottom shadow-sm mb-4 bg-body-tertiary">
+    <div class="container pt-4 pb-2">
+        <div class="d-flex justify-content-between align-items-end">
+            <div>
+                <h2 class="fw-bold mb-0 text-primary">
+                    <i class="bi bi-building-gear me-2"></i>{{ company_name }}
+                </h2>
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-fingerprint me-1"></i>CUI: {{ company_cui }} |
+                    <i class="bi bi-person-badge me-1"></i>Admin: {{ firstname }}
+                </p>
+            </div>
+            <div class="text-end d-none d-md-block">
+                <span class="badge rounded-pill bg-success-soft text-success border border-success px-3">
+                    Sistem Activ pe NVMe
+                </span>
+            </div>
+        </div>
+    </div>
+    <hr>
+
+    <div class="container">
+        <nav class="nav nav-underline py-2 d-flex justify-content-between align-items-center">
+            <a class="nav-link px-3 {% if active_tab == 'stats' %}active border-primary border-bottom-3 fw-bold{% endif %}"
+                href="/company_admin/dashboard">
+                <i class="bi bi-speedometer2 me-1"></i> <span class="d-none d-md-inline">General</span>
+            </a>
+            <a class="nav-link px-3 {% if active_tab == 'users' %}active border-primary border-bottom-3 fw-bold{% endif %}"
+                href="/company_admin/users">
+                <i class="bi bi-people me-1"></i> <span class="d-none d-md-inline">Echipă</span>
+            </a>
+            <a class="nav-link px-3 {% if active_tab == 'prompts' %}active border-primary border-bottom-3 fw-bold{% endif %}"
+                href="/company_admin/dashboard/prompts">
+                <i class="bi bi-terminal me-1"></i> <span class="d-none d-md-inline">Prompts AI</span>
+            </a>
+            <a class="nav-link px-3 {% if active_tab == 'docs' %}active border-primary border-bottom-3 fw-bold{% endif %}"
+                href="/company_admin/dashboard/docs">
+                <i class="bi bi-file-earmark-medical me-1"></i> <span class="d-none d-md-inline">RAG Docs</span>
+            </a>
+            <a class="nav-link px-3 {% if active_tab == 'settings' %}active border-primary border-bottom-3 fw-bold{% endif %}"
+                href="/company_admin/dashboard/settings">
+                <i class="bi bi-gear-fill me-1"></i> <span class="d-none d-md-inline">Configurare</span>
+            </a>
+        </nav>
+        <div class="container pb-5">
+            {% if active_tab == 'prompts' %}
+            {% include "company_admin/tabs/prompts.html" %}
+            {% elif active_tab == 'docs' %}
+            {% include "company_admin/tabs/rags.html" %}
+            {% elif active_tab == 'settings' %}
+            {% include "company_admin/tabs/settings.html" %}
+            {% elif active_tab == 'stats' %}
+            <div class="alert alert-info border-info-subtle">
+                <i class="bi bi-info-circle me-2"></i>Statistici în curs de generare .
+            </div>
+            {% elif active_tab == 'users' %}
+            <div class="alert alert-secondary">Management Echipă - În curând.</div>
+            {% else %}
+            <div class="py-5 text-center">
+                <h3 class="text-muted">Bine ai venit în Dashboard-ul {{ company_name }}</h3>
+                <p>Selectează o opțiune din meniul de mai sus pentru a începe.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="container pb-5">
+    {% block tab_content %}{% endblock %}
+</div>
+{% endblock %}

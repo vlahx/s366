@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ro" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S366 Turbo AI - Asistentul perfect al firmei tale </title>
+    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon" />
+    <meta name="description" content="O aplicație de chat inteligentă, alimentată de AI, pentru a-ți simplifica viața.">
+
+    <!-- Facebook Meta Tags -->
+    <meta property="og:url" content="https://s366.online/chat">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="AI - S366 TURBO - Asistentul perfect al companiei tale.">
+    <meta property="og:description"
+        content="O aplicație de chat inteligentă, alimentată de AI, pentru a-ți simplifica munca. Dedicat companiilor romanesti..">
+    <meta property="og:image" content="/static/images/og/chat-ai-s366.png">
+
+    <!-- Twitter Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://s366.online/chat">
+    <meta name="twitter:title" content="AI - S366 Turbo - Asistentul perfect al companiei tale.">
+    <meta name="twitter:description"
+        content="O aplicație de chat inteligentă, alimentată de AI, pentru a-ți simplifica munca. Dedicat companiilor romanesti.">
+    <meta name="twitter:image" content="/static/images/og/chat-ai-s366.png">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+
+           
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .navbar-brand {
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        /* Blocăm scroll-ul pe body când suntem pe chat pentru a avea layout fix */
+            {% if request.url.path.startswith ('/chat') %}
+
+        html,
+        body {
+            height: 100vh;
+            overflow: hidden;
+            /* De obicei pe chat vrei hidden pe body ca să ai scroll doar în fereastra de mesaje */
+        }
+
+            {% else %}
+
+        html,
+        body {
+            d-flex flex-column min-vh-100
+            overflow-y: auto;
+            /* Permite scroll-ul natural pe restul paginilor */
+        }
+
+            {% endif %}
+
+        .flash-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+    {% set current_path = request.url.path|string %}
+    {% if current_path.startswith('/chat') %}
+    {% include 'layout/main-navbar.html' %}
+    {% else %}
+    {% include 'layout/main-navbar.html' %}
+    {% endif %}
+    <div class="flash-container">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-info alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <main class="flex-grow-1 position-relative overflow-hidden">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if not request.url.path.startswith('/chat') %}
+    {% include 'layout/main-footer.html' %}
+    {% else %}
+    {% include 'layout/chat-footer.html' %}
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Logica ta de temă (păstrată 100% originală)
+        const getStoredTheme = () => localStorage.getItem('theme');
+        const setStoredTheme = theme => localStorage.setItem('theme', theme);
+        const getPreferredTheme = () => {
+            const storedTheme = getStoredTheme();
+            if (storedTheme) return storedTheme;
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        const setTheme = theme => { document.documentElement.setAttribute('data-bs-theme', theme); }
+        setTheme(getPreferredTheme());
+
+        document.getElementById('themeToggler')?.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+            setStoredTheme(newTheme);
+            if (typeof window.updateMapTheme === 'function') { window.updateMapTheme(newTheme); }
+        });
+
+        // Auto-inchidere alerte
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

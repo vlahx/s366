@@ -1,0 +1,52 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center py-5">
+        <div class="col-md-5 col-lg-4">
+            <div class="card shadow-lg border-0 rounded-4 p-4 bg-body-tertiary">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-person-plus-fill text-primary display-4"></i>
+                        <h2 class="fw-bold mt-3">Create Account</h2>
+                        <p class="text-muted small">Join S366 Trucks Community</p>
+                    </div>
+
+                    <form action="{{ url_for('auth.register') }}" method="POST">
+                        <div class="form-floating mb-3">
+                            <input type="email" class="form-control bg-body" id="email" name="email"
+                                placeholder="name@example.com" required>
+                            <label for="email">Email address</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control bg-body" id="password" name="password"
+                                placeholder="Password" required>
+                            <label for="password">Password</label>
+                        </div>
+
+                        <div class="form-floating mb-4">
+                            <input type="password" class="form-control bg-body" id="retype_password"
+                                name="retype_password" placeholder="Retype Password" required>
+                            <label for="retype_password">Retype Password</label>
+                        </div>
+
+                        <div class="d-grid">
+                            <button class="btn btn-primary btn-lg rounded-pill fw-bold" type="submit">
+                                Register
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <p class="small text-muted mb-1">Already have an account?</p>
+                <a href="{{ url_for('auth.login') }}" class="text-primary text-decoration-none fw-bold">
+                    Back to Login
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

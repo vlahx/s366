@@ -1,0 +1,83 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center py-5">
+        <div class="col-md-5 col-lg-4">
+            <div class="card shadow-lg border-0 rounded-4 p-4 bg-body-tertiary">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-shield-lock-fill text-primary display-4"></i>
+                        <h2 class="fw-bold mt-3">Access Portal</h2>
+                        <p class="text-muted small">Momentan, este valabila doar metoda Telegram</p>
+                        <p class="text-muted small">Pentru a o folosi trebuie sa ai un cont Telegram activ.</p>
+                    </div>
+
+                    <div class="d-grid gap-3 mb-4 text-center">
+                        <button
+                            class="btn btn-outline-secondary rounded-pill d-flex align-items-center justify-content-center gap-2 py-2">
+                            <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" width="18"
+                                alt="Google">
+                            Continue with Google
+                        </button>
+
+                        <div class="d-flex justify-content-center">
+                            <script async src="https://telegram.org/js/telegram-widget.js?22"
+                                data-telegram-login="s366_bot" data-size="large" data-radius="50"
+                                data-auth-url="/auth/telegram" data-request-access="write"></script>
+                        </div>
+                    </div>
+
+                    <div class="divider d-flex align-items-center my-4 opacity-50">
+                        <hr class="flex-grow-1">
+                        <span class="px-3 text-muted small text-uppercase">or</span>
+                        <hr class="flex-grow-1">
+                    </div>
+
+                    <div class="d-grid mb-2">
+                        <button class="btn btn rounded-pill border-0 text-muted small py-2" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#emailLoginForm" aria-expanded="false">
+                            <i class="bi bi-envelope-at me-2"></i>Login cu Email si Parola (temporar dezactivat)
+                        </button>
+                    </div>
+
+                    <div class="collapse" id="emailLoginForm">
+                        <form action="{{ url_for('login_page') }}" method="POST" class="pt-3">
+                            <div class="form-floating mb-3">
+                                <input type="email" class="form-control bg-body" id="email" name="email"
+                                    placeholder="name@example.com" required>
+                                <label for="email">Adresa email</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="password" class="form-control bg-body" id="password" name="password"
+                                    placeholder="Password" required>
+                                <label for="password">Parola</label>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" value="" id="rememberMe">
+                                <label class="form-check-label small" for="rememberMe">
+                                    Aminteste-ti
+                                </label>
+                            </div>
+
+                            <div class="d-grid">
+                                <button class="btn btn-primary btn-lg rounded-pill fw-bold" type="submit">Login
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!--
+            <div class="text-center mt-4">
+                <p class="small text-muted mb-1">Don't have an account yet?</p>
+                <a href="" class="text-primary text-decoration-none fw-bold">
+                    Click here for Register
+                </a>
+            </div>
+        -->
+        </div>
+    </div>
+</div>
+{% endblock %}

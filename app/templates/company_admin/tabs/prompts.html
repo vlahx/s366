@@ -1,0 +1,212 @@
+<div class="card shadow-sm border-0 bg-body-emphasis mb-4">
+    <div
+        class="card-header bg-transparent border-bottom border-secondary-subtle py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="fw-bold mb-0 text-body">
+                <i class="bi bi-terminal-fill me-2 text-primary"></i>Instrucțiuni AI (Prompts)
+            </h5>
+            <p class="text-muted small mb-0">Configurarea comportamentului LLM pe infrastructura NVMe.</p>
+        </div>
+        <button class="btn btn-primary btn-sm px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addPromptModal">
+            <i class="bi bi-plus-lg me-1"></i> Adaugă Prompt
+        </button>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-body">
+                <thead class="table-active text-uppercase small fw-bold border-bottom">
+                    <tr>
+                        <th class="ps-4 py-3">Denumire & Conținut</th>
+                        <th>Departament</th>
+                        <th>Status</th>
+                        <th>Creat la</th>
+                        <th class="text-end pe-4">Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in prompts %}
+                    <tr class="border-bottom border-secondary-subtle">
+                        <td class="ps-4 py-3">
+                            <div class="fw-bold">{{ p.name }}</div>
+                            <div class="text-secondary small text-truncate" style="max-width: 300px;">
+                                {{ p.content }}
+                            </div>
+                        </td>
+                        <td>
+                            <span
+                                class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3">
+                                {{ p.type }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if p.status == 'active' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2">
+                                <i class="bi bi-check-circle me-1"></i>Activ
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2">
+                                <i class="bi bi-clock me-1"></i>Pending
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-secondary small">
+                            {{ p.created_at[:10] }}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group btn-group-sm shadow-sm">
+                                <button
+                                    onclick="prepareEdit('{{ p.id }}', '{{ p.name }}', '{{ p.type }}', `{{ p.content }}`)"
+                                    class="btn btn-outline-secondary border-secondary-subtle" title="Editează">
+                                    <i class="bi bi-pencil-square text-primary"></i>
+                                </button>
+                                <button onclick="confirmDelete('{{ p.id }}', '{{ p.name }}')"
+                                    class="btn btn-outline-secondary border-secondary-subtle text-danger"
+                                    title="Șterge">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="bi bi-robot display-4 d-block mb-3 text-secondary opacity-50"></i>
+                            <p class="text-secondary mb-0">Baza de date de pe NVMe nu conține prompte pentru acest CUI.
+                            </p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade shadow" id="addPromptModal" tabindex="-1" aria-labelledby="addPromptLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-body-emphasis border-secondary-subtle">
+            <div class="modal-header border-bottom border-secondary-subtle">
+                <h5 class="modal-title fw-bold text-primary" id="addPromptLabel">
+                    <i class="bi bi-plus-circle-fill me-2"></i>Configurează Prompt Nou
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form action="/company_admin/dashboard/prompts/add" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Nume Identificare</label>
+                        <input type="text" name="name"
+                            class="form-control bg-transparent border-secondary-subtle text-body shadow-sm"
+                            placeholder="Ex: Suport Tehnic - Standard" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tip (CHECK Constraint)</label>
+                        <select name="p_type" id="edit_p_type" class="form-select border-secondary-subtle text-body">
+                            <option value="General">General</option>
+                            <option value="Intern">Intern</option>
+                            <option value="Extern">Extern</option>
+                            <option value="HR">HR</option>
+                            <option value="SALES">SALES</option>
+                            <option value="TECH">TECH</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Instrucțiuni Sisteme (NVMe
+                            Storage)</label>
+                        <textarea name="content"
+                            class="form-control bg-transparent border-secondary-subtle text-body shadow-sm" rows="6"
+                            placeholder="Definește aici cum trebuie să se comporte LLM-ul..." required></textarea>
+                        <div class="form-text small opacity-75">Sfat: Fii cât mai specific în instrucțiuni.</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top border-secondary-subtle">
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3"
+                        data-bs-dismiss="modal">Anulează</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-4 shadow">
+                        <i class="bi bi-save me-1"></i> Salvează pe NVMe
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="editPromptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-body-emphasis border-secondary-subtle shadow-lg">
+            <div class="modal-header border-bottom border-secondary-subtle">
+                <h5 class="modal-title fw-bold text-primary">
+                    <i class="bi bi-pencil-square me-2"></i>Editează Prompt
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="/company_admin/dashboard/prompts/edit" method="POST">
+                <input type="hidden" name="prompt_id" id="edit_prompt_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nume</label>
+                        <input type="text" name="name" id="edit_name"
+                            class="form-control bg-transparent border-secondary-subtle text-body" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tip (CHECK Constraint)</label>
+                        <select name="p_type" id="edit_p_type" class="form-select border-secondary-subtle text-body">
+                            <option value="General">General</option>
+                            <option value="Intern">Intern</option>
+                            <option value="Extern">Extern</option>
+                            <option value="HR">HR</option>
+                            <option value="SALES">SALES</option>
+                            <option value="TECH">TECH</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Instrucțiuni</label>
+                        <textarea name="content" id="edit_content"
+                            class="form-control bg-transparent border-secondary-subtle text-body" rows="6"
+                            required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary-subtle">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                        data-bs-dismiss="modal">Anulează</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-4">Actualizează pe NVMe</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    // Funcția de ștergere cu confirmare vizuală
+    function confirmDelete(id, name) {
+        if (confirm(`Ești sigur că vrei să ștergi promptul "${name}"?\nAceastă acțiune este ireversibilă pe NVMe.`)) {
+            window.location.href = `/company_admin/dashboard/prompts/delete/${id}`;
+        }
+    }
+
+    function prepareEdit(id, name, type, content) {
+        // 1. Populăm câmpurile (asigură-te că ID-urile corespund cu ce e în Modal-ul de Edit)
+        document.getElementById('edit_prompt_id').value = id;
+        document.getElementById('edit_name').value = name;
+        document.getElementById('edit_p_type').value = type;
+        document.getElementById('edit_content').value = content;
+
+        // 2. Luăm elementul modalului
+        const modalElement = document.getElementById('editPromptModal');
+
+        // 3. Folosim getOrCreateInstance pentru a evita eroarea de 'backdrop'
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+
+        // 4. Afișăm modalul
+        modalInstance.show();
+    }
+
+</script>

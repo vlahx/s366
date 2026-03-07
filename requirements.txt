@@ -1,0 +1,44 @@
+# --- CORE ASYNC ENGINE ---
+fastapi
+uvicorn[standard]
+httpx
+python-multipart
+pydantic-settings
+python-dotenv
+
+# --- BAZĂ DE DATE (Asincron) ---
+aiosqlite
+mysql-connector-python
+
+# --- AI & DATA SCIENCE ---
+ollama
+sentence-transformers
+scikit-learn
+pandas
+numpy
+tqdm
+
+# --- PROCESARE DOCUMENTE & WEB ---
+PyPDF2
+pdfplumber
+beautifulsoup4
+lxml
+markdown
+bleach
+python-slugify
+
+# --- AUDIO & UTILS ---
+pydub
+pytz
+python-dateutil
+itsdangerous
+python-multipart 
+ddgs
+passlib[bcrypt]
+psutil
+docker
+nvidia-ml-py
+pymupdf==1.23.8       # Pentru PDF-uri (fitz)
+python-docx==1.1.0    # Pentru .docx
+pytesseract==0.3.10   # Pentru OCR (imagini)
+Pillow==10.2.0        # Pentru procesare imagini
