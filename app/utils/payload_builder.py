@@ -69,14 +69,10 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
 ##########################configu ma-sii
     cui = company_cui
     settings=await get_company_settings(cui)
-    db_system_company_prompt = settings.get("system_prompt", "")
     rag_temperature = settings.get("rag_temperature", "")
-    rag_top_k = settings.get("rag_top_k", "")
-    rag_threshold = settings.get("rag_threshold", "")
-    if settings:
-        print(f"✅ [SETTINGS_READY] Dict final pasat catre Payload: {settings}")
-    else:
-        print(f"❌[nu e nici un fel de setting pe aici")
+    rag_top_k = settings.get("rag_top_k", "") #folosit in rag deja
+    rag_threshold = settings.get("rag_threshold", "") # folosit in rag deja
+    
 
 ############################
     # --- Prompturi generale și specifice companiei ---
@@ -125,15 +121,18 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
 
     # --- RAG relevant ---
     try:
-        # 1. Adăugăm await pentru că funcția e async
-        # 2. Folosim 'cui' (numele din definiția funcției) în loc de 'company_cui'
-        rag_text = await get_rag_data(query_text=user_message, cui=company_cui)
+        rag_text = await get_rag_data(
+        query_text=user_message, 
+        cui=company_cui, 
+        top_k=int(settings.get("rag_top_k", 5)), 
+        threshold=float(settings.get("rag_threshold", 0.6))
+    )
         
         # Debug opțional să vezi ce context trimiți la Ollama
         if rag_text:
-            print(f"✅ Context extras pentru LLM: {len(rag_text)} caractere.")
+            print(f"✅ [RAG] Context extras: {len(rag_text)} caractere (K={int(settings.get('rag_top_k', 5))}, Threshold={float(settings.get('rag_threshold', 0.6))}).")
         else:
-            print("ℹ️ RAG-ul nu a găsit context relevant sub pragul setat.")
+            print(f"ℹ️ [RAG] Niciun context peste threshold-ul {float(settings.get('rag_threshold', 0.6))}.")
 
     except Exception as e:
         print(f"❌ EROARE la extragerea RAG: {e}", file=sys.stderr)
@@ -160,12 +159,6 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
         "context": {
             "system_prompt": system_prompt_combined,
             "rag_data": rag_text
-        },
-        "llm_option": {
-            "temperature": rag_temperature,
-            "top_k": rag_top_k,
-            "threshold": rag_threshold
-
         },
         "user_input": user_message
     }

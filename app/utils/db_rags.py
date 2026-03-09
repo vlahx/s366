@@ -187,7 +187,7 @@ async def insert_chunk(cui, document_id, chunk_index, chunk_text, embedding_vect
 # 6. RAG: Căutare Similitudine
 # ---------------------------------------------------------
 
-async def get_rag_data(query_text, cui:str, top_k=5, threshold=0.6):
+async def get_rag_data(query_text, cui: str, top_k: int, threshold: float):
     """
     Căutare RAG cu prag de similitudine și logare în consolă.
     """

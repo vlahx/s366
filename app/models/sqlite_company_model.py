@@ -197,10 +197,6 @@ async def get_company_settings(cui):
         # Interogăm direct tabela de configurări
         async with db.execute("SELECT key, value FROM company_settings") as cursor:
             rows = await cursor.fetchall()
-            
-            # DEBUG: Să vedem câte rânduri a găsit în total
-            print(f"📂 [DB_FETCH] Am găsit {len(rows)} rânduri în tabela company_settings pentru {cui}")
-            
             for row in rows:
                 # Folosim index (0, 1) dacă row nu e Row object, 
                 # sau row['key'] dacă e configurat RowFactory
@@ -210,7 +206,7 @@ async def get_company_settings(cui):
                 except:
                     key, val = row[0], row[1]
 
-                print(f"  └─ Row found: {key} = {val}") # Debug pe fiecare rând
+               # print(f"  └─ Row found: {key} = {val}") # Debug pe fiecare rând
                 
                 if key in ["rag_temperature", "rag_threshold"]:
                     settings[key] = float(val)

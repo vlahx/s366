@@ -9,7 +9,7 @@ from typing import List, Optional
 from fastapi import HTTPException
 import uuid
 import base64
-
+from app.models.sqlite_company_model import get_company_settings
 from app.utils.tools import available_tools, execute_tool, TOOLS_DESCRIPTION
 from app.utils.ollama_async import OllamaAsyncAPI
 from app.utils.payload_builder import build_llm_payload
@@ -42,13 +42,22 @@ class LLMServiceAsync:
         system_prompt = payload.get('context', {}).get('system_prompt', '')
         rag_data = payload.get('context', {}).get('rag_data', '')
 
+        # Sursa de adevăr pentru setările companiei
+        settings = await get_company_settings(company_id) or {} 
+
+        # Construim opțiunile pentru LLM
+        llm_options = {
+            "temperature": float(settings.get("rag_temperature", 0.7)),
+            "num_ctx": int(settings.get("rag_num_ctx", 32768))
+        }
+
         full_messages = []
         if system_prompt:
             full_messages.append({"role": "system", "content": system_prompt})
         
         full_messages.extend(history)
 
-        # Injectăm RAG-ul (SQLite-ul ăla nou de l-am făcut)
+        # Injectăm RAG-ul
         if rag_data:
             for i in range(len(full_messages) - 1, -1, -1):
                 if full_messages[i]['role'] == 'user':
@@ -61,54 +70,49 @@ class LLMServiceAsync:
         try:
             # --- 1. APEL STREAM ---
             async for chunk in self.llm_api_async.chat_stream(
-                self.model_name, full_messages, self.tools_description
+                model_name=self.model_name,
+                messages=full_messages,
+                tools=self.tools_description,
+                options=llm_options
             ):
                 message = chunk.get('message', {})
-                
-                # Verificăm dacă primim conținut text
                 if 'content' in message:
                     content = message['content']
                     full_ai_response += content
                     yield json.dumps({"content": content}) + "\n"
-
-                # Verificăm dacă primim Tool Calls (Ollama le poate trimite în chunk)
                 if 'tool_calls' in message:
                     tool_calls.extend(message['tool_calls'])
 
-            # --- 2. EXECUȚIE TOOLS (Dacă LLM-ul a cerut ceva) ---
+            # --- 2. EXECUȚIE TOOLS ---
             if tool_calls:
-                # 1. Adăugăm mesajul asistentului cu intenția de tool în istoric
                 full_messages.append({"role": "assistant", "tool_calls": tool_calls})
-
                 for tool_call in tool_calls:
-                    # 2. Executăm unealta (funcția ta de încredere)
                     result = await execute_tool(tool_call)
-                    
-                    # 3. Adăugăm rezultatul în istoric pentru runda a doua
                     full_messages.append({
                         "role": "tool",
                         "content": json.dumps(result),
                         "name": tool_call['function']['name']
                     })
 
-                # --- 3. AL DOILEA APEL (Finalizarea după Tool) ---
-                # Folosim generic llm_api_async și iterăm prin stream (fără await pe generator)
-                async for final_chunk in self.llm_api_async.chat_stream(self.model_name, full_messages, self.tools_description):
-                    # Verificăm dacă bucata de stream conține text
+                # --- 3. AL DOILEA APEL ---
+                async for final_chunk in self.llm_api_async.chat_stream(
+                    model_name=self.model_name,
+                    messages=full_messages,
+                    tools=self.tools_description,
+                    options=llm_options
+                ):
                     message = final_chunk.get('message', {})
                     if 'content' in message:
                         content = message['content']
                         full_ai_response += content
-                        # Trimitem imediat către client
                         yield json.dumps({"content": content}) + "\n"
 
         finally:
-            # --- 4. Salvare Finală în SQLite (Păstrat intact) ---
+            # --- 4. Salvare Finală ---
             db_path = get_db_path(user_id=user_id, company_id=company_id)
             if db_path and conv_uuid:
                 try:
                     handler = SQLiteHandler(db_path)
-                   # handler.force_init_db()
                     await handler.save_chat_turn(conv_uuid, user_message, full_ai_response)
                 except Exception as e:
                     print(f"EROARE la salvare: {e}", file=sys.stderr)
