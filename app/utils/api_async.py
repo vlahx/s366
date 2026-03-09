@@ -108,7 +108,7 @@ class LLMServiceAsync:
             if db_path and conv_uuid:
                 try:
                     handler = SQLiteHandler(db_path)
-                    handler.force_init_db()
+                   # handler.force_init_db()
                     await handler.save_chat_turn(conv_uuid, user_message, full_ai_response)
                 except Exception as e:
                     print(f"EROARE la salvare: {e}", file=sys.stderr)

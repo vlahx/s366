@@ -2,7 +2,7 @@ import os
 import uuid
 
 def get_db_path(user_id=None, company_id=None):
-    base_dir = '.data/users_data'
+    base_dir = 'data/users_data'
     db_name = 'chat.sqlite'
     user_dir = None
 

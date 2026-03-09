@@ -1,4 +1,4 @@
-import { fetchSessions, deleteSessionRequest, getConversationMessages } from './sidebar_logic.js';
+import { fetchSessions, renameSessionRequest, deleteSessionRequest, getConversationMessages } from './sidebar_logic.js';
 import { createBubble, scrollBottom } from './chat_ui.js';
 
 export async function renderSessions(activeId, onSwitch) {
@@ -36,14 +36,18 @@ export async function renderSessions(activeId, onSwitch) {
         // Meniul ascuns (clasa ta: custom-dropdown-content)
         const menuContent = document.createElement('div');
         menuContent.className = 'custom-dropdown-content shadow';
+        // În interiorul renderSessions, la meniul HTML:
         menuContent.innerHTML = `
-            <div class="menu-item" data-action="rename">
-                <i class="bi bi-pencil-square"></i> Redenumește
-            </div>
-            <div class="menu-item text-danger" data-action="delete">
-                <i class="bi bi-trash"></i> Șterge
-            </div>
-        `;
+    <div class="menu-item p-2 rounded d-flex align-items-center" data-action="rename">
+        <i class="bi bi-pencil-square me-2"></i> Redenumește
+    </div>
+    <div class="menu-item p-2 rounded d-flex align-items-center" data-action="pin">
+        <i class="bi bi-pin-angle me-2"></i> ${conv.pinned ? 'Unpin' : 'Pin'}
+    </div>
+    <div class="menu-item p-2 rounded d-flex align-items-center text-danger" data-action="delete">
+        <i class="bi bi-trash me-2"></i> Șterge
+    </div>
+`;
 
         // Logica de deschidere meniu
         dotsBtn.onclick = (e) => {
@@ -95,7 +99,18 @@ export async function renderSessions(activeId, onSwitch) {
                 }
             }
             else if (action === 'rename') {
-                alert("Funcția de redenumire va fi implementată în pasul următor.");
+                const newTitle = prompt("Introdu noul nume pentru conversație:", conv.title);
+
+                // Verificăm să nu fie gol și să fie diferit de cel vechi
+                if (newTitle && newTitle.trim() !== "" && newTitle !== conv.title) {
+                    const success = await renameSessionRequest(uuid, newTitle.trim());
+                    if (success) {
+                        // Reîncărcăm lista ca să apară titlul nou în sidebar
+                        await renderSessions(activeId, onSwitch);
+                    } else {
+                        alert("Eroare la redenumire. Încearcă din nou.");
+                    }
+                }
             }
         };
 

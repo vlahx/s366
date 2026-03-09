@@ -1,9 +1,5 @@
 // static/js/sidebar_logic.js
 
-/**
- * Recuperează lista de sesiuni din MariaDB pentru utilizatorul curent
- */
-
 export async function fetchSessions() {
     try {
         const res = await fetch('/chat/api/sessions');
@@ -15,9 +11,22 @@ export async function fetchSessions() {
     }
 }
 
-/**
- * Șterge o sesiune întreagă (SQLite + referință MariaDB)
- */
+
+export async function renameSessionRequest(uuid, newTitle) {
+    try {
+        const response = await fetch(`/chat/api/sessions/${uuid}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: newTitle })
+        });
+        return response.ok;
+    } catch (err) {
+        console.error("[Sidebar] Eroare renameSession:", err);
+        return false;
+    }
+}
+
+
 export async function deleteSessionRequest(uuid) {
     try {
         const response = await fetch(`/chat/api/sessions/${uuid}`, { method: 'DELETE' });
@@ -28,9 +37,7 @@ export async function deleteSessionRequest(uuid) {
     }
 }
 
-/**
- * Aduce mesajele dintr-o conversație specifică
- */
+
 export async function getConversationMessages(uuid) {
     try {
         const response = await fetch(`/chat/api/messages/${uuid}`);

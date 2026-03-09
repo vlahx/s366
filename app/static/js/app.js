@@ -77,7 +77,7 @@ window.addEventListener('DOMContentLoaded', () => {
         activeConvId = crypto.randomUUID();
         localStorage.setItem(STORAGE_KEY, activeConvId);
         if (chatBox) chatBox.innerHTML = '';
-        createBubble('assistant', 'Salut, frate! Sesiune nouă pe s366_turbo.');
+        createBubble('assistant', 'Salutare! Ai deschis o sesiune noua de discutii cu mine. Nu uita ca dupa conversatie sa o redenumesti in sidebar pentru o mai buna organizare.');
         renderSessions(activeConvId, handleSwitch);
     };
 

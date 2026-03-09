@@ -61,19 +61,15 @@ async def handle_chat(request: Request):
 @router.get("/api/sessions")
 async def get_sessions(request: Request):
     try:
-        # EXTRAGEM DIN SESIUNEA REALĂ, nu hardcodat
         user_id = request.session.get('user_id')
         company_id = request.session.get('company_id')
-        
-        # Obținem calea bazată pe realitate
         db_path = get_db_path(user_id, company_id)
         
         if not db_path:
             return []
 
         handler = SQLiteHandler(db_path)
-        # Folosim metoda asincronă dacă am rezolvat thread-urile, 
-        # sau cea sincronă dacă mai fac figuri
+        # Acum returnează datele din chat_sessions, ceea ce este mult mai rapid
         sessions = await handler.get_all_discussions_summary()
         return sessions
     except Exception as e:
@@ -83,17 +79,17 @@ async def get_sessions(request: Request):
 @router.get("/api/messages/{uuid}")
 async def get_messages(uuid: str, request: Request):
     try:
-        # ACEEAȘI LOGICĂ: Citim din request.session
         user_id = request.session.get('user_id')
         company_id = request.session.get('company_id')
-        
         db_path = get_db_path(user_id, company_id)
         
         if not db_path:
             return []
             
         handler = SQLiteHandler(db_path)
-        return await handler.get_conversation(uuid)
+        # Acum returnează și titlul/pinned din chat_sessions via JOIN
+        messages = await handler.get_conversation(uuid)
+        return messages
     except Exception as e:
         print(f"[CRITICAL] Eroare API Messages: {str(e)}")
         return []
@@ -106,13 +102,37 @@ async def delete_chat_session(uuid: str, request: Request):
         db_path = get_db_path(user_id, company_id) 
         handler = SQLiteHandler(db_path)
         
+        # Foreign Key cu CASCADE din handler se ocupă acum de ștergerea mesajelor
         rows_deleted = await handler.delete_conversation(uuid)
         
         if rows_deleted > 0:
-            return {"status": "success", "message": f"Sesiunea {uuid} a fost ștearsă."}
+            return {"status": "success", "message": f"Sesiunea {uuid} ștearsă (cu tot cu mesaje)."}
         else:
             return {"status": "error", "message": "Sesiunea nu a fost găsită."}
             
     except Exception as e:
         return {"status": "error", "message": str(e)}
+    
+@router.patch("/api/sessions/{uuid}")
+async def update_session(uuid: str, request: Request):
+    try:
+        user_id = request.session.get('user_id')
+        company_id = request.session.get('company_id')
+        db_path = get_db_path(user_id, company_id)
+        
+        if not db_path:
+            return {"error": "Invalid DB path"}
+
+        # Citim datele trimise din frontend (body-ul cererii JSON)
+        data = await request.json()
+        new_title = data.get("title")
+        pinned = data.get("pinned")
+
+        handler = SQLiteHandler(db_path)
+        await handler.update_chat_meta(uuid, title=new_title, pinned=pinned)
+        
+        return {"status": "success"}
+    except Exception as e:
+        print(f"[CRITICAL] Eroare API Update Session: {str(e)}")
+        return {"error": str(e)}, 500    
     
