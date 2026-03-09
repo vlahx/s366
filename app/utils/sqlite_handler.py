@@ -10,14 +10,13 @@ class SQLiteHandler:
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
 
     async def _connect(self):
-        """Deschide conexiunea și se asigură că tabelele există."""
         if self.db is None:
             self.db = await aiosqlite.connect(self.db_path)
             self.db.row_factory = aiosqlite.Row
             await self.db.execute("PRAGMA journal_mode=WAL;")
             await self.db.execute("PRAGMA foreign_keys = ON;")
             
-            # Creare tabele (o singură dată la inițializarea conexiunii)
+            # Creare tabele
             await self.db.execute("""
                 CREATE TABLE IF NOT EXISTS chat_sessions (
                     conversation_uuid TEXT PRIMARY KEY,
@@ -36,6 +35,20 @@ class SQLiteHandler:
                     FOREIGN KEY (conversation_uuid) REFERENCES chat_sessions (conversation_uuid) ON DELETE CASCADE
                 );
             """)
+
+            # Instalare TRIGGER pentru titlu automat
+            # Se execută doar dacă titlul este cel default ('Discuție nouă')
+            await self.db.execute("""
+                CREATE TRIGGER IF NOT EXISTS auto_set_chat_title
+                AFTER INSERT ON conversations
+                BEGIN
+                    UPDATE chat_sessions 
+                    SET title = substr(NEW.message, 1, 30) || '...'
+                    WHERE conversation_uuid = NEW.conversation_uuid 
+                    AND title = 'Discuție nouă';
+                END;
+            """)
+            
             await self.db.commit()
 
     async def insert_message(self, timestamp, sender, message, conversation_uuid, title=None, pinned=0):
