@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Form
 from fastapi.responses import StreamingResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+from starlette.responses import RedirectResponse
 
 import os
 import uuid
@@ -9,7 +10,7 @@ from fastapi import Request
 from fastapi.responses import RedirectResponse
 from passlib.context import CryptContext
 import sqlite3
-
+import httpx
 import json
 import logging
 import hashlib
@@ -41,33 +42,68 @@ async def login_page(request: Request):
         {"request": request}
     )
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-@router.post("/login", name="login")
-async def login(request: Request):
-    form_data = await request.form()
-    email = form_data.get('email')
-    password = form_data.get('password')
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
+
+@router.get("/google")
+async def login_google():
+    # Redirect către Google pentru consimțământ
+    google_auth_url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?"
+        f"response_type=code&client_id={GOOGLE_CLIENT_ID}&"
+        f"redirect_uri={GOOGLE_REDIRECT_URI}&scope=openid%20profile%20email"
+    )
+    return RedirectResponse(url=google_auth_url)
+
+@router.get("/google/callback")
+async def google_callback(request: Request, code: str):
+    # 1. Schimbăm codul pe token
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": GOOGLE_REDIRECT_URI,
+            },
+        )
+        token_data = token_response.json()
+        
+        # 2. Obținem datele utilizatorului
+        user_info = await client.get(
+            "https://www.googleapis.com/oauth2/v1/userinfo",
+            headers={"Authorization": f"Bearer {token_data['access_token']}"}
+        )
+        user_data = user_info.json()
+
+    # 3. Logica de bază de date (identică cu Telegram)
+    oauth_id = user_data.get('id')
+    firstname = user_data.get('given_name', '')
+    lastname = user_data.get('family_name', '')
+    username = user_data.get('email', '') 
+    photo_url = user_data.get('picture', '')
+
+    user = await fetch_one('SELECT * FROM users WHERE oauth_id = ?', (oauth_id,))
     
-    # Verificăm credențialele în baza de date
-    conn = sqlite3.connect('app/database.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, password_hash FROM users WHERE email = ?', (email,))
-    user = cursor.fetchone()
-    conn.close()
+    if not user:
+        await execute_query('''
+            INSERT INTO users (oauth_id, firstname, lastname, username, photo_url, role) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (oauth_id, firstname, lastname, username, photo_url, 'none'))
+        user = await fetch_one('SELECT * FROM users WHERE oauth_id = ?', (oauth_id,))
     
-    if user and hash_password(user[1], password):
-        # Autentificare reușită
-        request.session['user_id'] = user[0]
-        return templates.TemplateResponse("main/home.html", {"request": request})
-    
-    # Autentificare eșuată
-    return templates.TemplateResponse("auth/login.html", {"request": request, "error": "Email sau parolă incorectă!"})
+    user_id = user['id']
+
+    # 4. Sincronizare sesiune (Marea Sincronizare)
+    await sync_user_session(request, user_id)
+
+    return RedirectResponse(url="/auth/profile")
 
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-
-
-
 @router.get("/telegram", name="telegram_auth")
 async def telegram_auth(request: Request):
     # 1. Extragem parametrii din query string
@@ -115,7 +151,7 @@ async def telegram_auth(request: Request):
 
     # Marea Sincronizare
     await sync_user_session(request, user_id)
-
+    request.session["flash_messages"] = [{"text": "Te-ai logat cu succes!", "type": "success"}]
     return RedirectResponse(url="/auth/profile")
 
 @router.get("/profile", name="profile")
@@ -154,9 +190,13 @@ async def update_profile(request: Request):
     if intent == "be_admin":
         new_role = "pending_admin"
         is_visible = 0
+    elif intent == "be_visible":
+        new_role = "users" # Sau ce rol standard ai
+        is_visible = 1
     else:
-        new_role = "users"  # Rolul normal pentru vizibilitate
-        is_visible = 1 if intent == "be_visible" else 0
+        # Cazul în care se schimbă doar numele, păstrăm rolul curent
+        new_role = request.session.get('role')
+        is_visible = request.session.get('is_visible', 0)
 
     # UPDATE în SQLite
     await execute_query('''
@@ -169,6 +209,7 @@ async def update_profile(request: Request):
     await sync_user_session(request, user_id)
 
     
+    
 
     # 🚨 MOMENTUL TURBO: Alertă Telegram
   
@@ -176,9 +217,19 @@ async def update_profile(request: Request):
         msg = f"🔔 *Cerere Admin*: {firstname} {lastname}"
         send_telegram_admin_alert(msg, user_id)
         # Redirecționăm către formularul de completare date firmă (GET)
+        request.session["flash_messages"] = [{"text": "Cererea afost trimisa, in cel mai scurt timp posibil va apare aprobarea!", "type": "success"}]
         return RedirectResponse(url="/auth/create_company", status_code=303)
+    
     if intent == "be_visible":
+        request.session["flash_messages"] = [{"text": "Situatia ta s-a schimbat, de acum poti fi vazut de catre administratorii companiilor!", "type": "success"}]
         return RedirectResponse(url="/auth/profile?success=1", status_code=303)
+
+
+    # Dacă nu e nici admin, nici visible, intră aici implicit:
+    request.session["flash_messages"] = [{"text": "Profil actualizat!", "type": "success"}]
+    return RedirectResponse(url="/auth/profile?success=1", status_code=303)
+
+
 
 
 # Adaugă această rută GET pentru a afișa formularul

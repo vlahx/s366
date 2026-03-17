@@ -1,78 +1,55 @@
-# app/utils/vllm_async.py
 import httpx
 import json
-from typing import AsyncGenerator, List, Dict, Optional
+import logging
+from typing import AsyncGenerator, List, Dict, Optional, Any
 
 class VLLMAsyncAPI:
     def __init__(self, base_url: str = "http://vllm:8000/v1"):
-        """base_url va fi de obicei http://vllm:8000/v1 în docker-compose"""
-        self.base_url = base_url.rstrip("/")  # elimină slash-ul final dacă există
-        self.client = httpx.AsyncClient(timeout=httpx.Timeout(600.0))  # timeout mare pt răspunsuri lungi
+        self.base_url = base_url.rstrip("/")
+        # Timeout None este riscant, am pus un timeout generos
+        self.client = httpx.AsyncClient(timeout=httpx.Timeout(600.0))
 
     async def chat_stream(
-        self,
-        model_name: str,
-        messages: List[Dict[str, str]],
-        tools: Optional[List[Dict]] = None,
-        temperature: float = 0.7,
-        max_tokens: int = 4096,
+        self, 
+        model_name: str, 
+        messages: List[Dict[str, str]], 
+        tools: Optional[List[Dict]] = None, 
+        options: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> AsyncGenerator[Dict, None]:
-        """
-        Trimite request la /v1/chat/completions cu stream=True
-        Returnează chunk-uri similare cu formatul Ollama (compatibil cu codul tău existent)
-        """
+        
+        # Aici facem "maparea": vLLM nu are "options", 
+        # setările din options (temperature, etc.) se pun direct în payload.
         payload = {
             "model": model_name,
             "messages": messages,
             "stream": True,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "top_p": 0.9,
-            "frequency_penalty": 0.0,
-            "presence_penalty": 0.0,
+            **kwargs 
         }
-
+        
+        # Extragem parametrii din options dacă există
+        if options:
+            payload.update(options)
+            
         if tools:
-            # vLLM suportă tool calling în format OpenAI
             payload["tools"] = tools
-            payload["tool_choice"] = "auto"  # sau "required" dacă vrei forțat
 
-        # Alte opțiuni comune pe care le poți trece prin kwargs
-        payload.update(kwargs)
-
-        url = f"{self.base_url}/chat/completions"
-
-        async with self.client.stream("POST", url, json=payload) as response:
-            if response.status_code >= 400:
-                error_text = await response.aread()
-                raise RuntimeError(f"vLLM error {response.status_code}: {error_text.decode()}")
-
+        async with self.client.stream("POST", f"{self.base_url}/chat/completions", json=payload) as response:
             async for line in response.aiter_lines():
-                if line.strip() == "data: [DONE]":
-                    break
                 if line.startswith("data: "):
+                    content = line[6:].strip()
+                    if content == "[DONE]":
+                        break
                     try:
-                        chunk = json.loads(line[6:].strip())
-                        # Adaptăm formatul la ce așteaptă codul tău existent
-                        # vLLM trimite delta.content în choices[0].delta.content
-                        if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
+                        chunk = json.loads(content)
+                        # Adaptăm chunk-ul vLLM (OpenAI format) să arate ca cel de Ollama
+                        # ca să nu trebuiască să rescrii restul aplicației
+                        if "choices" in chunk and chunk["choices"][0].get("delta", {}).get("content"):
                             yield {
                                 "message": {
                                     "role": "assistant",
                                     "content": chunk["choices"][0]["delta"]["content"]
                                 }
                             }
-                        # Dacă vine tool_calls
-                        elif chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("tool_calls"):
-                            yield {
-                                "message": {
-                                    "role": "assistant",
-                                    "tool_calls": chunk["choices"][0]["delta"]["tool_calls"]
-                                }
-                            }
                     except json.JSONDecodeError:
                         continue
-
-    async def close(self):
-        await self.client.aclose()

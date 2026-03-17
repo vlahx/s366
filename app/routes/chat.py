@@ -27,11 +27,11 @@ async def handle_chat(request: Request):
     audio_b64 = data.get("audio_b64")
     conv_uuid = data.get("conversation_uuid") or str(uuid.uuid4())
     
-    user_id = request.session.get('user_id')
+    user_id = request.session.get('user_id') or '1'
     user_firstname = request.session.get('firstname', 'Vizitator')
     user_lastname = request.session.get('lastname', '')
-    company_id = request.session.get('company_id') #or '1'.strip()  # Fallback la '1' dacă nu există în sesiune
-    company_cui = request.session.get('company_cui') #or '39838810'.strip()  # Fallback la '39838810' dacă nu există în sesiune
+    company_id = request.session.get('company_id') or '1'.strip()  # Fallback la '1' dacă nu există în sesiune
+    company_cui = request.session.get('company_cui') or '39838810'.strip()  # Fallback la '39838810' dacă nu există în sesiune
     user_role = request.session.get('role', 'user')  # Fallback la 'user' dacă nu există în sesiune
 
     payload = await build_llm_payload(

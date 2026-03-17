@@ -1,3 +1,6 @@
+transformers==4.38.0
+accelerate==0.27.0
+
 # --- CORE ASYNC ENGINE ---
 fastapi
 uvicorn[standard]
@@ -6,16 +9,19 @@ python-multipart
 pydantic-settings
 python-dotenv
 
+# ----AUTH ---
+authlib
+
 # --- BAZĂ DE DATE (Asincron) ---
 aiosqlite
 mysql-connector-python
 
 # --- AI & DATA SCIENCE ---
 ollama
-sentence-transformers
+sentence-transformers>=2.2.2
 scikit-learn
 pandas
-numpy
+numpy<2
 tqdm
 
 # --- PROCESARE DOCUMENTE & WEB ---
@@ -32,13 +38,15 @@ pydub
 pytz
 python-dateutil
 itsdangerous
-python-multipart 
 ddgs
 passlib[bcrypt]
 psutil
 docker
 nvidia-ml-py
-pymupdf==1.23.8       # Pentru PDF-uri (fitz)
-python-docx==1.1.0    # Pentru .docx
-pytesseract==0.3.10   # Pentru OCR (imagini)
-Pillow==10.2.0        # Pentru procesare imagini
+pymupdf==1.23.8
+python-docx==1.1.0
+pytesseract==0.3.10
+Pillow==10.2.0
+
+# --- Procesare photo ---
+Pillow==10.2.0

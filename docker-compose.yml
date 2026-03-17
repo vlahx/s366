@@ -2,14 +2,12 @@ services:
   turbo_py:
     build: .
     container_name: s366_turbo
-    # Folosim portul 5005 pe gazdă pentru a lăsa 5000 liber pentru aplicația veche
-    # Dar în interiorul containerului aplicația rulează tot pe 5000
     ports:
       - "5005:5000"
     volumes:
       - .:/app
-      - ./companies_data:/companies_data
-      - ./users_data:/users_data
+      - ./data/companies_data:/companies_data
+      - ./data/users_data:/users_data
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
       - .env
@@ -19,18 +17,17 @@ services:
           devices:
             - driver: nvidia
               count: all  
-              capabilities: [gpu, utility] 
+              capabilities: [gpu]
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all  
-      - OLLAMA_NUMA=true
-      - OLLAMA_KEEP_ALIVE=-1
+      - NVIDIA_DRIVER_CAPABILITIES=all
     networks:
       s366:
-        ipv4_address: 172.27.0.50 # Un IP diferit față de cel de test
-    # Comanda de start pentru FastAPI (Uvicorn)
-    # --reload înseamnă că se restartează la orice modificare de cod
-    command: uvicorn app.main:app --host 0.0.0.0 --port 5000 --reload
+        ipv4_address: 172.27.0.50
+    #command: python3 run.py
+    #command: gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:5000 --timeout 120
+    #command: uvicorn app.main:app --host 0.0.0.0 --port 5000 --workers 2 --limit-concurrency 12 --timeout-keep-alive 120
 
 networks:
   s366:

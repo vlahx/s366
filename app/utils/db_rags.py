@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import torch
 import aiosqlite  
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
@@ -9,10 +10,15 @@ from app.models.sqlite_company_model import get_db
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 COMPANIES_ROOT = BASE_DIR / "companies_data"
 
-# 1. Inițializare UNICĂ (din folderul NVMe)
-MODEL_LOCAL_PATH = "/app/app/models/all-MiniLM-L6-v2"
-model = SentenceTransformer(MODEL_LOCAL_PATH)
+# 1. Detectăm device-ul o singură dată
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+# 2. Inițializăm direct cu device-ul dorit
+MODEL_LOCAL_PATH = "/app/app/models/all-MiniLM-L6-v2"
+model = SentenceTransformer(MODEL_LOCAL_PATH, device=device)
+
+# 3. Verificăm oficial unde stă „creierul” modelului
+print(f"DEBUG: Modelul rulează acum pe: {model.device}")
 
 
 def get_document_path(cui: str, filename: str = None):
@@ -35,11 +41,19 @@ def get_document_path(cui: str, filename: str = None):
 # 2. Funcția de Embedding (Comasată aici)
 # ---------------------------------------------------------
 def embed_text(text):
-    try:       
-        # Generăm vectorul ca numpy array pentru calcule rapide
-        return model.encode(text)
+    try:
+        # device-ul trebuie să fie cel setat la inițializarea modelului
+        # Specificăm convert_to_tensor=True dacă vrei să lucrezi direct cu tensori pe GPU
+        embeddings = model.encode(
+            text,
+            device=model.device,
+            convert_to_tensor=True,
+            show_progress_bar=False
+        )
+        # Dacă ai nevoie de listă (pentru JSON sau stocare), convertești la final
+        return embeddings.cpu().numpy()
     except Exception as e:
-        print(f"❌ Eroare embedding: {e}")
+        print(f"❌ Eroare embedding pe {model.device}: {e}")
         return None
 
 # ---------------------------------------------------------
@@ -152,7 +166,7 @@ async def chunk_document_text(cui, document_id, text, chunk_size=900):
         embedding_vector = embed_text(chunk)
         if embedding_vector is not None:
             await insert_chunk(cui, document_id, idx, chunk, embedding_vector)
-            
+
     # 2. FINALIZAREA: După ce am ieșit din loop, facem UPDATE în documents
     conn = await _get_db_conn(cui)
     if conn:

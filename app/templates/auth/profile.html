@@ -63,7 +63,7 @@
                     </div>
                 </div>
 
-
+                {% if not user.company_id %}
                 <div class="card text-white border-secondary shadow mb-4">
                     <div class="card-header border-secondary bg-transparent">
                         <h5 class="mb-0 text-warning italic">Opțiuni S366 Intelligence</h5>
@@ -74,7 +74,7 @@
                                 value="be_visible" {% if user.is_visible %}checked{% endif %}>
                             <label class="form-check-label" for="intent_visible">
                                 <strong class="text-white">Sunt colaborator</strong><br>
-                                <small class="text-muted">Mă fac văzut de administratorii firmei mele.</small>
+                                <small class="text-muted">Mă fac văzut de compania de care vreau sa apartin.</small>
                             </label>
                         </div>
 
@@ -90,7 +90,7 @@
                         </div>
                     </div>
                 </div>
-
+                {% endif %}
 
                 <div class="text-end">
                     <button type="submit"

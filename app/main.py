@@ -1,7 +1,8 @@
 # 
 import os
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request,HTTPException
+from fastapi.responses import  RedirectResponse, FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,6 +11,7 @@ from contextlib import asynccontextmanager
 from app.routes.chat import router as chat_router
 from app.routes.auth import router as auth_router
 from app.routes.admin import router as admin_router
+from app.routes.public import router as public_router
 from app.routes.company_admin import router as company_admin_router
 from app.models.sqlite_model import init_db
 from app.utils.api_async import LLMServiceAsync, APIServiceAsync
@@ -47,7 +49,7 @@ async def lifespan(app: FastAPI):
     app.state.llm_service = LLMServiceAsync()
     app.state.api_service = APIServiceAsync()
     
-    print("✅ Baza de date și serviciile sunt online.")
+    print("✅ Sistemul este online.")
     
     yield
     
@@ -56,6 +58,37 @@ async def lifespan(app: FastAPI):
     # Aici poți adăuga app.state.llm_service.stop() dacă ai o metodă de cleanup
 
 app = FastAPI(lifespan=lifespan)
+
+# Adaugă asta în handler-ul tău din main.py
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, __):
+    return templates.TemplateResponse(
+        "errors/404.html", 
+        {"request": request}, 
+        status_code=404
+    )
+
+# Handler pentru 403 - Acces Interzis
+@app.exception_handler(403)
+async def custom_403_handler(request: Request, exc: HTTPException):
+    return templates.TemplateResponse(
+        "errors/403.html", 
+        {"request": request, "detail": exc.detail}, 
+        status_code=403
+    )
+
+# Handler pentru 401 - Neautorizat (Redirect la Login)
+@app.exception_handler(401)
+async def custom_401_handler(request: Request, exc: HTTPException):
+    # Dacă nu e logat, cel mai bine e să-l trimitem direct la login
+    request.session["flash_messages"] = [{"text": "Te rugăm să te autentifici.", "type": "warning"}]
+    return RedirectResponse(url="/auth/login", status_code=303)
+
+
+@app.get("/sw.js")
+async def serve_service_worker():
+    return FileResponse("app/static/sw.js", media_type="application/javascript")
+
 
 # Middleware-uri
 app.add_middleware(SessionMiddleware, secret_key="@Leia1990")
@@ -71,6 +104,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
 # Include Routere
+app.include_router(public_router, tags= ["Public"])
 app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(admin_router, prefix="/admin", tags=["Admin"])

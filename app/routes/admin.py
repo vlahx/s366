@@ -10,7 +10,6 @@ from app.models.sqlite_company_model import init_company_db, COMPANIES_ROOT
 from app.utils.system import get_system_stats # Importăm mecanica
 from app.utils.session import sync_user_session
 
-
 router = APIRouter(
     dependencies=[Depends(superadmin_required)]
 )

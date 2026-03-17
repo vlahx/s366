@@ -12,6 +12,7 @@ import base64
 from app.models.sqlite_company_model import get_company_settings
 from app.utils.tools import available_tools, execute_tool, TOOLS_DESCRIPTION
 from app.utils.ollama_async import OllamaAsyncAPI
+#from app.utils.vllm_async import VLLMAsyncAPI
 from app.utils.payload_builder import build_llm_payload
 from app.utils.db_helpers import get_db_path
 from app.utils.sqlite_handler import SQLiteHandler
@@ -26,9 +27,10 @@ logger = logging.getLogger(__name__)
 
 class LLMServiceAsync:
     def __init__(self):
-       
-        self.model_name = "cnshenyang/qwen3-nothink:14b" 
+        self.model_name = "qwen3.5:9b"
         self.llm_api_async = OllamaAsyncAPI()
+        #self.model_name = "Qwen3.5-9B-Instruct"  # Numele servit de vLLM în docker-compose
+        #self.llm_api_async = VLLMAsyncAPI()
         self.tools_description = TOOLS_DESCRIPTION
     
     async def get_internal_response(self, payload: dict):
@@ -48,7 +50,7 @@ class LLMServiceAsync:
         # Construim opțiunile pentru LLM
         llm_options = {
             "temperature": float(settings.get("rag_temperature", 0.7)),
-            "num_ctx": int(settings.get("rag_num_ctx", 32768))
+            "num_ctx": int(settings.get("rag_num_ctx", 16384))
         }
 
         full_messages = []

@@ -12,7 +12,8 @@ class OllamaAsyncAPI:
             "messages": messages,
             "stream": True,
             "options": options or {}, 
-            "tools": tools
+            "tools": tools,
+            "think": False
         }
    
         

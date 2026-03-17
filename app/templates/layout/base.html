@@ -4,35 +4,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S366 Turbo AI - Asistentul perfect al firmei tale </title>
-    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon" />
-    <meta name="description" content="O aplicație de chat inteligentă, alimentată de AI, pentru a-ți simplifica viața.">
 
-    <!-- Facebook Meta Tags -->
-    <meta property="og:url" content="https://s366.online/chat">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="AI - S366 TURBO - Asistentul perfect al companiei tale.">
-    <meta property="og:description"
-        content="O aplicație de chat inteligentă, alimentată de AI, pentru a-ți simplifica munca. Dedicat companiilor romanesti..">
-    <meta property="og:image" content="/static/images/og/chat-ai-s366.png">
-
-    <!-- Twitter Meta Tags -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://s366.online/chat">
-    <meta name="twitter:title" content="AI - S366 Turbo - Asistentul perfect al companiei tale.">
-    <meta name="twitter:description"
-        content="O aplicație de chat inteligentă, alimentată de AI, pentru a-ți simplifica munca. Dedicat companiilor romanesti.">
-    <meta name="twitter:image" content="/static/images/og/chat-ai-s366.png">
-
+    {# 1. RESURSE CRITICE (CSS & FONTS) - Browserele le vor imediat #}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
+    {# 2. PWA & IDENTITY #}
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0b0d11" id="theme-color-meta">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="S366 Turbo">
+    <link rel="apple-touch-icon" href="/static/images/icons/icon-192x192.png">
+    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon" />
+
+    {# 3. SEO & DINAMIC (TITLU/DESC) #}
+    {% set site_url = "https://s366.online" %}
+    <title>{% block title %}S366 Turbo AI{% endblock %}</title>
+    <meta name="description"
+        content="{% block meta_description %}Asistentul perfect al firmei tale. Dedicat companiilor românești.{% endblock %}">
+
+    {# 4. SOCIAL MEDIA (OG/TWITTER) - Botiștii au răbdare, userii nu #}
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:title" content="{{ self.title() }}">
+    <meta property="og:description" content="{{ self.meta_description() }}">
+    <meta property="og:image"
+        content="{{ site_url }}{% block og_image %}/static/images/og/chat-ai-s366.png{% endblock %}">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{{ request.url }}">
+    <meta name="twitter:title" content="{{ self.title() }}">
+    <meta name="twitter:description" content="{{ self.meta_description() }}">
+    <meta name="twitter:image" content="{{ site_url }}{% block tw_image %}{{ self.og_image() }}{% endblock %}">
+
+
+
     <style>
         body {
 
-           
+
             margin: 0;
             font-family: 'Inter', sans-serif;
         }
@@ -43,25 +56,31 @@
         }
 
         /* Blocăm scroll-ul pe body când suntem pe chat pentru a avea layout fix */
-            {% if request.url.path.startswith ('/chat') %}
+            {
+            % if request.url.path.startswith ('/chat') %
+        }
 
         html,
         body {
             height: 100vh;
             overflow: hidden;
-            /* De obicei pe chat vrei hidden pe body ca să ai scroll doar în fereastra de mesaje */
         }
 
-            {% else %}
+            {
+            % else %
+        }
 
         html,
         body {
-            d-flex flex-column min-vh-100
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
             overflow-y: auto;
-            /* Permite scroll-ul natural pe restul paginilor */
         }
 
-            {% endif %}
+            {
+            % endif %
+        }
 
         .flash-container {
             position: fixed;
@@ -77,18 +96,19 @@
 
 <body class="d-flex flex-column min-vh-100">
 
-    {% set current_path = request.url.path|string %}
-    {% if current_path.startswith('/chat') %}
+
+
     {% include 'layout/main-navbar.html' %}
-    {% else %}
-    {% include 'layout/main-navbar.html' %}
-    {% endif %}
+    {% include "layout/blocks/install-pwa.html" %}
+
+
     <div class="flash-container">
+        {% set messages = request.session.pop('flash_messages', None) %}
         {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-info alert-dismissible fade show">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        {% for item in messages %}
+        <div class="alert alert-{{ item.type }} alert-dismissible fade show" role="alert">
+            {{ item.text }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endfor %}
         {% endif %}
@@ -137,6 +157,8 @@
     </script>
 
     {% block scripts %}{% endblock %}
+
+
 </body>
 
 </html>
