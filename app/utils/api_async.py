@@ -19,6 +19,7 @@ from app.utils.sqlite_handler import SQLiteHandler
 from app.utils.tts import generate_speech_async
 from app.utils.text_cleaner import sanitize_llm_text
 from app.utils.stt import transcribe_audio_async
+from app.utils.text_cleaner import clean_markdown_to_html
 
 # Configurăm logging-ul să vedem ce se întâmplă în container
 logging.basicConfig(level=logging.INFO)
@@ -29,14 +30,13 @@ class LLMServiceAsync:
     def __init__(self):
         self.model_name = "qwen3.5:9b"
         self.llm_api_async = OllamaAsyncAPI()
-        #self.model_name = "Qwen3.5-9B-Instruct"  # Numele servit de vLLM în docker-compose
-        #self.llm_api_async = VLLMAsyncAPI()
         self.tools_description = TOOLS_DESCRIPTION
     
     async def get_internal_response(self, payload: dict):
         user_data = payload.get('user', {})
         user_id = user_data.get('id')
         company_id = payload.get('company', {}).get('id')
+        company_cui = payload.get('company', {}).get('cui')
         conv_uuid = payload.get('conversation', {}).get('uuid')
         
         history = payload.get('conversation', {}).get('messages', [])
@@ -44,13 +44,11 @@ class LLMServiceAsync:
         system_prompt = payload.get('context', {}).get('system_prompt', '')
         rag_data = payload.get('context', {}).get('rag_data', '')
 
-        # Sursa de adevăr pentru setările companiei
-        settings = await get_company_settings(company_id) or {} 
+        settings = await get_company_settings(company_cui) or {} 
 
-        # Construim opțiunile pentru LLM
         llm_options = {
-            "temperature": float(settings.get("rag_temperature", 0.7)),
-            "num_ctx": int(settings.get("rag_num_ctx", 16384))
+            "temperature": float(settings.get("rag_temperature", 0.1)),
+            "num_ctx": int(settings.get("rag_num_ctx", 8192))
         }
 
         full_messages = []
@@ -59,7 +57,6 @@ class LLMServiceAsync:
         
         full_messages.extend(history)
 
-        # Injectăm RAG-ul
         if rag_data:
             for i in range(len(full_messages) - 1, -1, -1):
                 if full_messages[i]['role'] == 'user':
@@ -67,50 +64,89 @@ class LLMServiceAsync:
                     break
 
         full_ai_response = ""
-        tool_calls = []
+        max_iterations = 5  
 
         try:
-            # --- 1. APEL STREAM ---
-            async for chunk in self.llm_api_async.chat_stream(
-                model_name=self.model_name,
-                messages=full_messages,
-                tools=self.tools_description,
-                options=llm_options
-            ):
-                message = chunk.get('message', {})
-                if 'content' in message:
-                    content = message['content']
-                    full_ai_response += content
-                    yield json.dumps({"content": content}) + "\n"
-                if 'tool_calls' in message:
-                    tool_calls.extend(message['tool_calls'])
+            for iteration in range(max_iterations):
+                tool_calls_accumulator = {}
+                received_tool_calls = False
+                current_turn_content = ""
 
-            # --- 2. EXECUȚIE TOOLS ---
-            if tool_calls:
-                full_messages.append({"role": "assistant", "tool_calls": tool_calls})
-                for tool_call in tool_calls:
-                    result = await execute_tool(tool_call)
-                    full_messages.append({
-                        "role": "tool",
-                        "content": json.dumps(result),
-                        "name": tool_call['function']['name']
-                    })
-
-                # --- 3. AL DOILEA APEL ---
-                async for final_chunk in self.llm_api_async.chat_stream(
+                # --- APEL LLM STREAM (Versiunea cu Robinet) ---
+                buffer_text = "" # Buffer special pentru Markdown -> HTML
+        
+                async for chunk in self.llm_api_async.chat_stream(
                     model_name=self.model_name,
                     messages=full_messages,
                     tools=self.tools_description,
                     options=llm_options
                 ):
-                    message = final_chunk.get('message', {})
-                    if 'content' in message:
+                    message = chunk.get('message', {})
+            
+                    if 'content' in message and message['content']:
                         content = message['content']
+                        current_turn_content += content
                         full_ai_response += content
+                        # Trimitem BRUT, fără conversie HTML în timpul stream-ului
                         yield json.dumps({"content": content}) + "\n"
+                
+                        
+                    
+                    if 'tool_calls' in message:
+                        received_tool_calls = True
+                        for tc in message['tool_calls']:
+                            idx = tc.get('index', 0)
+                            if idx not in tool_calls_accumulator:
+                                tool_calls_accumulator[idx] = tc
+                            else:
+                                # Verificăm dacă avem funcție și argumente de acumulat
+                                if 'function' in tc and 'arguments' in tc['function']:
+                                    new_args = tc['function']['arguments']
+                                    current_args = tool_calls_accumulator[idx]['function']['arguments']
+
+                                    # CAZUL 1: Sunt string-uri (vLLM style / streaming pur)
+                                    if isinstance(current_args, str) and isinstance(new_args, str):
+                                        tool_calls_accumulator[idx]['function']['arguments'] += new_args
+                
+                                    # CAZUL 2: Sunt dicționare (Ollama style)
+                                    elif isinstance(current_args, dict) and isinstance(new_args, dict):
+                                        tool_calls_accumulator[idx]['function']['arguments'].update(new_args)
+                
+                                    # CAZUL 3: Backup (în caz că Ollama trimite un dict peste un string gol)
+                                    else:
+                                        tool_calls_accumulator[idx]['function']['arguments'] = new_args
+
+
+                # Dacă nu avem tool calls în tura asta, am terminat procesarea
+                if not received_tool_calls:
+                    break
+
+                # --- EXECUȚIE TOOLS ---
+                final_tool_calls = list(tool_calls_accumulator.values())
+                
+                # Înregistrăm cererea asistentului în istoric înainte de rezultate
+                assistant_history_msg = {"role": "assistant", "tool_calls": final_tool_calls}
+                if current_turn_content:
+                    assistant_history_msg["content"] = current_turn_content
+                
+                full_messages.append(assistant_history_msg)
+
+                for tool_call in final_tool_calls:
+                    # Rulăm funcția din tools.py
+                    result = await execute_tool(tool_call)
+                    
+                    # Adăugăm rezultatul în context pentru următoarea iterație
+                    full_messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.get('id'),
+                        "name": tool_call['function']['name'],
+                        "content": json.dumps(result)
+                    })
+                
+                # Bucla merge la următoarea iterație (vLLM va vedea rezultatele și va decide)
 
         finally:
-            # --- 4. Salvare Finală ---
+            # --- SALVARE ÎN BAZA DE DATE (SQLite pe NVMe) ---
             db_path = get_db_path(user_id=user_id, company_id=company_id)
             if db_path and conv_uuid:
                 try:
@@ -118,6 +154,8 @@ class LLMServiceAsync:
                     await handler.save_chat_turn(conv_uuid, user_message, full_ai_response)
                 except Exception as e:
                     print(f"EROARE la salvare: {e}", file=sys.stderr)
+
+
    
 
 

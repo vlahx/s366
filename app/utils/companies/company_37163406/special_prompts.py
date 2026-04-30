@@ -1,3 +1,4 @@
+# special_prompt.py
 import datetime
 import sys
 import mysql.connector

@@ -131,10 +131,10 @@ async def get_prompts_json(cui: str):
             formatted_prompts = []
             for row in rows:
                 # Împachetăm fiecare prompt într-o structură clară
-                p_block = (
-                    f"--- PROMPT COMPANIE: {row['name']} ---\n"
-                    f"DEPARTAMENT: {row['type']}\n"
-                    f"INSTRUCȚIUNI: {row['content']}\n"
+                p_block = (                                      
+                    f"### TYPE AUDIENCE: {row['type']} ###\n"
+                    f"## {row['name']} ##\n"
+                    f"{row['content']}\n"
                     f"--------------------------------------"
                 )
                 formatted_prompts.append(p_block)

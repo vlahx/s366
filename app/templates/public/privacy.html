@@ -1,0 +1,79 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<div class="container mt-5 mb-5" style="max-width: 900px; line-height: 1.6;">
+    <divclass="card shadow-sm p-4 border-0">
+        <h1 class="display-5 mb-3">Politica de Confidențialitate</h1>
+        <p class="text-muted">Ultima actualizare: 11 Martie 2026</p>
+        <hr>
+
+        <section class="mb-4">
+            <h3 class="h4 text-primary">1. Ce date colectăm?</h3>
+            <p>Prin utilizarea autentificării Google, <strong>s366_turbo</strong> accesează următoarele informații de
+                bază:</p>
+            <ul>
+                <li><strong>Adresa de e-mail:</strong> Folosită exclusiv pentru identificarea unică a contului tău.</li>
+                <li><strong>Numele și prenumele:</strong> Pentru a-ți personaliza experiența în platformă.</li>
+                <li><strong>Poza de profil:</strong> Afișată doar în cadrul interfeței tale de utilizator.</li>
+            </ul>
+        </section>
+
+        <section class="mb-4">
+            <h3 class="h4 text-primary">2. Cum folosim aceste date?</h3>
+            <p>Datele tale sunt folosite strict pentru funcționarea tehnică a aplicației:</p>
+            <ul>
+                <li>Crearea și gestionarea profilului de utilizator.</li>
+                <li>Atribuirea rolurilor specifice (User, Admin, Company Admin).</li>
+                <li>Securizarea accesului în zonele restricționate ale platformei.</li>
+            </ul>
+        </section>
+
+
+
+        <section class="mb-4">
+            <h3 class="h4 text-primary">3. Stocarea și Securitatea</h3>
+            <p>Datele sunt stocate în baza noastră de date securizată (MariaDB) rulată în infrastructură proprie. Nu
+                vindem, nu închiriem și nu transmitem datele tale personale către terțe părți în scopuri de marketing.
+            </p>
+        </section>
+
+        <section class="mb-4">
+            <h3 class="h4 text-primary">4. Drepturile utilizatorului</h3>
+            <p>Conform GDPR, ai dreptul de a solicita oricând ștergerea contului și a datelor asociate. Poți face acest
+                lucru trimițând o solicitare prin formularul de contact sau direct din setările profilului (unde este
+                disponibil).</p>
+        </section>
+
+        <section class="mb-4">
+            <h3 class="h4 text-primary">5. Cookies</h3>
+            <p>Folosim cookie-uri tehnice esențiale pentru a menține sesiunea activă după ce te-ai logat. Fără acestea,
+                nu ai putea rămâne autentificat în aplicație.</p>
+        </section>
+        <section class="mb-4">
+            <h3 class="h4 text-primary">6. Garanția „Zero-Footprint” la Reziliere</h3>
+            <p>În <strong>s366_turbo</strong>, proprietatea asupra datelor aparține în totalitate companiei. Ne luăm
+                următorul angajament tehnic:</p>
+            <div class="p-3 border-start border-primary ">
+                <p class="mb-2"><strong>Eliminare în Cascadă:</strong> În momentul în care o companie este ștearsă din
+                    aplicație, sistemul declanșează automat un proces de curățare totală:</p>
+                <ul class="mb-0">
+                    <li><strong>Documente Fizice:</strong> Toate fișierele stocate în directoarele dedicate companiei
+                        sunt șterse definitiv de pe server.</li>
+                    <li><strong>Baza de Date:</strong> Înregistrările locațiilor și metadatelor dispar instantaneu din
+                        MariaDB.</li>
+                    <li><strong>Procesare AI (RAG):</strong> Toate chunk-urile și vectorii legați de documentele
+                        companiei sunt eliminați, asigurând că nicio urmă de informație nu rămâne în memoria sistemului
+                        de calcul.</li>
+                </ul>
+            </div>
+            <p class="mt-2 font-italic small text-muted">Atenție: Această acțiune este ireversibilă. Odată confirmată
+                ștergerea companiei, datele nu mai pot fi recuperate.</p>
+        </section>
+
+        <div class="alert alert-info mt-5">
+            <p class="mb-0 small"><strong>Notă:</strong> Această politică este creată pentru a asigura transparența
+                totală între <strong>s366_turbo</strong> și utilizatorii săi.</p>
+        </div>
+</div>
+</div>
+{% endblock %}

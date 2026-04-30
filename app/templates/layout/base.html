@@ -55,10 +55,8 @@
             letter-spacing: -1px;
         }
 
-        /* Blocăm scroll-ul pe body când suntem pe chat pentru a avea layout fix */
-            {
-            % if request.url.path.startswith ('/chat') %
-        }
+    
+            {% if request.url.path.startswith ('/chat') %}
 
         html,
         body {
@@ -66,9 +64,7 @@
             overflow: hidden;
         }
 
-            {
-            % else %
-        }
+            {% else %}
 
         html,
         body {
@@ -78,9 +74,7 @@
             overflow-y: auto;
         }
 
-            {
-            % endif %
-        }
+            {% endif %}
 
         .flash-container {
             position: fixed;

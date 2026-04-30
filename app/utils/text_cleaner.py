@@ -39,24 +39,24 @@ def sanitize_llm_text(text: str) -> str:
 # ===================================================================
 
 
-def clean_markdown_to_html(markdown_text: str) -> str:
-    """
-    Convertește textul Markdown al LLM-ului în HTML curat, gata de afișare.
-    Aplică fix-uri de pre-procesare pentru a rezolva problemele de spațiere/structură.
-    """
+md = markdown.Markdown(extensions=['extra', 'tables', 'nl2br', 'sane_lists'])
 
+def clean_markdown_to_html(markdown_text: str) -> str:
     if not markdown_text:
         return ""
 
-    # 1. FIX DE PRE-PROCESARE: Ajustează markdown-ul înainte de conversie
+    # 1. FIX DE PRE-PROCESARE
+    # Corectăm lipirea titlurilor și a listelor
     cleaned_text = re.sub(r'([.:!])\s*(###)', r'\1\n\n\2', markdown_text)
     cleaned_text = re.sub(r'(### [^\n]+?)\s*(-)', r'\1\n\n\2', cleaned_text)
     cleaned_text = re.sub(r'---', r'\n\n---\n\n', cleaned_text)
-    cleaned_text = re.sub(r"</?think>", "", cleaned_text, flags=re.IGNORECASE)
+    
+    # 2. Conversia rapidă
+    # .convert() e mai rapid decât apelul funcției markdown.markdown() direct
+    html_output = md.convert(cleaned_text)
 
-    # 2. Conversia propriu-zisă în HTML
-    #md = markdown.Markdown(extensions=['extra', 'codehilite', 'nl2br'])  
-    html_output = markdown.markdown(cleaned_text)
+    # Resetăm parser-ul pentru următorul apel (important la streaming!)
+    md.reset() 
 
     return html_output
 

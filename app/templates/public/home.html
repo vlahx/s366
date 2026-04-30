@@ -1,0 +1,182 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<main class="container py-2 text-center">
+    <div class="mx-auto col-12 col-md-10 col-lg-9 text-center">
+        <p class="badge rounded-pill bg-primary bg-opacity-10 text-primary mb-3 px-3 py-2 fw-semibold animate-fade-in">
+            <i class="bi bi-shield-check me-1"></i> Inteligență Artificială Privată & Securizată
+        </p>
+
+        <h1 class="display-3 fw-bold mb-4 animate-fade-in-up tracking-tight">
+            Transformă datele firmei tale în <span class="text-gradient">Putere de Decizie</span>
+        </h1>
+
+        <p class="fs-4 text-muted mb-5 animate-fade-in-up lh-base">
+            Nu mai pierde timpul căutând prin mii de documente. Construim și antrenăm asistenți AI care învață
+            procedurile tale și lucrează pentru tine, <strong>24/7, direct de pe serverul tău.</strong>
+        </p>
+
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 animate-fade-in-up"
+            style="animation-delay: 0.2s;">
+            <a href="/solutii" class="btn btn-primary btn-lg px-5 py-3 fw-bold rounded-pill shadow">
+                Vezi Soluțiile Turbo
+            </a>
+            <a href="/demo" class="btn btn-outline-secondary btn-lg px-5 py-3 rounded-pill">
+                Cere un Demo Live
+            </a>
+        </div>
+    </div>
+
+    <style>
+        /* Gradientul ăla mișto de care vorbeam */
+        .text-gradient {
+            background: linear-gradient(90deg, var(--bs-primary), #6f42c1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* O animație subtilă de intrare */
+        .animate-fade-in-up {
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</main>
+
+<style>
+    /* Adaugă asta în CSS-ul tău pentru un efect profi */
+    .transition-hover {
+        transition: all 0.3s ease-in-out;
+    }
+
+    .transition-hover:hover {
+        transform: translateY(-8px);
+        shadow: 0 1rem 3rem rgba(0, 0, 0, .175) !important;
+        border-color: var(--bs-primary) !important;
+    }
+</style>
+
+<section class="container py-5">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        <!-- Card Serviciu: SaaS -->
+        <div class="col">
+            <div class="card h-100 shadow-sm border rounded-4 position-relative transition-hover">
+                <a href="/solutii#asistent-ai" class="stretched-link"></a>
+
+                <div class="card-body text-center p-4">
+                    <div class="d-flex justify-content-center align-items-center bg-primary bg-opacity-10 text-primary rounded-circle mb-4 mx-auto shadow-sm"
+                        style="width:80px; height:80px;">
+                        <i class="bi bi-robot" style="font-size: 5.5rem;"></i>
+                    </div>
+
+                    <h5 class="card-title fw-bold mb-3 ">Asistent AI „Gata de Lucru” (SaaS)</h5>
+                    <p class="card-text text-muted px-2">
+                        Înrolează-ți afacerea în ecosistemul nostru. Primești un AI antrenat special pe documentele
+                        tale, care răspunde instant angajaților sau clienților. Fără investiții în servere, totul
+                        rulează sigur pe infrastructura noastră optimizată.
+                    </p>
+                </div>
+
+                <div class="card-footer bg-transparent border-0 pb-4 text-center">
+                    <div class="d-inline-flex align-items-center text-primary fw-semibold">
+                        <span class="me-2">Citeste mai mult & Începe testarea gratuită</span>
+                        <i class="bi bi-arrow-right-circle-fill fs-4"></i>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+
+        <!-- Card Serviciu: Server propriu -->
+        <div class="col">
+            <div class="card h-100 shadow-sm border rounded-4 position-relative transition-hover">
+                <a href="/solutii#server-privat" class="stretched-link"></a>
+
+                <div class="card-body text-center p-4">
+                    <div class="d-flex justify-content-center align-items-center bg-primary bg-opacity-10 text-primary rounded-circle mb-4 mx-auto shadow-sm"
+                        style="width:80px; height:80px;">
+                        <i class="bi bi-hdd-network" style="font-size: 5.5rem;"></i>
+                    </div>
+
+                    <h5 class="card-title fw-bold mb-3 ">Server AI Propriu & Control Total</h5>
+                    <p class="card-text text-muted px-2">
+                        Vrei independență absolută? Îți construim, instalăm și configurăm propriul centru de inteligență
+                        la sediul tău. De la sistemul de operare până la „creierul” digital, ai control complet asupra
+                        datelor, fără dependență de cloud-uri externe.
+                    </p>
+                </div>
+
+                <div class="card-footer bg-transparent border-0 pb-4 text-center">
+                    <div class="d-inline-flex align-items-center text-primary fw-semibold">
+                        <span class="me-2">Citeste mai mult & Cere oferta</span>
+                        <i class="bi bi-arrow-right-circle-fill fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Serviciu: Suport -->
+        <div class="col">
+            <div class="card h-100 shadow-sm border rounded-4 position-relative transition-hover">
+                <a href="/solutii#mentenanta" class="stretched-link"></a>
+
+                <div class="card-body text-center p-4">
+                    <div class="d-flex justify-content-center align-items-center bg-primary bg-opacity-10 text-primary rounded-circle mb-4 mx-auto shadow-sm"
+                        style="width:80px; height:80px;">
+                        <i class="bi bi-gear-wide-connected" style="font-size: 5.5rem;"></i>
+                    </div>
+
+                    <h5 class="card-title fw-bold mb-3 ">Suport Tehnic & Învățare Fină</h5>
+                    <p class="card-text text-muted px-2">
+                        Un AI performant are nevoie de „hrană” proaspătă. Ne ocupăm noi de tot: monitorizare,
+                        actualizări și învățare fină (Fine-Tuning) pe baza noilor tale proceduri. Ne asigurăm că
+                        asistentul tău devine mai deștept în fiecare zi, în timp ce tu te ocupi de business.
+                    </p>
+                </div>
+
+                <div class="card-footer bg-transparent border-0 pb-4 text-center">
+                    <div class="d-inline-flex align-items-center text-primary fw-semibold">
+                        <span class="me-2">Citeste mai mult</span>
+                        <i class="bi bi-arrow-right-circle-fill fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Serviciu: Implementare Ollama & Docker 
+        <div class="col">
+            <div class="card h-100 shadow-sm border rounded-3">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center align-items-center bg-danger bg-opacity-10 text-danger rounded-circle mb-3"
+                        style="width:56px; height:56px;">
+                       
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+                d="M4 7v10c0 .523.086 1.03.255 1.51l.9 2.5a.9.9 0 001.69-.6l-.9-2.5A2.99 2.99 0 014 17V7m0 0c0-1.667 0-2.5-.5-3S3 3 2.5 3 2 3.5 2 4v3m0 0h20m0 0v-3c0-.5-.5-1-1-1s-1 .5-1 1v3m0 0a2 2 0 012 2v6a2 2 0 01-2 2h-4m-12 0h-4a2 2 0 01-2-2V9a2 2 0 012-2h4m-4 5h-4m12 0h-4m-12 0v-4" />
+        </svg>
+    </div>
+    <h5 class="card-title fw-semibold mb-2">Implementare & Integrare</h5>
+    <p class="card-text text-muted">
+        Asigurăm o implementare fără probleme a soluțiilor tale pe infrastructura existentă, incluzând
+        setup-ul
+        <strong>Ollama</strong> și <strong>Docker</strong> pe <strong>Ubuntu 22.04</strong>.
+    </p>
+    </div>
+    </div>
+    </div> -->
+    </div>
+</section>
+{% endblock %}

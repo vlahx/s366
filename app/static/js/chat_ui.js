@@ -174,6 +174,37 @@ function initScrollDetection() {
         }, 120);
     }, { passive: true });
 }
-
 // Pornim inițializarea
 initScrollDetection();
+
+
+import { enhanceCodeBlocks } from './streaming.js';
+
+// 1. Funcția care pornește "Paznicul"
+function startObservingChat() {
+    const chatContainer = document.getElementById('chat-container');
+    if (!chatContainer) return;
+
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                // Verificăm dacă nodul adăugat este un element HTML
+                if (node.nodeType === 1) { 
+                    // Dacă e un <pre> sau conține unul, îi punem butoane
+                    if (node.tagName === 'PRE' || node.querySelector('pre')) {
+                        enhanceCodeBlocks(chatContainer); 
+                    }
+                }
+            });
+        });
+    });
+
+    // Începem monitorizarea
+    observer.observe(chatContainer, { childList: true, subtree: true });
+    
+    // 2. Executăm o dată MANUAL pentru mesajele care sunt DEJA în pagină la Refresh
+    enhanceCodeBlocks(chatContainer);
+}
+
+// Pornim totul când s-a încărcat DOM-ul
+document.addEventListener('DOMContentLoaded', startObservingChat);

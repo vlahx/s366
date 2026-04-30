@@ -4,18 +4,26 @@ import numpy as np
 import torch
 import aiosqlite  
 from pathlib import Path
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, models
 from app.models.sqlite_company_model import get_db
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-COMPANIES_ROOT = BASE_DIR / "companies_data"
+COMPANIES_ROOT = BASE_DIR / "data/companies_data"
 
 # 1. Detectăm device-ul o singură dată
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-# 2. Inițializăm direct cu device-ul dorit
-MODEL_LOCAL_PATH = "/app/app/models/all-MiniLM-L6-v2"
-model = SentenceTransformer(MODEL_LOCAL_PATH, device=device)
+# Calea ta unde ai dat wget
+MODEL_DIR = "/app/app/models/mxbai-embed-large"
+
+# Încărcăm componentele "la bucată" ca să nu mai verifice numele pe internet
+text_embedding_model = models.Transformer(MODEL_DIR)
+pooling_model = models.Pooling(text_embedding_model.get_word_embedding_dimension())
+
+# Asamblăm modelul
+model = SentenceTransformer(modules=[text_embedding_model, pooling_model], device="cuda")
+
+print(f"✅ [S366-Turbo] Creierul de 1024 (fp16) e activ pe: {model.device}")
 
 # 3. Verificăm oficial unde stă „creierul” modelului
 print(f"DEBUG: Modelul rulează acum pe: {model.device}")
@@ -42,16 +50,19 @@ def get_document_path(cui: str, filename: str = None):
 # ---------------------------------------------------------
 def embed_text(text):
     try:
-        # device-ul trebuie să fie cel setat la inițializarea modelului
-        # Specificăm convert_to_tensor=True dacă vrei să lucrezi direct cu tensori pe GPU
+        # 1. Generăm embedding-ul pe GPU
         embeddings = model.encode(
             text,
             device=model.device,
             convert_to_tensor=True,
-            show_progress_bar=False
+            show_progress_bar=False,
+            normalize_embeddings=True  # 👈 Adăugat pentru precizie maximă
         )
-        # Dacă ai nevoie de listă (pentru JSON sau stocare), convertești la final
-        return embeddings.cpu().numpy()
+        
+        # 2. Îl aducem în CPU și îl transformăm în listă Python 
+        # pentru a putea fi salvat direct în baza de date .db
+        return embeddings.cpu().numpy().tolist() 
+        
     except Exception as e:
         print(f"❌ Eroare embedding pe {model.device}: {e}")
         return None
@@ -119,44 +130,38 @@ async def save_uploaded_document(cui, filename, data_path):
 # ---------------------------------------------------------
 
 def chunk_text(text, max_length=900, overlap=150):
-    """
-    Împarte textul inteligent, încercând să păstreze paragrafele întregi
-    și adăugând o suprapunere (overlap) pentru context.
-    """
-    # 1. Curățare brută: eliminăm spațiile multiple și liniile de cuprins evidente (cele cu multe puncte)
     import re
-    # Elimină linii de tipul: "1.1 Siguranță ............ 1-1"
-    text = re.sub(r'\.\.\.+\s*\d+-\d+', '', text) 
+    # Curățăm textul de mizerii de tip cuprins sau spații multiple
+    text = re.sub(r'\.\.\.+\s*\d+-\d+', '', text)
+    text = re.sub(r' +', ' ', text)
     
     chunks = []
     start = 0
     text_len = len(text)
 
     while start < text_len:
-        # Luăm o bucată de mărime max_length
         end = start + max_length
         if end >= text_len:
             chunks.append(text[start:].strip())
             break
             
-        # Căutăm cel mai apropiat sfârșit de paragraf (\n\n) sau propoziție (. ) înapoi
-        # ca să nu tăiem cuvântul sau ideea la jumătate
+        # Căutăm un punct de rupere logic
         chunk_end = text.rfind('\n\n', start, end)
-        if chunk_end == -1 or chunk_end < start + (max_length * 0.7): # dacă nu găsim paragraf, căutăm punct
+        if chunk_end == -1 or chunk_end < start + (max_length * 0.5):
             chunk_end = text.rfind('. ', start, end)
             
-        if chunk_end == -1 or chunk_end < start + (max_length * 0.7):
-            # Dacă nu găsim nimic "logic", tăiem la fix
+        if chunk_end == -1 or chunk_end < start + (max_length * 0.5):
             chunk_end = end
         else:
-            chunk_end += 1 # includem și punctul sau newline-ul
+            chunk_end += 1 
 
         chunks.append(text[start:chunk_end].strip())
         
-        # Ne întoarcem puțin (overlap) ca să păstrăm contextul în următorul chunk
-        start = chunk_end - overlap
+        # Măsură de siguranță: noul start trebuie să fie măcar cu 1 caracter peste vechiul start
+        new_start = chunk_end - overlap
+        start = max(new_start, start + 1) 
 
-    return [c for c in chunks if len(c) > 50] # Ignorăm resturile prea mici
+    return [c for c in chunks if len(c) > 50]
 
 async def chunk_document_text(cui, document_id, text, chunk_size=900):
     chunks = chunk_text(text, max_length=chunk_size)
@@ -187,13 +192,19 @@ async def insert_chunk(cui, document_id, chunk_index, chunk_text, embedding_vect
     conn = await _get_db_conn(cui)
     if not conn: return False
     try:
-        # Salvăm vectorul ca BLOB (format binar de numpy)
+        # Transformăm lista/array-ul înapoi în bytes pentru stocare BLOB eficientă
+        # mxbai are 1024 dimensiuni, deci BLOB-ul va avea exact 4096 bytes (float32)
+        vector_blob = np.array(embedding_vector, dtype=np.float32).tobytes()
+        
         await conn.execute("""
             INSERT INTO chunks (document_id, chunk_index, chunk_text, embedding)
             VALUES (?, ?, ?, ?)
-        """, (document_id, chunk_index, chunk_text, embedding_vector.tobytes()))
+        """, (document_id, chunk_index, chunk_text, vector_blob))
         await conn.commit()
         return True
+    except Exception as e:
+        print(f"❌ Eroare la insert chunk: {e}")
+        return False
     finally:
         await conn.close()
 
@@ -202,54 +213,51 @@ async def insert_chunk(cui, document_id, chunk_index, chunk_text, embedding_vect
 # ---------------------------------------------------------
 
 async def get_rag_data(query_text, cui: str, top_k: int, threshold: float):
-    """
-    Căutare RAG cu prag de similitudine și logare în consolă.
-    """
     conn = await _get_db_conn(cui)
-    if not conn: 
-        print(f"⚠️ [RAG] DB-ul pentru CUI {cui} lipsește.")
-        return ""
+    if not conn: return ""
 
     try:
-        # Extragem toate chunk-urile (pentru început, pe SQLite-ul local)
+        # 1. Transformăm query-ul în vector (NumPy array obligatoriu)
+        query_vector = np.array(embed_text(query_text), dtype=np.float32)
+        
+        # 2. Extragem datele
         async with conn.execute("SELECT chunk_text, embedding FROM chunks") as cursor:
             rows = await cursor.fetchall()
         
-        if not rows: 
-            print(f"⚠️ [RAG] Nu există date vectorizate pentru CUI {cui}.")
-            return ""
+        if not rows: return ""
 
-        query_emb = embed_text(query_text)
         results = []
+        # Pre-calculăm norma query-ului o singură dată (dacă nu e deja normalizat)
+        norm_q = np.linalg.norm(query_vector)
 
         for row in rows:
-            if row['embedding']:
-                # Reconstruim vectorul din BLOB (float32)
-                db_emb = np.frombuffer(row['embedding'], dtype=np.float32)
+            if row[1]: # coloana 'embedding'
+                # Reconstruim rapid din BLOB
+                db_emb = np.frombuffer(row[1], dtype=np.float32)
                 
-                # Cosine Similarity
-                norm_q = np.linalg.norm(query_emb)
+                # Dot product rapid cu NumPy (operație vectorizată)
+                dot_product = np.dot(query_vector, db_emb)
+                
+                # Calculăm similitudinea cosinus
                 norm_db = np.linalg.norm(db_emb)
+                sim = dot_product / (norm_q * norm_db) if norm_q > 0 and norm_db > 0 else 0
                 
-                if norm_q > 0 and norm_db > 0:
-                    sim = np.dot(query_emb, db_emb) / (norm_q * norm_db)
-                    
-                    # Verificăm pragul tău (threshold)
-                    if sim >= threshold:
-                        results.append((row['chunk_text'], sim))
+                if sim >= threshold:
+                    results.append((row[0], sim))
 
-        # Sortăm după cea mai mare similitudine
+        # 3. Sortare și limitare
         results.sort(key=lambda x: x[1], reverse=True)
+        top_results = results[:top_k]
 
-        # DEBUG PRINT (Aia de am uitat-o eu)
-        if results:
-            print(f"✅ [RAG] Gasite {len(results)} rezultate peste pragul {threshold}. Top score: {results[0][1]:.4f}")
-        else:
-            print(f"ℹ️ [RAG] Niciun rezultat n-a depășit pragul de {threshold}.")
+        if top_results:
+            print(f"✅ [RAG] Top score: {top_results[0][1]:.4f} (Prag: {threshold})")
+            return "\n\n".join([r[0] for r in top_results])
+        
+        return ""
 
-        # Returnăm textele combinate pentru LLM
-        return "\n\n".join([r[0] for r in results[:top_k]])
-
+    except Exception as e:
+        print(f"❌ [RAG] Eroare căutare: {e}")
+        return ""
     finally:
         await conn.close()
 

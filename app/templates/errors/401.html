@@ -1,0 +1,19 @@
+{% extends "layout/base.html" %}
+{% block title %}Autentificare Necesară - s366_turbo{% endblock %}
+
+{% block content %}
+<div class="container d-flex flex-column align-items-center justify-content-center vh-100 text-center">
+    <div class="p-5 border border-warning rounded shadow bg-dark" style="max-width: 500px;">
+        <h1 class="display-1 text-warning fw-bold">401</h1>
+        <h2 class="text-white mb-3">Sesiune Expirată sau Inexistentă</h2>
+        <p class="text-muted fs-5">
+            {{ detail if detail else "Trebuie să fii autentificat pentru a vedea acest conținut." }}
+        </p>
+        <hr class="border-secondary my-4">
+        <div class="d-grid gap-2">
+            <a href="/auth/login" class="btn btn-warning fw-bold">Mergi la Login</a>
+            <a href="/" class="btn btn-outline-light">Înapoi la Pagina Principală</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

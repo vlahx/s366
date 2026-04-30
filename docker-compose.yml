@@ -9,6 +9,8 @@ services:
       - ./data/companies_data:/companies_data
       - ./data/users_data:/users_data
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     env_file:
       - .env
     deploy:
@@ -16,10 +18,11 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: all  
-              capabilities: [gpu]
+              count: all
+              capabilities: [ gpu ]
     runtime: nvidia
     environment:
+      - TZ=Europe/Bucharest
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
     networks:

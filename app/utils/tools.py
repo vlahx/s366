@@ -6,6 +6,7 @@ import json
 import httpx
 import re
 import asyncio
+from fastapi import Request
 from typing import List
 import numpy as np # Mai bine np
 import pandas as pd
@@ -81,10 +82,6 @@ async def get_current_weather(city: str):
 
 # --- WEB SEARCH (ASYNCHRONOUS) ---
 
-
-
-# app/utils/tools.py
-
 async def search_web(query: str):
     try:
         import datetime
@@ -140,28 +137,45 @@ async def calculate(expression: str):
     
 
 async def execute_tool(tool_call):
-        """
-        Execută funcția cerută de LLM folosind dicționarul din tools.py.
-        """
-        name = tool_call['function']['name']
-        # Ollama trimite argumentele ca string JSON sau dict, le gestionăm:
-        args = tool_call['function'].get('arguments', {})
-        if isinstance(args, str):
-            args = json.loads(args)
+    """
+    Execută funcția cerută de vLLM/Qwen folosind dicționarul available_tools.
+    """
+    # 1. Extragere nume
+    name = tool_call.get('function', {}).get('name')
+    if not name:
+        return {"error": "Numele funcției lipsește din tool_call"}
 
-        logger.info(f"Executăm unealta: {name} cu argumente: {args}")
-        
-        if name in available_tools:
-            try:
-                # Apelăm funcția asincronă din tools.py
-                result = await available_tools[name](**args)
-                return result
-            except Exception as e:
-                logger.error(f"Eroare la execuția uneltei {name}: {e}")
-                return {"error": str(e)}
-        else:
-            logger.warning(f"Unealta {name} nu a fost găsită în available_tools.")
-            return {"error": f"Tool {name} not found"}        
+    # 2. Gestionare argumente (vLLM specific)
+    args_raw = tool_call.get('function', {}).get('arguments', {})
+    
+    if isinstance(args_raw, str):
+        try:
+            # vLLM trimite uneori string-uri JSON complexe
+            args = json.loads(args_raw)
+        except json.JSONDecodeError as e:
+            logger.error(f"Eroare parsare JSON pentru {name}: {e}")
+            return {"error": f"Invalid JSON arguments: {str(e)}"}
+    else:
+        args = args_raw
+
+    logger.info(f"🚀 [vLLM Tool] Executăm: {name} | Args: {args}")
+
+    # 3. Execuție din dicționarul tău existent
+    if name in available_tools:
+        try:
+            # Rulăm funcția asincronă (get_current_weather, calculate, etc.)
+            result = await available_tools[name](**args)
+            return result
+        except TypeError as te:
+            # Apare dacă vLLM trimite argumente care nu există în semnătura funcției Python
+            logger.error(f"Argumente invalide pentru {name}: {te}")
+            return {"error": f"Argument mismatch: {str(te)}"}
+        except Exception as e:
+            logger.error(f"Eroare internă la {name}: {e}")
+            return {"error": str(e)}
+    
+    logger.warning(f"⚠️ Unealta {name} nu este definită în available_tools.")
+    return {"error": f"Tool {name} not found in S366_turbo registry"}    
     
 
 TOOLS_DESCRIPTION = [

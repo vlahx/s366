@@ -8,12 +8,11 @@ WHISPER_URL = "http://whisper_s366:8000/transcribe"
 async def transcribe_audio_async(audio_bytes: bytes, filename: str = "input.wav"):
     """
     Trimite bytes audio către Whisper asincron.
-    audio_bytes: datele binare primite de la WebSocket
-    filename: numele virtual al fișierului pentru multipart/form-data
+    Gestionează răspunsul indiferent dacă Whisper returnează un Dict sau o Listă.
     """
     async with httpx.AsyncClient() as client:
         try:
-            # Pregătim fișierul pentru multipart upload fără să-l scriem pe disc
+            # Pregătim fișierul pentru multipart upload
             files = {'audio_file': (filename, audio_bytes, 'audio/wav')}
             
             print(f"[STT INFO] Trimitere {len(audio_bytes)} bytes către Whisper...", file=sys.stderr)
@@ -23,10 +22,25 @@ async def transcribe_audio_async(audio_bytes: bytes, filename: str = "input.wav"
             resp.raise_for_status()
             
             data = resp.json()
-            transcribed_text = data.get("text", "").strip()
+            
+            # --- FIX PENTRU EROAREA 'list' object has no attribute 'get' ---
+            transcribed_text = ""
+            
+            if isinstance(data, list):
+                # Dacă e listă, de obicei textul e în primul element sau concatenăm segmentele
+                # Mergem pe varianta sigură: luăm textul din primul element dacă există
+                if data and isinstance(data[0], dict):
+                    transcribed_text = data[0].get("text", "").strip()
+                elif data and isinstance(data[0], str):
+                    transcribed_text = data[0].strip()
+            elif isinstance(data, dict):
+                # Dacă e dicționar, extragem direct
+                transcribed_text = data.get("text", "").strip()
+            # --------------------------------------------------------------
 
             if not transcribed_text:
-                print("[DEBUG STT] Whisper a returnat text gol.", file=sys.stderr)
+                print("[DEBUG STT] Whisper a returnat text gol sau format necunoscut.", file=sys.stderr)
+                # Opțional: print(f"Format primit: {data}", file=sys.stderr)
                 return ""
 
             print(f"[DEBUG STT] Text transcris: {transcribed_text}", file=sys.stderr)
@@ -36,5 +50,6 @@ async def transcribe_audio_async(audio_bytes: bytes, filename: str = "input.wav"
             print(f"[ERROR STT] Whisper a răspuns cu eroare: {e.response.status_code}", file=sys.stderr)
             return ""
         except Exception as e:
+            # Acum aici nu ar mai trebui să ajungă eroarea cu 'list'
             print(f"[ERROR STT] Eroare neprevăzută la STT: {e}", file=sys.stderr)
             return ""

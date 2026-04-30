@@ -74,22 +74,26 @@ async def init_company_db(cui):
                 )
             """)
             
-            # 2. Tabelul de Documente
+            # 2. Tabelul de Documente (Versiunea Turbo)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS "documents" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-                    "filename" TEXT NOT NULL,
-                    "data_path" TEXT NOT NULL,
-                    "uploaded_at" TEXT DEFAULT (datetime('now')),
+                    "source_id" TEXT UNIQUE,         -- id-ul postarii extrase
+                    "filename" TEXT NOT NULL,         -- Aici punem titlul scurtat (max 100 ch)
+                    "data_path" TEXT NOT NULL,        -- URL-ul sursă sau calea fișierului
                     "status" TEXT NOT NULL DEFAULT 'pending',
-                    "vectorized" INTEGER DEFAULT 0
+                    "vectorized" INTEGER DEFAULT 0,
+                    "type" TEXT NOT NULL DEFAULT 'file', -- 'file', 'web', 'rss', etc.
+                    "image_url" TEXT,                 -- URL-ul imaginii reprezentative (de la WP)
+                    "created_at" TEXT,                -- Data publicării (preluată de pe site)
+                    "uploaded_at" TEXT DEFAULT (datetime('now')) -- Data la care am făcut noi sync
                 )
             """)
-            
-            # 3. Tabelul Chunks
+
+            # 3. Tabelul Chunks (Rămâne la fel, e solid)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS "chunks" (
-                    "id" INTEGER PRIMARY KEY,
+                    "id" INTEGER PRIMARY KEY AUTOINCREMENT, -- Adaugă AUTOINCREMENT și aici pentru siguranță
                     "document_id" INTEGER NOT NULL,
                     "chunk_index" INTEGER NOT NULL,
                     "chunk_text" TEXT NOT NULL,
@@ -107,15 +111,20 @@ async def init_company_db(cui):
                 )
             """)
 
-            # 5. Inserăm valorile implicite (TOT ÎN INTERIORUL BLOCULUI)
+            # 5. Inserăm valorile implicite (ACTUALIZAT)
             default_settings = [
                 ('rag_temperature', '0.1'),
                 ('rag_top_k', '5'),
                 ('rag_threshold', '0.45'),
-                ('system_prompt', 'Ești un asistent tehnic util. Răspunde precis bazându-te pe contextul oferit.')
+                ('system_prompt', 'Ești un asistent tehnic util. Răspunde precis bazându-te pe contextul oferit.'),
+                # Noile setări pentru automatizare
+                ('wp_scrape_enabled', 'off'),      # Default dezactivat
+                ('wp_scrape_url', ''),             # Gol până la configurare
+                ('wp_scrape_hours', '08:00, 18:00') # Un program de bun simț default
             ]
-            
+
             for key, val in default_settings:
+                # Folosim INSERT OR IGNORE ca să nu suprascriem dacă firma există deja
                 await db.execute("INSERT OR IGNORE INTO company_settings (key, value) VALUES (?, ?)", (key, val))
 
             # 6. Tabelul Posts
@@ -130,6 +139,23 @@ async def init_company_db(cui):
                     "is_public" BOOLEAN NOT NULL DEFAULT 1,
                     UNIQUE ("post_slug")
                 )  
+            """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS scraped_content (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source_id TEXT,             -- ID-ul de la WP (ex: 37551)
+                    platform TEXT,              -- 'wordpress'
+                    content_type TEXT,          -- 'news'
+                    title TEXT,                 -- Titlul curățat
+                    raw_content TEXT,           -- Textul curățat (Source of Truth)
+                    embedding BLOB,             -- Amprenta Vectorială (384 dimensiuni)
+                    url TEXT,                   -- Link original
+                    price REAL DEFAULT 0.0,     
+                    discount REAL DEFAULT 0.0,  
+                    metadata_json TEXT,         
+                    created_at TIMESTAMP,       -- Data publicării originale
+                    synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
             """)
             
             await db.commit()

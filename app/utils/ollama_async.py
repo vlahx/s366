@@ -1,6 +1,7 @@
 # app/utils/ollama_async.py
 import httpx
 import json
+import sys
 
 class OllamaAsyncAPI:
     def __init__(self):

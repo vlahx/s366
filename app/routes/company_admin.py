@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Depends,Form, HTTPException, UploadFile, File, BackgroundTasks
-from fastapi.responses import HTMLResponse,RedirectResponse
+from fastapi.responses import HTMLResponse,RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from app.models.sqlite_model import fetch_one, fetch_all
 from app.utils.decorators import company_admin_required 
@@ -188,17 +188,19 @@ async def delete_document_action(doc_id: int, request: Request):
 
 async def get_company_settings(cui):
     conn = await get_db(cui)
-    # Punem default-urile aici direct, ca fallback solid
+    # Default-uri noi pentru Scraping
     settings = {
         'rag_temperature': 0.1,
         'rag_top_k': 5,
         'rag_threshold': 0.45,
-        'system_prompt': 'Ești un asistent tehnic util.'
+        'system_prompt': 'Ești un asistent tehnic util.',
+        'wp_scrape_url': '',
+        'wp_scrape_enabled': 'off', # Folosim 'on'/'off' pentru checkbox-urile HTML
+        'wp_scrape_hours': '08:00, 18:00' # Default: de două ori pe zi
     }
     
     if not conn: 
-        print(f"⚠️ [RAG] Nu s-a putut deschide DB pentru CUI {cui}")
-        return settings # Returnăm măcar default-urile
+        return settings
     
     try:
         async with conn.execute("SELECT key, value FROM company_settings") as cursor:
@@ -206,6 +208,7 @@ async def get_company_settings(cui):
             for row in rows:
                 key = row['key']
                 val = row['value']
+                # Parsăm în funcție de tip
                 if key in ['rag_temperature', 'rag_threshold']:
                     settings[key] = float(val)
                 elif key in ['rag_top_k']:
@@ -224,22 +227,67 @@ async def save_settings(request: Request):
     if not cui:
         return RedirectResponse(url="/auth/login", status_code=303)
     
-    # Extragem datele din formular
     form_data = await request.form()
     
-    # Filtrăm doar cheile care ne interesează pentru RAG
+    # Colectăm tot, inclusiv noile setări de scrap
     settings_to_save = {
         "rag_temperature": form_data.get("rag_temperature"),
         "rag_top_k": form_data.get("rag_top_k"),
         "rag_threshold": form_data.get("rag_threshold"),
-        "system_prompt": form_data.get("system_prompt")
+        "system_prompt": form_data.get("system_prompt"),
+        "wp_scrape_url": form_data.get("wp_scrape_url", "").strip(),
+        "wp_scrape_enabled": form_data.get("wp_scrape_enabled", "off"),
+        "wp_scrape_hours": form_data.get("wp_scrape_hours", "08:00, 18:00")
     }
     
-    # Salvăm în DB
-    success = await save_company_settings(cui, settings_to_save)
+    # 1. Salvăm în DB
+    await save_company_settings(cui, settings_to_save)
     
-    # Redirecționăm înapoi la tab-ul de settings cu un mesaj (opțional)
-    return RedirectResponse(
-        url="/company_admin/dashboard/settings", 
-        status_code=303
-    )    
+    # 2. TODO: Aici vom chema scheduler.update_job(cui, settings_to_save)
+    # ca să actualizăm orele de rulare fără restart la server.
+    
+    return RedirectResponse(url="/company_admin/dashboard/settings", status_code=303)  
+
+
+
+from app.utils.scraping.scraping_all import start_the_beast, active_syncs
+
+
+@router.post("/sync-data-source")
+async def sync_data_source_endpoint(request: Request, background_tasks: BackgroundTasks):
+    cui = request.session.get('company_cui')
+    if not cui:
+        return JSONResponse({"status": "error", "message": "Sesiune invalidă!"}, status_code=401)
+
+    # 1. Luăm TOATE setările dintr-o singură lovitură (funcția ta se ocupă de DB)
+    settings = await get_company_settings(cui)
+    
+    # 2. Extragem URL-ul (dacă nu există în DB, funcția ta returnează string gol '')
+    target_url = settings.get('wp_scrape_url', '').strip()
+
+    # 3. Validăm URL-ul și îi punem protocolul dacă lipsește (că am văzut ce pățim)
+    if not target_url:
+        return JSONResponse({"status": "error", "message": "⚠️ Sursă de date (URL) lipsă în setări!"})
+    
+    if not target_url.startswith(('http://', 'https://')):
+        target_url = f"https://{target_url}"
+
+
+    if active_syncs.get(str(cui)):
+        return JSONResponse({"status": "error", "message": "O sincronizare este deja în curs!"})
+
+    # 5. PORNEȘTE BESTIA (Atenție la ordine: cui, apoi url)
+    background_tasks.add_task(start_the_beast, str(cui), target_url)
+
+    return {
+        "status": "success", 
+        "message": "Sincronizarea a pornit. Verifică terminalul pentru progres."
+    }
+
+
+
+@router.get("/sync-status")
+async def get_sync_status(request: Request):
+    cui = request.session.get('company_cui')
+    is_running = active_syncs.get(str(cui), False)
+    return {"is_running": is_running}

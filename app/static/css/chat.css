@@ -343,3 +343,40 @@
 #voice-overlay.active {
     display: flex;
 }
+.chat-message p {
+    margin-bottom: 0.5rem;
+    display: inline; /* Ajută la fluiditatea scrierii pe aceeași linie */
+}
+.chat-message p:last-child {
+    display: block; /* Ultimul paragraf să fie așezat normal */
+}
+
+pre {
+    position: relative;
+    padding-top: 30px !important; /* Loc pentru butoane */
+}
+
+.code-actions {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    display: flex;
+    gap: 5px;
+    z-index: 10;
+}
+
+.code-actions button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ccc;
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+}
+
+.code-actions button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}

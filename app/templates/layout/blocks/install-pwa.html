@@ -1,0 +1,59 @@
+<div class="d-grid gap-2 p-3">
+    <button id="installButton" class="btn btn-success btn-block" style="display: none;">
+        Instalare aplicație
+    </button>
+</div>
+
+<script>
+    let deferredPrompt;
+    const installButton = document.getElementById('installButton');
+
+    // Detecție Safari / iOS
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.platform) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // 1. LOGICA PENTRU APPLE (Safari/iOS)
+    if (isSafari || isIOS) {
+        // Verificăm dacă nu e deja instalată (standalone)
+        if (!window.matchMedia('(display-mode: standalone)').matches) {
+            installButton.textContent = 'Adaugă pe ecranul principal';
+            installButton.style.display = 'block';
+            installButton.addEventListener('click', () => {
+                alert('Pentru instalare: apasă butonul "Share" (pătratul cu săgeată în sus) din meniul browserului și selectează "Add to Home Screen".');
+            });
+        }
+    }
+
+    // 2. LOGICA PENTRU ANDROID / CHROME
+    window.addEventListener('beforeinstallprompt', (e) => {
+        console.log("S366: Eveniment de instalare declanșat.");
+        e.preventDefault();
+        deferredPrompt = e;
+
+        if (installButton) {
+            installButton.style.display = 'block';
+            installButton.textContent = 'Instalare aplicație';
+        }
+    });
+
+    if (installButton) {
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`S366: Utilizatorul a ${outcome} instalarea.`);
+                deferredPrompt = null;
+                installButton.style.display = 'none';
+            }
+        });
+    }
+
+    // 3. ÎNREGISTRARE SERVICE WORKER (Calea corectă stabilită)
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('S366: SW înregistrat pe:', reg.scope))
+                .catch(err => console.error('S366: Eroare SW:', err));
+        });
+    }
+</script>

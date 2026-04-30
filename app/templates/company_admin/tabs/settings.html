@@ -1,8 +1,8 @@
-<div class="card border-0 shadow-sm">
-    <div class="card-body p-4">
-        <h5 class="mb-4"><i class="bi bi-gear-wide-connected me-2"></i>Configurare Motor RAG</h5>
+<form action="/company_admin/dashboard/settings/save" method="POST">
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <h5 class="mb-4"><i class="bi bi-gear-wide-connected me-2"></i>Configurare Motor RAG</h5>
 
-        <form action="/company_admin/dashboard/settings/save" method="POST">
             <div class="row g-4">
                 <div class="col-md-6">
                     <label class="form-label d-flex justify-content-between">
@@ -12,14 +12,14 @@
                     <input type="range" class="form-range" name="rag_temperature" min="0" max="1" step="0.1"
                         value="{{ settings.rag_temperature }}"
                         oninput="document.getElementById('tempValue').innerText = this.value">
-                    <div class="form-text">0 = Strict/Tehnic, 1 = Creativ/Chatty.</div>
+                    <div class="form-text small opacity-75">0 = Strict/Tehnic, 1 = Creativ/Chatty.</div>
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label text-white">Top K (Chunks returnate)</label>
-                    <input type="number" class="form-control bg-dark text-white border-secondary" name="rag_top_k"
-                        value="{{ settings.rag_top_k }}" min="1" max="15">
-                    <div class="form-text">Câte bucăți de manual să citească AI-ul odată.</div>
+                    <label class="form-label fw-bold">Top K (Chunks returnate)</label>
+                    <input type="number" class="form-control" name="rag_top_k" value="{{ settings.rag_top_k }}" min="1"
+                        max="15">
+                    <div class="form-text small opacity-75">Câte bucăți de manual să citească AI-ul odată.</div>
                 </div>
 
                 <div class="col-md-12">
@@ -30,21 +30,167 @@
                     <input type="range" class="form-range" name="rag_threshold" min="0.1" max="0.9" step="0.05"
                         value="{{ settings.rag_threshold }}"
                         oninput="document.getElementById('thresholdValue').innerText = this.value">
-                    <div class="form-text">Cu cât e mai mare, cu atât trebuie să fie mai sigură potrivirea.</div>
+                    <div class="form-text small opacity-75">Cu cât e mai mare, cu atât trebuie să fie mai sigură
+                        potrivirea.</div>
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label text-white">Instrucțiuni Sistem (Personalitate)</label>
-                    <textarea class="form-control bg-dark text-white border-secondary" name="system_prompt"
-                        rows="3">{{ settings.system_prompt }}</textarea>
-                </div>
-
-                <div class="col-12 mt-4 text-end">
-                    <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-save me-2"></i>Salvează Configurația
-                    </button>
+                    <label class="form-label fw-bold">Instrucțiuni Sistem (Personalitate)</label>
+                    <textarea class="form-control" name="system_prompt" rows="3">{{ settings.system_prompt }}</textarea>
                 </div>
             </div>
-        </form>
+        </div>
     </div>
-</div>
+
+    <div class="accordion shadow-sm" id="advancedSettingsAccordion">
+        <div class="accordion-item border-warning rounded overflow-hidden bg-transparent">
+            <h2 class="accordion-header" id="headingAdvanced">
+                <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseAdvanced" aria-expanded="false">
+                    <i class="bi bi-tools me-2 text-warning"></i>
+                    Configurări Avansate & Automatizare
+                </button>
+            </h2>
+            <div id="collapseAdvanced" class="accordion-collapse collapse" aria-labelledby="headingAdvanced"
+                data-bs-parent="#advancedSettingsAccordion">
+                <div class="accordion-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0 text-primary"><i class="bi bi-wordpress me-2"></i>Sistem Sincronizare
+                                    Date
+                                </h6>
+                                <div class="form-check form-switch fs-5">
+                                    <input class="form-check-input" type="checkbox" name="wp_scrape_enabled"
+                                        id="wp_scrape_enabled" {% if settings.wp_scrape_enabled=='on' %}checked{% endif
+                                        %}>
+                                    <label class="form-check-label small" for="wp_scrape_enabled">Activ</label>
+                                </div>
+                            </div>
+                            <hr class="mt-0 opacity-25">
+                        </div>
+
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold opacity-75">URL SITE</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                                <input type="url" name="wp_scrape_url" class="form-control"
+                                    value="{{ settings.wp_scrape_url }}" placeholder="https://exemplu.ro">
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold opacity-75">ORELE DE INNOIRE A DATELOR
+                                (CRON)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                                <input type="text" name="wp_scrape_hours" class="form-control"
+                                    value="{{ settings.wp_scrape_hours }}" placeholder="08:00, 18:00">
+                            </div>
+                            <div class="form-text x-small">HH:MM, separate prin virgulă.</div>
+                        </div>
+                        <div class="card p-4 mt-4">
+                            <h3>🔄 Sincronizare Manuală</h3>
+                            <p class="text-muted">Apasă butonul de mai jos pentru a aduce ultimele știri în creierul
+                                AI-ului.</p>
+
+                            <button id="syncBtn" class="btn btn-primary">
+                                <span id="btnText">Pornește Sincronizarea</span>
+                                <div id="btnSpinner" class="spinner-border spinner-border-sm d-none"></div>
+                            </button>
+
+                            <div id="syncStatus" class="mt-2 small"></div>
+                        </div>
+                        <script>
+                            const btn = document.getElementById('syncBtn');
+                            const btnText = document.getElementById('btnText');
+                            const spinner = document.getElementById('btnSpinner');
+                            const status = document.getElementById('syncStatus');
+
+                            async function checkStatus() {
+                                try {
+                                    const response = await fetch('/company_admin/sync-status');
+                                    const data = await response.json();
+
+                                    if (data.is_running === true) {
+                                        // Dacă nu mai trimitem 'remaining' din RAM, punem un mesaj generic fain
+                                        status.innerHTML = `<span class="text-info">⏳ S366_turbo lucrează intens în fundal...</span>`;
+                                        setTimeout(checkStatus, 5000); // Polling la 5 secunde e perfect
+                                    } else {
+                                        // GATA! Dicționarul a devenit False
+                                        status.innerHTML = `<b class="text-success">✅ Sincronizare completă! Toate datele sunt în
+                            RAG.</b>`;
+                                        resetSyncUI();
+                                    }
+                                } catch (e) {
+                                    console.error("Eroare la verificarea statusului");
+                                    // Dacă serverul e ocupat, nu resetăm UI-ul, mai încercăm o dată mai târziu
+                                    setTimeout(checkStatus, 10000);
+                                }
+                            }
+
+                            document.getElementById('syncBtn').addEventListener('click', async () => {
+                                btn.disabled = true;
+                                btnText.innerText = "Sincronizare în curs...";
+                                spinner.classList.remove('d-none');
+                                status.innerHTML = `<span class="opacity-75 italic">🚀 Se comunică cu serverul S366...</span>`;
+
+                                localStorage.setItem('s366_syncing', 'true');
+
+                                try {
+                                    const response = await fetch('/company_admin/sync-data-source', { method: 'POST' });
+                                    const data = await response.json();
+
+                                    if (data.status === 'success') {
+                                        checkStatus();
+                                    } else {
+                                        // Dacă e deja un proces pornit (verificat în ruta POST prin dict)
+                                        status.innerHTML = `<b class="text-warning">⚠️ ${data.message}</b>`;
+                                        if (data.message.includes("deja în curs")) {
+                                            checkStatus(); // Ne agățăm de procesul existent
+                                        } else {
+                                            resetSyncUI();
+                                        }
+                                    }
+                                } catch (error) {
+                                    status.innerHTML = `<span class="text-danger">⚠️ Eroare de conexiune.</span>`;
+                                    resetSyncUI();
+                                }
+                            });
+
+                            function resetSyncUI() {
+                                btn.disabled = false;
+                                btnText.innerText = "Pornește Sincronizarea";
+                                spinner.classList.add('d-none');
+                                localStorage.removeItem('s366_syncing');
+                            }
+
+                            window.addEventListener('load', () => {
+                                if (localStorage.getItem('s366_syncing') === 'true') {
+                                    btn.disabled = true;
+                                    btnText.innerText = "Sincronizare activă...";
+                                    spinner.classList.remove('d-none');
+                                    checkStatus();
+                                }
+                            });
+                        </script>
+                        <div class="col-12 mt-3">
+                            <div class="alert alert-info py-2 d-flex align-items-center bg-opacity-10 border-info border-opacity-25"
+                                style="font-size: 0.85rem;">
+                                <i class="bi bi-info-circle-fill me-2 fs-5 text-info"></i>
+                                <span>Sistemul va vectoriza automat postările noi folosind modelul local și le va salva
+                                    pentru context AI.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 mt-4">
+        <button type="submit" class="btn btn-warning btn-lg text-white fw-bold shadow-sm border-0">
+            <i class="bi bi-cloud-arrow-up-fill me-2"></i> Salvează Toate Configurările
+        </button>
+    </div>
+</form>

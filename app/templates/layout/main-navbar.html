@@ -1,19 +1,19 @@
 <nav class="navbar navbar-expand-lg border-bottom sticky-top bg-body-tertiary">
-
+{% if  request.url.path.startswith('/chat') %}
     <button class="btn btn-outline-primary d-lg-none rounded-circle" id="sidebar-hamburger"
         style="width: 40px; height: 40px; padding: 0;" title="Meniu conversații">
         <i class="bi bi-list fs-4"></i>
     </button>
-    <a class="navbar-brand" href="/">S366 <span class="text-primary"> Turbo AI</span></a>
+    {% endif %}
+    <a class="navbar-brand mx-2" href="/">S366 <span class="text-primary">AI</span></a>
 
-    <div class="d-flex align-items-center order-lg-3">
-        <button class="btn btn-link nav-link px-3 border-0" id="themeToggler" type="button">
+    
+    
+        <button class="btn btn-link nav-link border-0" id="themeToggler" type="button">
             <i class="bi bi-sun-fill fs-5"></i>
             <i class="bi bi-moon-stars-fill fs-5"></i>
         </button>
 
-
-    </div>
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
         <span class="navbar-toggler-icon"></span>

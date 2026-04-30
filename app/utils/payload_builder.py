@@ -12,30 +12,45 @@ import json
 
 from app.models.sqlite_company_model import get_company_settings
 
-async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, user_role=None,user_lastname=None, user_firstname=None,
+async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, user_role=None, user_lastname=None, user_firstname=None,
                       company_id=None, company_cui=None, company_name=None):
 
-    # Fallback la session dacă nu sunt transmise argumente
+
     user_id = user_id 
-    user_firstname = user_firstname 
-    user_lastname = user_lastname
     user_role = user_role 
+    user_lastname = user_lastname
+    user_firstname = user_firstname    
+    company_id = company_id
     company_cui = company_cui 
     company_name = company_name 
-    company_id = company_id
+    
 
     #if not company_cui:
     #    print("EROARE: company_cui lipseste din sesiune sau argumente.", file=sys.stderr)
     #    return None
 
-    # Data / ora
-    current_datetime = datetime.now().isoformat()
+    # Setați timezone-ul pentru România
     tz_ro = pytz.timezone('Europe/Bucharest')
     now = datetime.now(tz_ro)
-    
-    # Formatăm ora pentru logică (HH:MM) și data pentru context
+
+    # Mapare pentru zilele săptămânii în română (opțional, dar recomandat pentru prompt)
+    zile_saptamana = {
+        "Monday": "Luni",
+        "Tuesday": "Marți",
+        "Wednesday": "Miercuri",
+        "Thursday": "Joi",
+        "Friday": "Vineri",
+        "Saturday": "Sâmbătă",
+        "Sunday": "Duminică"
+    }
+
+    ziua_nume = zile_saptamana.get(now.strftime("%A"), now.strftime("%A"))
+
+    # Formatăm data finală: "Marți, 24-03-2026"
+    data_curenta = f"{ziua_nume}, {now.strftime('%d-%m-%Y')}"
     ora_curenta = now.strftime("%H:%M")
-    data_curenta = now.strftime("%d-%m-%Y")
+
+    print(f"Data: {data_curenta} | Ora: {ora_curenta}")
 
     # --- Istoricul conversației (SQLite) ---
     conversation_history = []
@@ -112,7 +127,7 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
     # 2. Asamblarea inteligentă (Dacă avem prompte, le punem sub header)
     if company_prompt_text:
         # Îi dăm AI-ului un indiciu clar că aici începe specificul firmei
-        business_context = f"\n\n### CONTEXT ȘI REGULI COMPANIE ###\n{company_prompt_text}\n################################"
+        business_context = f"\n\n### CONTEXT SPECIFIC COMPANIE ###\n{company_prompt_text}\n################################"
     else:
         business_context = ""
 
@@ -137,7 +152,7 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
     except Exception as e:
         print(f"❌ EROARE la extragerea RAG: {e}", file=sys.stderr)
         rag_text = ""
-
+    current_datetime = datetime.now(tz_ro).isoformat()
     # --- Construim payload ---
     payload = {
         "user": {
@@ -162,6 +177,6 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
         },
         "user_input": user_message
     }
-    print(f"[DEBUG] Payload construit: {payload}", file=sys.stderr)
+    print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)   
 
     return payload

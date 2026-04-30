@@ -1,0 +1,158 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<div class="hosting-wrapper">
+  <h1 class="page-title">Hosting & Domenii</h1>
+  <p class="page-subtitle">Alege pachetul, verifică domeniul și lansează-ți proiectul în minute.</p>
+
+  <!-- Pachete -->
+  <section class="packages-grid">
+    <div class="package-card">
+      <h3>Starter</h3>
+      <ul class="features">
+        <li>1 Site WordPress</li>
+        <li>1 GB SSD</li>
+        <li>1 Cont Email</li>
+        <li>SSL Gratuit</li>
+      </ul>
+      <div class="price">3 € / lună</div>
+      <button class="btn-select" onclick="selectPackage('starter')">Selectează</button>
+    </div>
+
+    <div class="package-card featured">
+      <h3>Pro</h3>
+      <ul class="features">
+        <li>5 Site-uri WordPress</li>
+        <li>5 GB SSD</li>
+        <li>5 Conturi Email</li>
+        <li>SSL Gratuit + Backup</li>
+      </ul>
+      <div class="price">5 € / lună</div>
+      <button class="btn-select" onclick="selectPackage('pro')">Selectează</button>
+    </div>
+
+    <div class="package-card">
+      <h3>Business</h3>
+      <ul class="features">
+        <li>Site-uri Nelimitate</li>
+        <li>20 GB SSD</li>
+        <li>Email Nelimitat</li>
+        <li>SSL + Backup + Suport Prioritar</li>
+      </ul>
+      <div class="price">10 € / lună</div>
+      <button class="btn-select" onclick="selectPackage('business')">Selectează</button>
+    </div>
+  </section>
+
+  <!-- Verificare Domeniu -->
+  <section class="domain-section">
+    <h2>Verifică Disponibilitatea Domeniului</h2>
+    
+    <div class="input-group">
+      <input type="text" id="domainInput" placeholder="ex: magazin.ro, afacerea.me" />
+      <button id="checkBtn" onclick="checkDomain()">Verifică</button>
+    </div>
+
+    <div id="domainStatus" class="status-msg" style="display:none;"></div>
+
+    <label class="byod-toggle">
+      <input type="checkbox" id="byodToggle" onchange="toggleBYOD()" />
+      <span>Am deja un domeniu propriu configurat</span>
+    </label>
+
+    <button id="continueBtn" class="btn-primary" disabled onclick="window.location.href='/hosting/provision'">
+      Continuă Configurarea
+    </button>
+  </section>
+</div>
+
+<style>
+  .hosting-wrapper { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+  .page-title { text-align: center; margin-bottom: 0.5rem; }
+  .page-subtitle { text-align: center; opacity: 0.8; margin-bottom: 2rem; }
+  
+  .packages-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
+  .package-card { border: 1px solid var(--border-color, #333); padding: 1.5rem; border-radius: 12px; background: var(--card-bg, #111); transition: transform 0.2s; }
+  .package-card.featured { border-color: var(--primary-color, #4f46e5); box-shadow: 0 0 15px rgba(79, 70, 229, 0.2); }
+  .package-card:hover { transform: translateY(-4px); }
+  .features { list-style: none; padding: 0; margin: 1rem 0; }
+  .features li { padding: 0.4rem 0; border-bottom: 1px solid var(--border-color, #222); }
+  .price { font-size: 1.5rem; font-weight: bold; margin: 1rem 0; }
+  .btn-select, .btn-primary { width: 100%; padding: 0.6rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; background: var(--btn-bg, #2563eb); color: white; }
+  .btn-select { background: var(--card-bg, #222); border: 1px solid var(--border-color, #444); }
+  .btn-select:hover { background: var(--btn-hover, #333); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .domain-section { background: var(--card-bg, #111); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color, #333); }
+  .input-group { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  .input-group input { flex: 1; padding: 0.7rem; border: 1px solid var(--border-color, #444); border-radius: 8px; background: var(--input-bg, #1a1a1a); color: inherit; }
+  .input-group button { padding: 0.7rem 1.5rem; border: none; border-radius: 8px; background: var(--btn-bg, #4f46e5); color: white; cursor: pointer; }
+  .input-group button:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .status-msg { padding: 0.8rem; margin: 0.5rem 0 1rem; border-radius: 8px; text-align: center; }
+  .status-msg.success { background: #065f46; color: #ecfdf5; }
+  .status-msg.error { background: #7f1d1d; color: #fef2f2; }
+  .status-msg.loading { background: #374151; color: #f9fafb; }
+
+  .byod-toggle { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; cursor: pointer; }
+  .btn-primary { margin-top: 1rem; font-size: 1rem; padding: 0.8rem; }
+</style>
+
+<script>
+  const domainInput = document.getElementById('domainInput');
+  const checkBtn = document.getElementById('checkBtn');
+  const domainStatus = document.getElementById('domainStatus');
+  const byodToggle = document.getElementById('byodToggle');
+  const continueBtn = document.getElementById('continueBtn');
+
+  function toggleBYOD() {
+    if (byodToggle.checked) {
+      domainInput.value = ''; domainInput.disabled = true;
+      checkBtn.disabled = true; domainStatus.style.display = 'none';
+      continueBtn.disabled = false;
+    } else {
+      domainInput.disabled = false; checkBtn.disabled = false;
+      continueBtn.disabled = true;
+    }
+  }
+
+  async function checkDomain() {
+    const domain = domainInput.value.trim();
+    if (!domain) return;
+
+    domainStatus.style.display = 'block';
+    domainStatus.textContent = '⏳ Se verifică...';
+    domainStatus.className = 'status-msg loading';
+    continueBtn.disabled = true;
+
+    try {
+      const res = await fetch('/hosting/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain })
+      });
+      const data = await res.json();
+
+      if (data.available || data.status === 'available') {
+        domainStatus.textContent = '✅ Domeniu disponibil!';
+        domainStatus.className = 'status-msg success';
+        continueBtn.disabled = false;
+      } else {
+        domainStatus.textContent = '❌ ' + (data.message || 'Domeniu indisponibil.');
+        domainStatus.className = 'status-msg error';
+        continueBtn.disabled = true;
+      }
+    } catch (err) {
+      domainStatus.textContent = '⚠️ Eroare de conexiune. Încearcă din nou.';
+      domainStatus.className = 'status-msg error';
+    }
+  }
+
+  function selectPackage(pkg) {
+    document.querySelectorAll('.package-card').forEach(c => c.style.borderColor = '');
+    event.target.closest('.package-card').style.borderColor = 'var(--primary-color, #4f46e5)';
+    // Aici vei stoca pachetul ales într-un hidden input sau localStorage pentru pasul următor
+    document.getElementById('domainInput').focus();
+  }
+</script>
+{% endblock %}

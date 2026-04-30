@@ -1,0 +1,15 @@
+{% extends "layout/base.html" %}
+{% block title %}Acces Interzis - S366 Turbo AI{% endblock %}
+
+{% block content %}
+<div class="container d-flex flex-column align-items-center justify-content-center vh-100 text-center">
+    <h1 class="display-1 text-danger fw-bold">403</h1>
+    <h2 class="text-white">Hopa! Nu ai ce căuta aici.</h2>
+    <p class="text-muted mb-4">Se pare că nu ai permisiunile necesare pentru a accesa această pagină.</p>
+
+    <div class="d-flex gap-3">
+        <a href="/" class="btn btn-primary">Înapoi la Home</a>
+        <button onclick="history.back()" class="btn btn-outline-secondary text-white">Pagina Precedenta</button>
+    </div>
+</div>
+{% endblock %}
