@@ -6,3 +6,7 @@ __pycache__/
 /data/users_data/
 /data/companies_data/
 
+# ML / sentence-transformer weights (GitHub rejects blobs > 100 MiB).
+# Keep config + tokenizer JSON tracked; download weights locally or via CI/cache.
+app/models/mxbai-embed-large/model.safetensors
+app/models/mxbai-embed-large/pytorch_model.bin
