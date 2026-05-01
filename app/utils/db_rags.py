@@ -21,7 +21,11 @@ text_embedding_model = models.Transformer(MODEL_DIR)
 pooling_model = models.Pooling(text_embedding_model.get_word_embedding_dimension())
 
 # Asamblăm modelul
-model = SentenceTransformer(modules=[text_embedding_model, pooling_model], device="cuda")
+model = SentenceTransformer(modules=[text_embedding_model, pooling_model], device=device)
+
+# Dimensiune embedding mxbai (float32 → 4 bytes / dim)
+EMBEDDING_DIM = 1024
+EXPECTED_EMBEDDING_BYTES = EMBEDDING_DIM * 4
 
 print(f"✅ [S366-Turbo] Creierul de 1024 (fp16) e activ pe: {model.device}")
 
@@ -89,27 +93,119 @@ async def list_docs(cui: str):
     conn = await _get_db_conn(cui)
     if not conn: return []
     try:
-        # Nu mai avem nevoie de data_path din SQL, o calculăm noi
         async with conn.execute("""
-            SELECT id, filename, uploaded_at, status, vectorized 
+            SELECT document_id FROM chunks
+            GROUP BY document_id
+            HAVING MIN(LENGTH(embedding)) != ? OR MAX(LENGTH(embedding)) != ?
+        """, (EXPECTED_EMBEDDING_BYTES, EXPECTED_EMBEDDING_BYTES)) as cur:
+            stale_ids = {row[0] for row in await cur.fetchall()}
+
+        async with conn.execute("""
+            SELECT id, filename, uploaded_at, status, vectorized, type
             FROM documents ORDER BY uploaded_at DESC
         """) as cursor:
             rows = await cursor.fetchall()
-            
+
             results = []
             for row in rows:
                 d = dict(row)
-                # Reconstruim calea la secundă pentru a vedea mărimea pe disc
-                full_path = get_document_path(cui, d['filename'])
-                
+                d["created_at"] = d.get("uploaded_at")
+                d["ext"] = d.get("type", "file")
+                d["stale_embedding"] = d["id"] in stale_ids
+                full_path = get_document_path(cui, d["filename"])
+
                 if full_path.exists():
-                    d['size'] = os.path.getsize(full_path)
+                    d["size"] = os.path.getsize(full_path)
                 else:
-                    d['size'] = 0
+                    d["size"] = 0
                 results.append(d)
             return results
     finally:
         await conn.close()
+
+
+async def delete_chunks_for_document(cui: str, document_id: int) -> bool:
+    conn = await _get_db_conn(cui)
+    if not conn:
+        return False
+    try:
+        await conn.execute("DELETE FROM chunks WHERE document_id = ?", (document_id,))
+        await conn.commit()
+        return True
+    except Exception as e:
+        print(f"❌ Eroare delete chunks: {e}")
+        return False
+    finally:
+        await conn.close()
+
+
+async def get_document_source_text(cui: str, document_id: int) -> str | None:
+    """Text sursă: fișier pe disc (PDF/DOCX/txt) sau, dacă lipsește, chunk-urile existente."""
+    from app.utils.extractor import extract_text_from_file
+
+    conn = await _get_db_conn(cui)
+    if not conn:
+        return None
+    try:
+        async with conn.execute(
+            "SELECT filename FROM documents WHERE id = ?",
+            (document_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if not row:
+            return None
+        filename = row["filename"]
+        file_path = get_document_path(cui, filename)
+        if file_path.is_file():
+            text = extract_text_from_file(str(file_path))
+            if text:
+                return text
+
+        async with conn.execute(
+            """SELECT chunk_text FROM chunks WHERE document_id = ?
+               ORDER BY chunk_index ASC""",
+            (document_id,),
+        ) as cursor:
+            chunk_rows = await cursor.fetchall()
+        if not chunk_rows:
+            return None
+        return "\n\n".join(r["chunk_text"] for r in chunk_rows)
+    finally:
+        await conn.close()
+
+
+async def revectorize_document(cui: str, document_id: int) -> tuple[bool, str]:
+    """
+    Șterge chunk-urile vechi și re-generează embedding-uri cu modelul curent (mxbai 1024).
+    """
+    text = await get_document_source_text(cui, document_id)
+    if not text or len(text.strip()) < 50:
+        return False, "Nu există text suficient (fișier lipsă sau chunk-uri goale)."
+
+    conn = await _get_db_conn(cui)
+    if not conn:
+        return False, "Nu am putut deschide baza de date."
+    try:
+        async with conn.execute(
+            "SELECT id FROM documents WHERE id = ?",
+            (document_id,),
+        ) as cursor:
+            if not await cursor.fetchone():
+                return False, "Documentul nu există."
+        await conn.execute("DELETE FROM chunks WHERE document_id = ?", (document_id,))
+        await conn.execute(
+            """UPDATE documents SET vectorized = 0, status = 'uploaded'
+               WHERE id = ?""",
+            (document_id,),
+        )
+        await conn.commit()
+    finally:
+        await conn.close()
+
+    n_chunks = await chunk_document_text(cui, document_id, text)
+    if n_chunks == 0:
+        return False, "Chunking-ul nu a produs segmente valide."
+    return True, f"OK: {n_chunks} chunk-uri re-vectorizate."
 
 async def save_uploaded_document(cui, filename, data_path):
     conn = await _get_db_conn(cui)
