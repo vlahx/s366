@@ -148,7 +148,7 @@ async def init_company_db(cui):
                     content_type TEXT,          -- 'news'
                     title TEXT,                 -- Titlul curățat
                     raw_content TEXT,           -- Textul curățat (Source of Truth)
-                    embedding BLOB,             -- Amprenta Vectorială (384 dimensiuni)
+                    embedding BLOB,             -- Amprenta vectorială (mxbai-embed-large, 1024 dim)
                     url TEXT,                   -- Link original
                     price REAL DEFAULT 0.0,     
                     discount REAL DEFAULT 0.0,  
