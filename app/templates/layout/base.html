@@ -1,9 +1,23 @@
 <!DOCTYPE html>
-<html lang="ro" data-bs-theme="dark">
+<html lang="ro">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {# Tema din localStorage înainte de paint (evită flash). Cheie: theme #}
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('theme');
+                var theme = (stored === 'dark' || stored === 'light') ? stored : null;
+                if (!theme && window.matchMedia) {
+                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                if (!theme) theme = 'light';
+                document.documentElement.setAttribute('data-bs-theme', theme);
+            } catch (e) { document.documentElement.setAttribute('data-bs-theme', 'light'); }
+        })();
+    </script>
 
     {# 1. RESURSE CRITICE (CSS & FONTS) - Browserele le vor imediat #}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -121,23 +135,41 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // Logica ta de temă (păstrată 100% originală)
-        const getStoredTheme = () => localStorage.getItem('theme');
-        const setStoredTheme = theme => localStorage.setItem('theme', theme);
+        const THEME_KEY = 'theme';
+        const getStoredTheme = () => localStorage.getItem(THEME_KEY);
+        const setStoredTheme = (t) => localStorage.setItem(THEME_KEY, t);
         const getPreferredTheme = () => {
-            const storedTheme = getStoredTheme();
-            if (storedTheme) return storedTheme;
+            const stored = getStoredTheme();
+            if (stored === 'dark' || stored === 'light') return stored;
             return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-        const setTheme = theme => { document.documentElement.setAttribute('data-bs-theme', theme); }
-        setTheme(getPreferredTheme());
+        };
 
-        document.getElementById('themeToggler')?.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(newTheme);
-            setStoredTheme(newTheme);
-            if (typeof window.updateMapTheme === 'function') { window.updateMapTheme(newTheme); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-bs-theme', theme);
+            var meta = document.getElementById('theme-color-meta');
+            if (meta) {
+                meta.setAttribute('content', theme === 'dark' ? '#0b0d11' : '#f8f9fa');
+            }
+            document.querySelectorAll('.theme-toggle-icon').forEach(function (icon) {
+                icon.classList.remove('bi-sun-fill', 'bi-moon-stars-fill');
+                if (theme === 'dark') {
+                    icon.classList.add('bi-sun-fill');
+                    icon.setAttribute('title', 'Comută la temă deschisă');
+                } else {
+                    icon.classList.add('bi-moon-stars-fill');
+                    icon.setAttribute('title', 'Comută la temă închisă');
+                }
+            });
+            if (typeof window.updateMapTheme === 'function') window.updateMapTheme(theme);
+        }
+
+        applyTheme(getPreferredTheme());
+
+        document.getElementById('themeToggler')?.addEventListener('click', function () {
+            var cur = document.documentElement.getAttribute('data-bs-theme') || 'light';
+            var next = cur === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+            setStoredTheme(next);
         });
 
         // Auto-inchidere alerte
