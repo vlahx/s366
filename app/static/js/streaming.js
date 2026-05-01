@@ -9,17 +9,27 @@ import {
 let messageBuffer = "";
 let isPrinting = false;
 let isStreamingActive = false;
+let tickerIntervalId = null;
 const DISPLAY_SPEED = 20; // Am mărit puțin viteza pentru fluiditate pe Xeon
 
+function stopTickerInterval() {
+    if (tickerIntervalId !== null) {
+        clearInterval(tickerIntervalId);
+        tickerIntervalId = null;
+    }
+}
+
 export function startTicker(container) {
-    if (isPrinting) return;
+    // Oprește orice interval vechi; altfel isPrinting poate rămâne true fără ticker activ
+    // și următorul mesaj face return la „if (isPrinting)” → buffer neluat, Send blocat (isSubmitting).
+    stopTickerInterval();
     isPrinting = true;
-    
+
     // Resetăm containerul vizual înainte de a începe
     container.innerHTML = "";
     let rawTextSoFar = "";
 
-    let interval = setInterval(() => {
+    tickerIntervalId = setInterval(() => {
         if (messageBuffer.length > 0) {
             removeTypingIndicator();
 
@@ -47,14 +57,18 @@ export function startTicker(container) {
                 messageBuffer = messageBuffer.substring(1);
             }
 
-    
-            container.innerHTML = marked.parse(rawTextSoFar);
-            enhanceCodeBlocks(container);           
+            try {
+                container.innerHTML = marked.parse(rawTextSoFar);
+            } catch (e) {
+                console.warn('[streaming] marked.parse:', e);
+                container.textContent = rawTextSoFar;
+            }
+            enhanceCodeBlocks(container);
             scrollBottom();
 
         } else if (!isStreamingActive) {
             // FINISH: Buffer gol și stream închis
-            clearInterval(interval);
+            stopTickerInterval();
             isPrinting = false;
             removeTypingIndicator();
             addSaveButton(container.parentElement);
@@ -76,9 +90,30 @@ export const addToBuffer = (chunk) => {
 };
 
 export const clearBuffer = () => {
+    stopTickerInterval();
     messageBuffer = "";
     isPrinting = false;
 };
+
+/** Așteaptă până ticker-ul a golit bufferul după închiderea streamului (pentru citire DOM / LocalStorage). */
+export function waitForStreamIdle(maxMs = 120000) {
+    return new Promise((resolve) => {
+        const t0 = Date.now();
+        const tick = () => {
+            const idle = !isPrinting && messageBuffer.length === 0 && !isStreamingActive;
+            if (idle) {
+                resolve();
+                return;
+            }
+            if (Date.now() - t0 > maxMs) {
+                resolve();
+                return;
+            }
+            setTimeout(tick, 40);
+        };
+        tick();
+    });
+}
 
 /**
  * Injectează butoane de Copy/Run în blocurile de cod

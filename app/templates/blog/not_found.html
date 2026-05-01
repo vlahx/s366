@@ -1,0 +1,10 @@
+{% extends "layout/base.html" %}
+{% block title %}Articol negăsit — S366 AI Blog{% endblock %}
+{% block meta_description %}Pagina cerută nu există pe blog.{% endblock %}
+{% block content %}
+<div class="container py-5 text-center" style="max-width: 560px;">
+  <h1 class="h4 fw-bold">Nu am găsit articolul</h1>
+  <p class="text-body-secondary">„{{ slug }}” nu există sau nu e încă publicat.</p>
+  <a href="/blog/" class="btn btn-primary mt-3">Înapoi la blog</a>
+</div>
+{% endblock %}

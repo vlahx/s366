@@ -26,8 +26,11 @@ async def handle_chat(request: Request):
     user_message = data.get("message")
     audio_b64 = data.get("audio_b64")
     conv_uuid = data.get("conversation_uuid") or str(uuid.uuid4())
-    
+    client_history = data.get("conversation_history")
+
     user_id = request.session.get('user_id')
+    if user_id:
+        client_history = None
     user_firstname = request.session.get('firstname', 'Vizitator')
     user_lastname = request.session.get('lastname', '')
     company_id = request.session.get('company_id') #or '1'.strip()  # Fallback la '1' dacă nu există în sesiune
@@ -42,7 +45,8 @@ async def handle_chat(request: Request):
         user_lastname=user_lastname,
         company_id=company_id,
         company_cui=company_cui,
-        conversation_uuid=conv_uuid
+        conversation_uuid=conv_uuid,
+        client_messages=client_history,
     )
 
     if audio_b64:

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html lang="ro"
+    class="{% if request.url.path.startswith('/chat') %}is-chat-app{% endif %}">
 
 <head>
     <meta charset="UTF-8">
@@ -30,31 +31,32 @@
     <meta name="theme-color" content="#0b0d11" id="theme-color-meta">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="S366 Turbo">
+    <meta name="apple-mobile-web-app-title" content="S366 AI">
     <link rel="apple-touch-icon" href="/static/images/icons/icon-192x192.png">
     <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon" />
 
     {# 3. SEO & DINAMIC (TITLU/DESC) #}
     {% set site_url = "https://s366.online" %}
-    <title>{% block title %}S366 Turbo AI{% endblock %}</title>
+    <title>{% block title %}S366 AI{% endblock %}</title>
     <meta name="description"
         content="{% block meta_description %}Asistentul perfect al firmei tale. Dedicat companiilor românești.{% endblock %}">
 
-    {# 4. SOCIAL MEDIA (OG/TWITTER) - Botiștii au răbdare, userii nu #}
-    <meta property="og:type" content="website">
+    {# 4. SOCIAL MEDIA (OG/TWITTER) — blog poate suprascrie og_image_full cu URL absolut #}
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:url" content="{{ request.url }}">
     <meta property="og:title" content="{{ self.title() }}">
     <meta property="og:description" content="{{ self.meta_description() }}">
     <meta property="og:image"
-        content="{{ site_url }}{% block og_image %}/static/images/og/chat-ai-s366.png{% endblock %}">
+        content="{% block og_image_full %}{{ site_url }}{% block og_image %}/static/images/og/chat-ai-s366.png{% endblock %}{% endblock %}">
 
     <meta name="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="{{ request.url }}">
     <meta name="twitter:title" content="{{ self.title() }}">
     <meta name="twitter:description" content="{{ self.meta_description() }}">
-    <meta name="twitter:image" content="{{ site_url }}{% block tw_image %}{{ self.og_image() }}{% endblock %}">
+    <meta name="twitter:image"
+        content="{% block tw_image_full %}{{ site_url }}{% block tw_image %}{{ self.og_image() }}{% endblock %}{% endblock %}">
 
-
+    {% block extra_head %}{% endblock %}
 
     <style>
         body {
@@ -72,10 +74,39 @@
     
             {% if request.url.path.startswith ('/chat') %}
 
-        html,
-        body {
-            height: 100vh;
-            overflow: hidden;
+        /*
+         * Chat: UN singur scroll — în #chat-box. Fără scroll pe document (altfel două bare + scrollTop pe chat nu „ține”).
+         * body.min-vh-100 e exclus pe /chat; is-chat-app pe <html> + is-chat-app-body pe <body>.
+         */
+        html.is-chat-app {
+            height: 100%;
+            min-height: 100dvh;
+            max-height: 100dvh;
+            overflow: hidden !important;
+            overscroll-behavior: none;
+        }
+
+        html.is-chat-app body.is-chat-app-body {
+            height: 100%;
+            min-height: 0 !important;
+            max-height: 100dvh;
+            overflow: hidden !important;
+            overscroll-behavior: none;
+        }
+
+        html.is-chat-app main.flex-grow-1 {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+        }
+
+        html.is-chat-app main.flex-grow-1 > #wrapper {
+            flex: 1 1 0;
+            min-height: 0;
+            height: auto;
+            max-height: none;
         }
 
             {% else %}
@@ -102,7 +133,8 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body class="d-flex flex-column min-vh-100">
+<body
+    class="d-flex flex-column {% if request.url.path.startswith('/chat') %}is-chat-app-body{% else %}min-vh-100{% endif %}">
 
 
 

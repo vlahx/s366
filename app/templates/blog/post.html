@@ -1,0 +1,111 @@
+{% extends "layout/base.html" %}
+{% block title %}{{ post.title }} — S366 AI Blog{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_image_full %}{{ seo_image_abs }}{% endblock %}
+{% block tw_image_full %}{{ seo_image_abs }}{% endblock %}
+
+{% block extra_head %}
+<link rel="canonical" href="{{ canonical_url }}" />
+<meta property="article:published_time" content="{{ published_utc.strftime('%Y-%m-%dT%H:%M:%SZ') }}" />
+{% if og_image_width and og_image_height %}
+<meta property="og:image:width" content="{{ og_image_width }}" />
+<meta property="og:image:height" content="{{ og_image_height }}" />
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .blog-post-wrap { max-width: 760px; margin-inline: auto; }
+  .blog-post-hero {
+    margin: 0 0 1.75rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 0.35rem 1.25rem rgba(0,0,0,.1);
+  }
+  [data-bs-theme="dark"] .blog-post-hero { box-shadow: 0 0.35rem 1.25rem rgba(0,0,0,.35); }
+  .blog-post-hero img {
+    display: block;
+    width: 100%;
+    height: auto;
+    vertical-align: middle;
+  }
+  .blog-post-wrap .content img { max-width: 100%; height: auto; border-radius: 0.75rem; margin: 1.5rem 0; }
+  .blog-post-wrap .content blockquote {
+    border-left: 4px solid var(--bs-primary);
+    padding: 0.75rem 1.25rem;
+    margin: 1.5rem 0;
+    background: var(--bs-tertiary-bg);
+    border-radius: 0 0.5rem 0.5rem 0;
+  }
+  .share-row a { font-size: 0.9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-lg-5 px-3">
+  <article class="blog-post-wrap" itemscope itemtype="https://schema.org/BlogPosting">
+    <header class="mb-4">
+      <a href="/blog/" class="small text-decoration-none text-body-secondary">← Înapoi la blog</a>
+      <div class="small text-body-secondary mt-2 mb-2">
+        <time datetime="{{ published_utc.strftime('%Y-%m-%dT%H:%M:%SZ') }}" itemprop="datePublished">{{ post.published_at.strftime('%d %B %Y') if post.published_at else '' }}</time>
+        {% if post.category_name %}
+        <span class="mx-1">·</span>
+        <a href="/blog/category/{{ post.category_slug }}" class="text-decoration-none" itemprop="articleSection">{{ post.category_name }}</a>
+        {% endif %}
+      </div>
+      <h1 class="fw-bold text-body-emphasis display-6" itemprop="headline">{{ post.title }}</h1>
+    </header>
+
+    {% if post.hero_image_url %}
+    <figure class="blog-post-hero" itemprop="image" itemscope itemtype="https://schema.org/ImageObject">
+      <img
+        src="{{ post.hero_image_url }}"
+        alt="{{ post.title }}"
+        {% if post.og_image_width and post.og_image_height %}width="{{ post.og_image_width }}" height="{{ post.og_image_height }}"{% endif %}
+        decoding="async"
+        fetchpriority="high"
+      />
+      {% if post.og_image_width and post.og_image_height %}
+      <meta itemprop="width" content="{{ post.og_image_width }}" />
+      <meta itemprop="height" content="{{ post.og_image_height }}" />
+      {% endif %}
+    </figure>
+    {% endif %}
+
+    <div class="content text-body-secondary lh-lg fs-6" itemprop="articleBody">
+      {{ post.content_html | safe }}
+    </div>
+
+    <footer class="border-top mt-5 pt-4">
+      <p class="small text-body-secondary mb-2">Distribuie</p>
+      <div class="d-flex flex-wrap gap-2 share-row">
+        <a class="btn btn-sm btn-outline-secondary rounded-pill" id="blog-share-copy" href="#" role="button">Copiază link</a>
+        <a class="btn btn-sm btn-outline-secondary rounded-pill" target="_blank" rel="noopener noreferrer" id="blog-share-wa" href="#">WhatsApp</a>
+        <a class="btn btn-sm btn-outline-secondary rounded-pill" target="_blank" rel="noopener noreferrer" id="blog-share-fb" href="#">Facebook</a>
+      </div>
+      <textarea id="blog-share-url" class="visually-hidden" aria-hidden="true">{{ share_url }}</textarea>
+      <textarea id="blog-share-title" class="visually-hidden" aria-hidden="true">{{ post.title }}</textarea>
+    </footer>
+  </article>
+</div>
+<script>
+(function () {
+  var url = (document.getElementById('blog-share-url') || {}).value || '';
+  var title = (document.getElementById('blog-share-title') || {}).value || '';
+  var wa = document.getElementById('blog-share-wa');
+  var fb = document.getElementById('blog-share-fb');
+  var copyBtn = document.getElementById('blog-share-copy');
+  if (wa) wa.href = 'https://wa.me/?text=' + encodeURIComponent((title ? title + ' — ' : '') + url);
+  if (fb) fb.href = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url);
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(function () { copyBtn.textContent = 'Copiat!'; });
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

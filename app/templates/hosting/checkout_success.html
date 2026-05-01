@@ -1,0 +1,13 @@
+{% extends "layout/base.html" %}
+{% block title %}Plată reușită — S366 AI Hosting{% endblock %}
+{% block content %}
+<div class="container py-5 text-center" style="max-width: 560px;">
+    <div class="text-success display-4 mb-3"><i class="bi bi-check-circle-fill" aria-hidden="true"></i></div>
+    <h1 class="h4 fw-bold">Mulțumim!</h1>
+    <p class="text-body-secondary">Plata a fost înregistrată. Vei primi confirmarea pe email de la Stripe.</p>
+    {% if session_id %}
+    <p class="small font-monospace text-muted mb-0">Sesiune: {{ session_id }}</p>
+    {% endif %}
+    <p class="mt-4 mb-0"><a href="/hosting" class="btn btn-outline-primary">Înapoi la hosting</a></p>
+</div>
+{% endblock %}

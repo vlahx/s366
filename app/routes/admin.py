@@ -42,7 +42,7 @@ async def admin_dashboard(request: Request):
             "stats": stats,
             "users": users,
             "companies": companies,
-            "title": "Admin Panel | s366_turbo",
+            "title": "Admin — S366 AI",
         },
     )
 

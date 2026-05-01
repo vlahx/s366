@@ -5,13 +5,17 @@ import {
     removeTypingIndicator,
     setStreamingFollow,
 } from './chat_ui.js';
-import { addToBuffer, setStreamingStatus, startTicker, clearBuffer } from './streaming.js';
+import { addToBuffer, setStreamingStatus, startTicker, clearBuffer, waitForStreamIdle } from './streaming.js';
 
 /**
  * Trimite mesajul (text sau audio) către server și procesează stream-ul
  */
-export async function handleUnifiedChat(textInput = null, audioBlob = null, activeConvId) {
+export async function handleUnifiedChat(textInput = null, audioBlob = null, activeConvId, options = {}) {
+    const { conversationHistory = [] } = options;
     let payload = { conversation_uuid: activeConvId };
+    if (conversationHistory && conversationHistory.length > 0) {
+        payload.conversation_history = conversationHistory;
+    }
     let userBubble = null;
 
     // 1. Pregătire Payload & Feedback UI
@@ -39,6 +43,7 @@ export async function handleUnifiedChat(textInput = null, audioBlob = null, acti
         let botBubble = null;
         let contentDiv = null;
         let isFirstChunk = true;
+        clearBuffer(); // curăță starea ticker între cereri (evită isPrinting „agățat”)
         setStreamingStatus(true);
         setStreamingFollow(true);
 
@@ -94,12 +99,20 @@ export async function handleUnifiedChat(textInput = null, audioBlob = null, acti
             removeTypingIndicator();
             setStreamingFollow(false);
         }
+        // IMPORTANT: oprește streamul ÎNAINTE de waitForStreamIdle. Ticker-ul din streaming.js
+        // golește bufferul doar până la final când !isStreamingActive; dacă false vine doar în finally
+        // (după await), rămâne deadlock / timeout 120s sau persist citește DOM-ul parțial (doar ce s-a „tipărit”).
+        setStreamingStatus(false);
+        await waitForStreamIdle();
     } catch (err) {
         console.error('[chat_api] Fetch error:', err);
         removeTypingIndicator();
         setStreamingFollow(false);
+        setStreamingStatus(false);
+        await waitForStreamIdle();
     } finally {
         setStreamingStatus(false);
+        clearBuffer();
         window.chatBuffer = '';
     }
 }

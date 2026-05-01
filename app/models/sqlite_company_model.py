@@ -91,7 +91,7 @@ async def init_company_db(cui):
                 )
             """)
             
-            # 2. Tabelul de Documente (Versiunea Turbo)
+            # 2. Tabelul de documente (RAG)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS "documents" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,

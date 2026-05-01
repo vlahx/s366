@@ -82,6 +82,10 @@ async def process_checkout_session_completed(session: dict[str, Any]) -> None:
         raise ValueError("checkout.session fără id")
 
     meta = _meta(session)
+    if (meta.get("payment_kind") or "").strip().lower() == "service":
+        log.debug("checkout %s: plată servicii — procesat de /payments/webhooks/stripe", session_id)
+        return
+
     domain = (meta.get("domain") or "").strip().lower().rstrip(".")
     package_tier = (
         meta.get("package_tier") or meta.get("package") or "unknown"

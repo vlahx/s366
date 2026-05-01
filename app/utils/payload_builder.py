@@ -13,7 +13,7 @@ import json
 from app.models.sqlite_company_model import get_company_settings
 
 async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, user_role=None, user_lastname=None, user_firstname=None,
-                      company_id=None, company_cui=None, company_name=None):
+                      company_id=None, company_cui=None, company_name=None, client_messages=None):
 
 
     user_id = user_id 
@@ -78,6 +78,17 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
                 print(f"EROARE la citirea istoricului din {db_path}: {e}", file=sys.stderr)
         else:
             print(f"[DEBUG] Fișier DB inexistent (Prima conversație?): {db_path}", file=sys.stderr)
+
+    elif client_messages and isinstance(client_messages, list):
+        # Vizitator fără SQLite: istoric trimis de client (LocalStorage), validat minimal
+        for msg in client_messages:
+            if not isinstance(msg, dict):
+                continue
+            role = msg.get("role")
+            content = (msg.get("content") or "").strip()
+            if role not in ("user", "assistant") or not content:
+                continue
+            conversation_history.append({"role": role, "content": content})
 
     # Adaugă mesajul curent al userului
     conversation_history.append({"role": "user", "content": user_message})

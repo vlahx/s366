@@ -6,6 +6,45 @@
         </div>
     </div>
 
+    <div class="row mb-4">
+        <div class="col-12 col-xl-8">
+            <div class="card border-primary-subtle shadow-sm">
+                <div class="card-body">
+                    <h3 class="h6 card-title d-flex align-items-center gap-2 mb-2">
+                        <i class="bi bi-link-45deg text-primary"></i>
+                        Link plată convenită (clienți)
+                    </h3>
+                    <p class="small text-body-secondary mb-3">
+                        Pagină publică pentru plăți unice (mentenanță, servicii convenite). Nu e afișată în meniul site-ului — o trimiți tu când e cazul (email, mesaj, contract).
+                    </p>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control font-monospace" id="adminServicePayUrl" readonly
+                            value="{{ (request.base_url|string).rstrip('/') }}/payments/service"
+                            aria-label="URL plată servicii" />
+                        <button class="btn btn-outline-primary" type="button" id="adminServicePayCopy">
+                            <i class="bi bi-clipboard me-1"></i>Copiază
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('adminServicePayCopy');
+        var inp = document.getElementById('adminServicePayUrl');
+        if (!btn || !inp) return;
+        btn.addEventListener('click', function () {
+          inp.select();
+          inp.setSelectionRange(0, 99999);
+          navigator.clipboard.writeText(inp.value).then(function () {
+            btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Copiat';
+            setTimeout(function () { btn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copiază'; }, 2000);
+          }).catch(function () { document.execCommand('copy'); });
+        });
+      })();
+    </script>
+
     <div class="row g-4 mb-5">
         <div class="col-md-6">
             <div class=" card shadow-sm border-0 h-100 stat-card bg-body-tertiary">

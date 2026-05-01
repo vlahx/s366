@@ -1,0 +1,68 @@
+{% extends "layout/base.html" %}
+{% block title %}Finalizare comandă hosting — S366 AI Hosting{% endblock %}
+{% block content %}
+<div class="container py-4 py-lg-5" style="max-width: 640px;">
+    <h1 class="h3 fw-bold mb-3">Comandă hosting</h1>
+    <p class="text-body-secondary small mb-4">Verifică domeniul și pachetul, apoi mergi la plată securizată Stripe.</p>
+
+    <div class="card border shadow-sm">
+        <div class="card-body">
+            <dl class="row mb-0 small">
+                <dt class="col-sm-4 text-body-secondary">Domeniu</dt>
+                <dd class="col-sm-8 font-monospace" id="pv-domain">—</dd>
+                <dt class="col-sm-4 text-body-secondary">Pachet</dt>
+                <dd class="col-sm-8 fw-semibold" id="pv-package">—</dd>
+            </dl>
+            <hr>
+            <button type="button" class="btn btn-primary w-100" id="payBtn">
+                <i class="bi bi-credit-card me-2"></i>Plată cu cardul (Stripe)
+            </button>
+            <p class="text-body-secondary small mt-2 mb-0" id="payHint"></p>
+        </div>
+    </div>
+    <p class="small mt-3"><a href="/hosting">← Înapoi la pachete</a></p>
+</div>
+<script>
+(function () {
+    const params = new URLSearchParams(window.location.search);
+    const domain = (params.get('domain') || '').trim();
+    const pkg = (params.get('package') || '').trim();
+    document.getElementById('pv-domain').textContent = domain || '—';
+    document.getElementById('pv-package').textContent = pkg || '—';
+
+    const payBtn = document.getElementById('payBtn');
+    const hint = document.getElementById('payHint');
+
+    payBtn.addEventListener('click', async function () {
+        if (!domain || !pkg) {
+            hint.textContent = 'Lipsește domeniul sau pachetul. Întoarce-te la pagina de hosting.';
+            return;
+        }
+        payBtn.disabled = true;
+        hint.textContent = 'Se pregătește sesiunea de plată…';
+        try {
+            const res = await fetch('/hosting/api/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ domain: domain, package_tier: pkg })
+            });
+            const data = await res.json().catch(function () { return {}; });
+            if (!res.ok) {
+                hint.textContent = data.detail || ('Eroare ' + res.status);
+                payBtn.disabled = false;
+                return;
+            }
+            if (data.url) {
+                window.location.href = data.url;
+                return;
+            }
+            hint.textContent = 'Răspuns neașteptat de la server.';
+        } catch (e) {
+            hint.textContent = 'Rețea sau server indisponibil.';
+        }
+        payBtn.disabled = false;
+    });
+})();
+</script>
+{% endblock %}

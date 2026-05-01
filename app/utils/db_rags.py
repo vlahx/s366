@@ -27,7 +27,7 @@ model = SentenceTransformer(modules=[text_embedding_model, pooling_model], devic
 EMBEDDING_DIM = 1024
 EXPECTED_EMBEDDING_BYTES = EMBEDDING_DIM * 4
 
-print(f"✅ [S366-Turbo] Creierul de 1024 (fp16) e activ pe: {model.device}")
+print(f"✅ [S366 AI] Creierul de 1024 (fp16) e activ pe: {model.device}")
 
 # 3. Verificăm oficial unde stă „creierul” modelului
 print(f"DEBUG: Modelul rulează acum pe: {model.device}")

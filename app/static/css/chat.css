@@ -32,12 +32,10 @@
 
 #wrapper {
     display: flex;
-    flex: 1;
-    /* Ocupă tot spațiul dintre navbar și footer */
-    height: 100%;
-    /* Se întinde pe toată înălțimea lui <main> */
+    flex: 1 1 0;
+    min-height: 0;
+    /* Înălțimea vine din lanțul flex (main → wrapper), nu height:100% — evită dublu-scroll cu viewport */
     overflow: hidden;
-    /* Nu lasă scroll-ul să iasă din el */
 }
 
 #sidebar-left {
@@ -78,14 +76,15 @@
 }
 
 #chat-container {
-    flex: 1;
+    flex: 1 1 0;
     /* Ocupă tot spațiul orizontal rămas */
     display: flex;
     flex-direction: column;
     width: 100%;
-    /* Forțează lățimea completă */
     min-width: 0;
-    /* Magic fix pentru flexbox overflow pe orizontală */
+    min-height: 0;
+    max-height: 100%;
+    /* Coloană cu înălțime fixă în wrapper — altfel #chat-box crește cu mesajele și nu apare scroll intern */
 }
 
 
@@ -122,15 +121,23 @@
     align-self: flex-start;
 }
 
-/* Și containerul părinte trebuie să fie flex ca align-self să meargă */
+/* Zona scrollabilă: flex-basis 0 + grow = ocupă doar spațiul rămas, nu „împinge” coloana */
 #chat-box {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-anchor: none;
+    overscroll-behavior: contain;
+    /* Nu propagă impulsul de scroll la document când ajungi la capătul listei */
+    /* Evită scroll anchoring în Chrome care poate contracara scrollTop în timpul streamului */
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 20px;
-    /* Spațiu în jurul mesajelor */
-    overflow-y: auto;
-    /* Scroll vertical dacă e nevoie */
+}
+
+.chat-input-area {
+    flex-shrink: 0;
 }
 
 .typing {
@@ -184,10 +191,12 @@
     text-decoration: underline;
 }
 
+/* Padding/border pe .chat-input-area — aici doar layout formular */
 #chat-form {
-    padding: 16px 24px;
-    background: var(--bg);
-    border-top: 1px solid var(--border);
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
 }
 
 #user-input {

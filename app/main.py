@@ -16,6 +16,10 @@ from app.routes.admin import router as admin_router
 from app.routes.public import router as public_router
 from app.routes.company_admin import router as company_admin_router
 from app.routes.hosting import router as hosting_router
+from app.routes.payments import router as payments_router
+from app.routes.seo import router as seo_router
+from app.routes.blog import router as blog_router
+from app.routes.blog_admin import router as blog_admin_router
 
 from app.models.sqlite_model import init_db
 from app.utils.scheduler import start_global_scheduler
@@ -23,9 +27,34 @@ from app.utils.api_async import LLMServiceAsync, APIServiceAsync
 
 # ... (toate os.environ și logging setup rămân la fel) ...
 
+
+def _forwarded_scheme(scope: dict) -> str | None:
+    """Citește X-Forwarded-Proto (trimis de Caddy) — fără ProxyHeadersMiddleware (Starlette vechi)."""
+    for key, value in scope.get("headers") or []:
+        if key == b"x-forwarded-proto":
+            part = value.decode("latin1").split(",")[0].strip().lower()
+            if part in ("https", "http"):
+                return part
+    return None
+
+
+class ForwardedProtoMiddleware:
+    """Pune scope['scheme'] la https când terminarea TLS e la Caddy (evită redirect-uri http://)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            proto = _forwarded_scheme(scope)
+            if proto:
+                scope = dict(scope)
+                scope["scheme"] = proto
+        await self.app(scope, receive, send)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Sistemul s366_turbo pornește...")
+    print("🚀 Sistemul S366 AI pornește...")
     await init_db()
     app.state.llm_service = LLMServiceAsync()
     app.state.api_service = APIServiceAsync()
@@ -42,7 +71,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Middleware-uri
+# Middleware-uri — Caddy trimite de obicei X-Forwarded-Proto=https către upstream HTTP.
+app.add_middleware(ForwardedProtoMiddleware)
 app.add_middleware(SessionMiddleware, secret_key="@Leia1990")
 
 # ✅ Static & Templates (definite ACUM, înainte de handlers)
@@ -68,12 +98,16 @@ async def serve_service_worker():
     return FileResponse("app/static/sw.js", media_type="application/javascript")
 
 # ✅ Include Routere
+app.include_router(seo_router, tags=["SEO"])
 app.include_router(public_router, tags=["Public"])
+app.include_router(blog_router, prefix="/blog", tags=["Blog"])
 app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(admin_router, prefix="/admin", tags=["Admin"])
+app.include_router(blog_admin_router, prefix="/admin", tags=["Admin Blog"])
 app.include_router(company_admin_router, prefix="/company_admin", tags=["Company Admin"])
 app.include_router(hosting_router, prefix="/hosting", tags=["Hosting"])
+app.include_router(payments_router, prefix="/payments", tags=["Payments"])
 
 @app.get("/health")
 async def health_check():

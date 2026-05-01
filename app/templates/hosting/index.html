@@ -1,5 +1,5 @@
 {% extends "layout/base.html" %}
-{% block title %}Soluții hosting — Alege pachetul de hosting potrivit pentru tine.{% endblock %}
+{% block title %}S366 AI Hosting — alege pachetul potrivit pentru site-ul tău{% endblock %}
 {% block meta_description %}Iti oferim un website gata configurat, cu SSL, email, backup, etc. 
 Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. {% endblock %}
 {% block content %}
@@ -26,8 +26,8 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
           </ul>
           <div class="mt-auto">
             <div class="fs-3 fw-bold mb-2">3 € <span class="fs-6 fw-normal text-body-secondary">/ lună</span></div>
-            <button class="btn btn-outline-primary w-100" type="button" onclick="selectPackage(event, 'starter')">
-              Selectează
+            <button class="btn btn-outline-primary w-100 hosting-pkg-select" type="button" onclick="selectPackage(event, 'starter')">
+              <span class="d-block">Selectează</span>
             </button>
           </div>
         </div>
@@ -39,7 +39,7 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
         <div class="card-body d-flex flex-column">
           <div class="d-flex align-items-baseline justify-content-between mb-2">
             <h3 class="h5 mb-0">WordPress Blog</h3>
-            <span class="badge text-bg-primary">Recomandat</span>
+            <span class="badge text-bg-secondary-subtle border">Blog</span>
           </div>
           <ul class="list-unstyled small text-body-secondary mb-3">
             <li class="py-1 border-bottom">WordPress preinstalat (blog/jurnal)</li>
@@ -49,8 +49,9 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
           </ul>
           <div class="mt-auto">
             <div class="fs-3 fw-bold mb-2">5 € <span class="fs-6 fw-normal text-body-secondary">/ lună</span></div>
-            <button class="btn btn-primary w-100" type="button" onclick="selectPackage(event, 'pro')">
-              Selectează
+            <button class="btn btn-outline-primary w-100 hosting-pkg-select" type="button" onclick="selectPackage(event, 'pro')">
+              <span class="d-block">Selectează</span>
+              <sub class="hosting-select-sub text-body-secondary">recomandat</sub>
             </button>
           </div>
         </div>
@@ -72,8 +73,8 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
           </ul>
           <div class="mt-auto">
             <div class="fs-3 fw-bold mb-2">10 € <span class="fs-6 fw-normal text-body-secondary">/ lună</span></div>
-            <button class="btn btn-outline-primary w-100" type="button" onclick="selectPackage(event, 'business')">
-              Selectează
+            <button class="btn btn-outline-primary w-100 hosting-pkg-select" type="button" onclick="selectPackage(event, 'business')">
+              <span class="d-block">Selectează</span>
             </button>
           </div>
         </div>
@@ -153,17 +154,27 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
     <div class="card-body p-3 p-lg-4">
       <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2 mb-3">
         <div>
-          <h2 class="h5 mb-1">Verifică disponibilitatea domeniului</h2>
-          <div class="text-body-secondary small">Ex: <span class="font-monospace">magazin.ro</span>, <span class="font-monospace">afacere.online</span></div>
+          <h2 class="h5 mb-1">Verifică domeniul pe care dorești să îl ai</h2>
+          <div class="text-body-secondary small">
+            Ex: <span class="font-monospace">magazin.ro</span>, <span class="font-monospace">afacere.online</span>
+          </div>
         </div>
         <div class="small text-body-secondary">
           Pachet ales: <span id="selectedPackage" class="fw-semibold">—</span>
         </div>
       </div>
 
-      <div class="input-group mb-2">
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" role="switch" id="byodToggle" onchange="toggleBYOD()" />
+        <label class="form-check-label" for="byodToggle">Am deja domeniu, doresc doar hosting</label>
+      </div>
+
+      <div class="input-group mb-2" id="domainGroup">
         <input class="form-control" type="text" id="domainInput" placeholder="ex: magazin.ro" autocomplete="off" />
         <button class="btn btn-primary" id="checkBtn" type="button" onclick="checkDomain()">Verifică</button>
+      </div>
+      <div class="text-body-secondary small mb-2" id="domainHint">
+        Verifică domeniul ca să știm dacă îl putem înregistra pentru tine sau dacă îl ai deja.
       </div>
 
       <div id="domainStatus" class="alert py-2 my-3 d-none" role="status" aria-live="polite"></div>
@@ -224,16 +235,11 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
         </div>
       </div>
 
-      <div class="form-check form-switch mb-3">
-        <input class="form-check-input" type="checkbox" role="switch" id="byodToggle" onchange="toggleBYOD()" />
-        <label class="form-check-label" for="byodToggle">Am deja un domeniu propriu configurat</label>
-      </div>
-
       <button id="continueBtn" class="btn btn-success w-100" type="button" disabled onclick="window.location.href='/hosting/provision'">
         Continuă configurarea
       </button>
       <div class="text-body-secondary small mt-2">
-        Continuarea se deblochează după verificare sau dacă bifezi „am deja domeniu”.
+        Continuarea se deblochează când ai ales pachetul și ai introdus un domeniu.
       </div>
     </div>
   </section>
@@ -270,6 +276,26 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
   .badge.text-bg-success-subtle {
     background-color: rgba(var(--bs-success-rgb), 0.14) !important;
   }
+  /* „recomandat” sub buton — lizibil, fără subscript chimic */
+  .hosting-pkg-select {
+    min-height: 3.35rem;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .hosting-select-sub {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 500;
+    line-height: 1.15;
+    margin-top: 0.2rem;
+    bottom: auto;
+    opacity: 0.9;
+  }
 </style>
 
 <script>
@@ -291,6 +317,7 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
   const byodToggle = document.getElementById('byodToggle');
   const continueBtn = document.getElementById('continueBtn');
   const selectedPackageEl = document.getElementById('selectedPackage');
+  const domainHint = document.getElementById('domainHint');
 
   let selectedPackage = null;
   let lastDomainResult = null;
@@ -305,19 +332,39 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
 
   function toggleBYOD() {
     if (byodToggle.checked) {
-      domainInput.value = ''; domainInput.disabled = true;
+      // BYOD: user își aduce domeniul; nu mai facem verificare automată,
+      // dar trebuie să putem introduce domeniul pentru pasul Stripe.
+      domainInput.disabled = false;
       checkBtn.disabled = true;
+      checkBtn.classList.add('d-none');
+      domainInput.placeholder = 'Introdu aici domeniul tău (ex: firma.ro)';
+      if (domainHint) {
+        domainHint.textContent = 'Introdu domeniul tău, iar noi îl conectăm la hosting după plată (fără verificare automată aici).';
+      }
       domainStatus.classList.add('d-none');
       domainDetails.classList.add('d-none');
-      continueBtn.disabled = false;
+      lastDomainResult = null;
+      updateContinueHref();
     } else {
       domainInput.disabled = false; checkBtn.disabled = false;
-      continueBtn.disabled = true;
+      checkBtn.classList.remove('d-none');
+      domainInput.placeholder = 'ex: magazin.ro';
+      if (domainHint) {
+        domainHint.textContent = 'Verifică domeniul ca să știm dacă îl putem înregistra pentru tine sau dacă îl ai deja.';
+      }
+      updateContinueHref();
     }
   }
 
+  /** Același criteriu ca în renderDomainResult: disponibil pentru continuare checkout. */
+  function isVerifiedDomainAvailable(data) {
+    return !!(data && (data.available || data.status === 'available'));
+  }
+
   function updateContinueHref() {
-    const domain = (lastDomainResult && lastDomainResult.domain) ? lastDomainResult.domain : '';
+    const domain = byodToggle.checked
+      ? (domainInput.value || '').trim()
+      : ((lastDomainResult && lastDomainResult.domain) ? lastDomainResult.domain : '');
     const pkg = selectedPackage || '';
     const params = new URLSearchParams();
     if (domain) params.set('domain', domain);
@@ -325,6 +372,10 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
     const qs = params.toString();
     const url = qs ? `/hosting/provision?${qs}` : '/hosting/provision';
     continueBtn.setAttribute('onclick', `window.location.href='${url}'`);
+
+    const verifiedOk = isVerifiedDomainAvailable(lastDomainResult);
+    const canContinue = byodToggle.checked ? (domain && pkg) : (verifiedOk && pkg);
+    continueBtn.disabled = !canContinue;
   }
 
   function setTextOrDash(el, value) {
@@ -366,7 +417,6 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
       domainHighlightsEl.insertAdjacentHTML('beforeend', '<li>Dacă ai deja domeniu la alt furnizor, bifează „am deja un domeniu” și te ghidăm la conectare.</li>');
 
       buyFromOwnerBtn.classList.add('d-none');
-      continueBtn.disabled = false;
     } else if (data.status === 'taken') {
       domainVerdictEl.textContent = 'Luat';
       domainVerdictEl.className = 'fw-semibold text-danger';
@@ -381,7 +431,6 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
         domainHighlightsEl.insertAdjacentHTML('beforeend', '<li>Există semnal DNS că domeniul e activ, dar nu avem detalii complete.</li>');
       }
 
-      continueBtn.disabled = true;
       const contactParams = new URLSearchParams({ subject: 'Achiziție domeniu', domain });
       buyFromOwnerBtn.href = `/contact?${contactParams.toString()}`;
       buyFromOwnerBtn.classList.remove('d-none');
@@ -391,14 +440,12 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
       domainExplanationEl.innerHTML = '<div class="fw-semibold">Format domeniu invalid.</div><div class="text-body-secondary small">Exemplu: <span class="font-monospace">magazin.ro</span></div>';
       domainHighlightsEl.innerHTML = '';
       buyFromOwnerBtn.classList.add('d-none');
-      continueBtn.disabled = true;
     } else {
       domainVerdictEl.textContent = 'Neclar';
       domainVerdictEl.className = 'fw-semibold text-warning';
       domainExplanationEl.innerHTML = '<div class="fw-semibold">Nu am putut confirma sigur statusul.</div><div class="text-body-secondary small">Poate fi o problemă temporară. Încearcă încă o dată peste 10 secunde.</div>';
       domainHighlightsEl.innerHTML = '';
       buyFromOwnerBtn.classList.add('d-none');
-      continueBtn.disabled = true;
     }
 
     // Mod avansat (formatat)
@@ -436,6 +483,8 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
       if (!res.ok) {
         const msg = (data && (data.message || data.detail)) ? (data.message || data.detail) : `Eroare server (${res.status}).`;
         setStatus('error', msg);
+        lastDomainResult = null;
+        updateContinueHref();
         return;
       }
 
@@ -453,20 +502,46 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
       updateContinueHref();
     } catch (err) {
       setStatus('error', 'Eroare de conexiune. Încearcă din nou.');
+      lastDomainResult = null;
+      updateContinueHref();
     } finally {
       checkBtn.disabled = false;
     }
   }
 
-  function selectPackage(evt, pkg) {
+  function selectPackage(evt, pkg, opts) {
+    opts = opts || {};
     selectedPackage = pkg;
     selectedPackageEl.textContent = pkg;
     document.querySelectorAll('.hosting-card').forEach(c => c.classList.remove('is-selected'));
-    evt.currentTarget.closest('.hosting-card')?.classList.add('is-selected');
+    let card = (evt && evt.currentTarget) ? evt.currentTarget.closest('.hosting-card') : null;
+    if (!card) {
+      card = document.querySelector('.hosting-card[data-package="' + pkg + '"]');
+    }
+    card?.classList.add('is-selected');
 
-    // UX: după select, mutăm focus pe domeniu
-    domainInput.focus();
+    if (opts.focusDomain !== false) {
+      domainInput.focus();
+    }
     updateContinueHref();
   }
+
+  // Dacă user scrie domeniul (mai ales în BYOD), actualizăm URL + butonul.
+  domainInput.addEventListener('input', function () {
+    updateContinueHref();
+  });
+
+  // Enter în câmp = același lucru ca butonul Verifică (fără mouse).
+  domainInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    if (byodToggle.checked) return;
+    e.preventDefault();
+    checkDomain();
+  });
+
+  // Inițializare: setăm UI corect în funcție de starea switch-ului.
+  toggleBYOD();
+  // Implicit: pachetul Pro (recomandat) — același stil de buton ca restul, fără focus pe domeniu la load.
+  selectPackage(null, 'pro', { focusDomain: false });
 </script>
 {% endblock %}

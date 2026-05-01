@@ -217,7 +217,7 @@ async def update_profile(request: Request):
     
     
 
-    # 🚨 MOMENTUL TURBO: Alertă Telegram
+    # 🚨 Alertă Telegram (înregistrare admin)
   
     if intent == "be_admin":
         msg = f"🔔 *Cerere Admin*: {firstname} {lastname}"
@@ -289,7 +289,7 @@ async def create_company(request: Request):
     # 6. Sync Sesiune
     await sync_user_session(request, user_id)
     
-    # 🚨 7. MOMENTUL TURBO: Generare Token și Alertă Telegram
+    # 🚨 7. Generare token și alertă Telegram (firmă nouă)
     secret = os.getenv("APP_SECRET_KEY", "schimba-ma-frate")
     # Generăm același tip de token pe care îl așteaptă ruta de aprobare
     token = hashlib.sha256(f"comp_{c_id}{secret}".encode()).hexdigest()[:16]

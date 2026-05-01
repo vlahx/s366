@@ -4,7 +4,7 @@ import os
 DB_PATH = "data/db/database.db"
 
 async def init_db():
-    """Creează structura completă pentru s366_turbo."""
+    """Creează structura completă pentru baza de date a aplicației (S366 AI)."""
     # Ne asigurăm că directorul app/db există
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     
@@ -104,7 +104,29 @@ async def init_db():
             "CREATE INDEX IF NOT EXISTS idx_hosting_orders_domain ON hosting_orders(domain)"
         )
 
-        # 6. Idempotency webhook Stripe
+        # 6. Plăți servicii (plată unică Stripe: mentenanță, instalări, etc.)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS service_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                description TEXT NOT NULL,
+                amount_cents INTEGER NOT NULL,
+                currency TEXT NOT NULL DEFAULT 'eur',
+                status TEXT NOT NULL DEFAULT 'pending_payment',
+                stripe_checkout_session_id TEXT UNIQUE,
+                stripe_payment_intent_id TEXT,
+                user_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_error TEXT,
+                metadata_json TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_service_payments_status ON service_payments(status)"
+        )
+
+        # 7. Idempotency webhook Stripe (comenzi hosting)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS stripe_webhook_events (
                 event_id TEXT PRIMARY KEY,
@@ -114,6 +136,80 @@ async def init_db():
                 last_error TEXT
             )
         """)
+
+        # 8. Idempotency webhook Stripe (plăți servicii — endpoint separat în Dashboard)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS stripe_service_webhook_events (
+                event_id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                processed_ok INTEGER NOT NULL DEFAULT 0,
+                received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_error TEXT
+            )
+        """)
+
+        # 9. Blog (articole + categorii)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS blog_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS blog_posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug TEXT NOT NULL UNIQUE,
+                category_id INTEGER,
+                title TEXT NOT NULL,
+                excerpt TEXT,
+                content_html TEXT NOT NULL DEFAULT '',
+                hero_image_url TEXT,
+                og_image_width INTEGER,
+                og_image_height INTEGER,
+                draft INTEGER NOT NULL DEFAULT 1,
+                published_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (category_id) REFERENCES blog_categories(id) ON DELETE SET NULL
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_blog_posts_category ON blog_posts(category_id)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_blog_posts_published ON blog_posts(published_at)"
+        )
+
+        async with db.execute("SELECT COUNT(*) FROM blog_posts") as cur:
+            _bc = await cur.fetchone()
+        if _bc and _bc[0] == 0:
+            await db.execute(
+                "INSERT OR IGNORE INTO blog_categories (slug, name, sort_order) VALUES (?, ?, ?)",
+                ("noutati", "Noutăți", 0),
+            )
+            await db.execute(
+                "INSERT OR IGNORE INTO blog_categories (slug, name, sort_order) VALUES (?, ?, ?)",
+                ("ghiduri", "Ghiduri", 1),
+            )
+            async with db.execute(
+                "SELECT id FROM blog_categories WHERE slug = ? LIMIT 1", ("noutati",)
+            ) as cur:
+                _row = await cur.fetchone()
+            _cid = int(_row[0]) if _row else 1
+            await db.execute(
+                """INSERT INTO blog_posts (
+                    slug, category_id, title, excerpt, content_html, draft, published_at
+                ) VALUES (?, ?, ?, ?, ?, 0, datetime('now'))""",
+                (
+                    "bun-venit",
+                    _cid,
+                    "Bun venit pe blogul S366 AI",
+                    "Noutăți și ghiduri despre AI, automatizare și productivitate pentru firme.",
+                    "<p>Acesta este un articol inițial. Îl poți înlocui din baza de date; ulterior vom lega un editor admin.</p>",
+                ),
+            )
 
         await db.commit()
         print(f"[DATABASE] Structura verificată în {DB_PATH}")

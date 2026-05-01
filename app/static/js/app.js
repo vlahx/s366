@@ -2,10 +2,17 @@
 
 // 1. IMPORTURI
 import { createBubble, resetUserScrollState } from './chat_ui.js';
-import { startTicker, addToBuffer, setStreamingStatus, clearBuffer } from './streaming.js';
 import { startRecording, stopRecording, playAudioFromBase64 } from './voice_handler.js';
 import { handleUnifiedChat } from './chat_api.js';
 import { renderSessions, switchConversation } from './sidebar.js';
+import {
+    loadGuestStore,
+    ensureGuestSession,
+    getGuestMessages,
+    guestMessagesToConversationHistory,
+    persistGuestTurnIfNeeded,
+    GUEST_NEW_THREAD_MSG,
+} from './guest_storage.js';
 
 // 2. STARE GLOBALĂ
 const STORAGE_KEY = 's366_active_conv';
@@ -53,7 +60,7 @@ window.addEventListener('play-audio', (e) => {
 
 // 5. INIȚIALIZARE DOM
 window.addEventListener('DOMContentLoaded', () => {
-    //console.log("[s366_turbo] Sistem modular activat!");
+    //console.log("[S366 AI] Sistem modular activat!");
 
     const pttBtn = document.getElementById('ptt-voice-btn');
     const micIcon = pttBtn ? pttBtn.querySelector('i') : null;
@@ -61,6 +68,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const textarea = document.getElementById('user-input');
     const newChatBtn = document.getElementById('new-chat-btn');
     const chatBox = document.getElementById('chat-box');
+    const wrapper = document.getElementById('wrapper');
+    const isLoggedIn =
+        ((wrapper?.dataset.loggedIn || '') + '').toLowerCase() === 'true' ||
+        (wrapper?.dataset.loggedIn || '') === '1';
 
     initMobileSidebar();
 
@@ -73,11 +84,28 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    window.__s366ChatAfterGuestTurn = () => {
+        renderSessions(activeConvId, handleSwitch);
+    };
+
+    const welcomeGuestFirst =
+        'Bună! Sunt gata să te ajut cu S366 AI. Autentifică-te pentru același istoric pe orice dispozitiv; fără cont, discuțiile rămân doar în acest browser (local).';
+
     const startNewChat = () => {
         activeConvId = crypto.randomUUID();
         localStorage.setItem(STORAGE_KEY, activeConvId);
         if (chatBox) chatBox.innerHTML = '';
-        createBubble('assistant', 'Salutare! Ai deschis o sesiune noua de discutii cu mine. Nu uita ca dupa conversatie sa o redenumesti in sidebar pentru o mai buna organizare.');
+        if (isLoggedIn) {
+            createBubble(
+                'assistant',
+                'Salutare! Ai deschis o sesiune nouă. Redenumește conversația în sidebar când ai terminat, ca să o regăsești ușor.',
+            );
+        } else {
+            const st = loadGuestStore();
+            ensureGuestSession(st, activeConvId);
+            if (!st.messages[activeConvId]) st.messages[activeConvId] = [];
+            createBubble('assistant', GUEST_NEW_THREAD_MSG, false);
+        }
         renderSessions(activeConvId, handleSwitch);
     };
 
@@ -89,7 +117,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (activeConvId) {
         handleSwitch(activeConvId);
     } else {
-        createBubble('assistant', 'Bună! Sunt gata să te ajut pe noul motor Turbo.');
+        const welcome = 'Bună! Sunt gata să te ajut cu S366 AI.';
+        createBubble('assistant', isLoggedIn ? welcome : welcomeGuestFirst, false);
     }
 
     // --- B. INPUT ȘI EVENIMENTE ---
@@ -136,14 +165,28 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (!activeConvId) {
                     activeConvId = crypto.randomUUID();
                     localStorage.setItem(STORAGE_KEY, activeConvId);
-                    //console.log("Generat UUID nou pentru sesiune goală:", activeConvId);
+                }
+                if (!isLoggedIn) {
+                    const st = loadGuestStore();
+                    ensureGuestSession(st, activeConvId);
+                    await renderSessions(activeConvId, handleSwitch);
                 }
 
                 textarea.value = '';
                 textarea.style.height = 'auto';
 
-                // 5. API Call — typing indicator se pune în chat_api după bucla user
-                await handleUnifiedChat(text, null, activeConvId);
+                const chatOpts = {};
+                if (!isLoggedIn) {
+                    const st = loadGuestStore();
+                    const hist = guestMessagesToConversationHistory(getGuestMessages(st, activeConvId));
+                    if (hist.length) chatOpts.conversationHistory = hist;
+                }
+
+                await handleUnifiedChat(text, null, activeConvId, chatOpts);
+                if (!isLoggedIn) {
+                    persistGuestTurnIfNeeded(activeConvId, isLoggedIn);
+                    await renderSessions(activeConvId, handleSwitch);
+                }
 
             } catch (err) {
                 console.error("Eroare:", err);

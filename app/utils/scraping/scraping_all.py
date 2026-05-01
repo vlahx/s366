@@ -90,7 +90,7 @@ async def scrape_wordpress_logic(target_url: str, cui: str):
     async with httpx.AsyncClient(timeout=40.0, headers=headers) as client:
         # --- STRATEGIA A: SCANARE TOTALĂ (Prima dată) ---
         if last_id is None:
-            print(f"🚀 [S366] DB Goal/Fără Web. Pornesc SCANARE TOTALĂ via Paginare.")
+            print(f"🚀 [S366 AI] DB Goal/Fără Web. Pornesc SCANARE TOTALĂ via Paginare.")
             page = 1
             while True:
                 api_url = f"{base_api}?per_page=100&page={page}&orderby=id&order=asc&_embed"
@@ -118,7 +118,7 @@ async def scrape_wordpress_logic(target_url: str, cui: str):
 
         # --- STRATEGIA B: DEEP PROBE (Incremental - 2 ori pe zi) ---
         else:
-            print(f"📡 [S366] Ancora găsită: {last_id}. Pornesc DEEP PROBE (ID+1).")
+            print(f"📡 [S366 AI] Ancora găsită: {last_id}. Pornesc DEEP PROBE (ID+1).")
             current_probe_id = last_id + 1
             misses = 0
             limit_misses = 20 # Marja de siguranță stabilită
@@ -167,7 +167,7 @@ async def scrape_wordpress_logic(target_url: str, cui: str):
 
     # Finalizare
     active_syncs[str(cui)] = False
-    print(f"🏆 Gata. S-au adăugat {total_new} documente noi în S366_turbo.")
+    print(f"🏆 Gata. S-au adăugat {total_new} documente noi în S366 AI.")
 
 
 
@@ -181,13 +181,13 @@ async def start_the_beast(cui: str, target_url: str):
         platform = await detect_platform_deep(target_url)
         
         if platform == "wordpress":
-            print(f"🚀 [S366_turbo] Platformă confirmată: WordPress. Pornesc motorul...")
+            print(f"🚀 [S366 AI] Platformă confirmată: WordPress. Pornesc motorul...")
             await scrape_wordpress_logic(target_url, cui)
         else:
-            print(f"⚠️ [S366] Platformă '{platform}' nesuportată momentan.")
+            print(f"⚠️ [S366 AI] Platformă '{platform}' nesuportată momentan.")
 
     except Exception as e:
-        print(f"❌ [S366] Eroare fatală Manager: {e}")
+        print(f"❌ [S366 AI] Eroare fatală Manager: {e}")
     
     finally:
         active_syncs[str(cui)] = False

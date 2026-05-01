@@ -1,0 +1,171 @@
+{% extends "layout/base.html" %}
+{% block title %}Plată securizată — S366 AI{% endblock %}
+{% block meta_description %}Finalizează în siguranță plata convenită cu echipa S366 AI. Procesare prin Stripe, confirmare pe email.{% endblock %}
+
+{% block content %}
+<style>
+  .pay-landing {
+    --pay-accent: rgba(var(--bs-primary-rgb), 0.12);
+    background: radial-gradient(1200px 600px at 50% -20%, var(--pay-accent), transparent 55%),
+                radial-gradient(800px 400px at 100% 80%, rgba(var(--bs-primary-rgb), 0.06), transparent 50%);
+  }
+  .pay-service-wrap {
+    max-width: 920px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .pay-unified {
+    border-radius: 1rem;
+    box-shadow: 0 0.35rem 1.75rem rgba(0, 0, 0, 0.07);
+    border: 1px solid var(--bs-border-color);
+  }
+  [data-bs-theme="dark"] .pay-unified {
+    box-shadow: 0 0.35rem 1.75rem rgba(0, 0, 0, 0.35);
+  }
+  .pay-trust-panel {
+    background-color: var(--bs-tertiary-bg);
+    border-top: 1px solid var(--bs-border-color);
+  }
+  @media (min-width: 992px) {
+    .pay-trust-panel {
+      border-top: none;
+      border-left: 1px solid var(--bs-border-color);
+      min-height: 100%;
+    }
+  }
+  .pay-trust-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--bs-secondary-color);
+  }
+  .pay-trust-item i {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    color: var(--bs-primary);
+    font-size: 1.1rem;
+  }
+</style>
+
+<section class="pay-landing py-5">
+  <div class="container px-3 pay-service-wrap">
+    <header class="text-center mb-4 mb-lg-5">
+      <div class="d-inline-flex align-items-center justify-content-center rounded-pill bg-body-secondary bg-opacity-50 px-3 py-2 small text-body-secondary mb-3">
+        <i class="bi bi-shield-lock me-2 text-primary" aria-hidden="true"></i>
+        Plată protejată · procesată de Stripe
+      </div>
+      <h1 class="display-6 fw-bold text-body-emphasis mb-3">Finalizează plata convenită</h1>
+      <p class="lead text-body-secondary mb-0 mx-auto" style="max-width: 36rem;">
+        Introdu suma agreată și un scurt rezumat al serviciului. Vei fi redirecționat către o pagină de plată securizată;
+        după tranzacție primești confirmarea pe <strong class="text-body">email</strong>.
+      </p>
+    </header>
+
+    <div class="card pay-unified bg-body overflow-hidden">
+      <div class="row g-0">
+        <div class="col-lg-6">
+          <div class="p-4 p-lg-5 h-100 d-flex flex-column">
+            <h2 class="h5 fw-bold mb-1">Detalii plată</h2>
+            <p class="small text-body-secondary mb-4">Completează câmpurile de mai jos exact cum ai convenit cu noi.</p>
+
+            <div class="mb-4">
+              <label class="form-label fw-semibold" for="payAmount">Sumă (EUR)</label>
+              <div class="input-group input-group-lg">
+                <span class="input-group-text">€</span>
+                <input type="number" class="form-control" id="payAmount" min="1" step="0.01"
+                  placeholder="0.00" autocomplete="off" inputmode="decimal" aria-describedby="payAmountHelp" />
+              </div>
+              <div id="payAmountHelp" class="form-text">Suma din ofertă sau din documentul emis de echipa S366 AI.</div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-semibold" for="payDesc">Descriere</label>
+              <textarea class="form-control" id="payDesc" rows="4" maxlength="4000"
+                placeholder="Ex.: Intervenție martie 2026 — mentenanță acordată / consultanță / orice formulare convenit cu noi…"
+                aria-describedby="payDescHelp"></textarea>
+              <div id="payDescHelp" class="form-text">Minim 5 caractere. Ajută la identificarea plății în extrasul tău.</div>
+            </div>
+
+            <div class="mt-auto">
+              <button type="button" class="btn btn-primary btn-lg w-100 py-3" id="payBtn">
+                <i class="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>
+                Continuă către plată
+              </button>
+              <p class="text-body-secondary small text-center mt-3 mb-0" id="payHint" role="status"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6 pay-trust-panel">
+          <div class="p-4 p-lg-5 h-100 d-flex flex-column justify-content-center">
+            <h2 class="h6 text-uppercase text-body-secondary fw-semibold mb-3 mb-lg-4">Siguranță &amp; transparență</h2>
+            <ul class="list-unstyled mb-0 d-flex flex-column gap-3 gap-lg-4">
+              <li class="pay-trust-item">
+                <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                <span><strong class="text-body">Date protejate.</strong> Conexiune criptată; nu stocăm datele cardului pe serverele noastre.</span>
+              </li>
+              <li class="pay-trust-item">
+                <i class="bi bi-credit-card-2-front" aria-hidden="true"></i>
+                <span><strong class="text-body">Procesare Stripe.</strong> Plată prin infrastructură folosită la scară largă, cu protecții standard industrie.</span>
+              </li>
+              <li class="pay-trust-item">
+                <i class="bi bi-envelope-check" aria-hidden="true"></i>
+                <span><strong class="text-body">Confirmare pe email.</strong> Primești dovada și detaliile tranzacției de la Stripe.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-center small text-body-secondary mt-4 mb-0">
+      Ai nevoie de ajutor? Scrie-ne la
+      <a href="mailto:support@s366.online" class="text-decoration-none">support@s366.online</a>
+    </p>
+  </div>
+</section>
+
+<script>
+(function () {
+  var payBtn = document.getElementById('payBtn');
+  var hint = document.getElementById('payHint');
+  var amountEl = document.getElementById('payAmount');
+  var descEl = document.getElementById('payDesc');
+
+  payBtn.addEventListener('click', async function () {
+    var amount = (amountEl.value || '').trim();
+    var description = (descEl.value || '').trim();
+    if (!amount || !description) {
+      hint.textContent = 'Te rugăm să completezi suma și descrierea.';
+      return;
+    }
+    payBtn.disabled = true;
+    hint.textContent = 'Pregătim sesiunea securizată…';
+    try {
+      var res = await fetch('/payments/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ amount_eur: amount, description: description })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) {
+        var d = data.detail;
+        hint.textContent = (typeof d === 'string') ? d : (Array.isArray(d) ? JSON.stringify(d) : ('Eroare ' + res.status));
+        payBtn.disabled = false;
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      hint.textContent = 'Răspuns neașteptat. Încearcă din nou.';
+    } catch (e) {
+      hint.textContent = 'Conexiune indisponibilă momentan.';
+    }
+    payBtn.disabled = false;
+  });
+})();
+</script>
+{% endblock %}
