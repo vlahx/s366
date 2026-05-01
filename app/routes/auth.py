@@ -30,16 +30,18 @@ templates = Jinja2Templates(directory="app/templates")
 async def auth_page(request: Request):
     
     return templates.TemplateResponse(
-        "auth/login.html",
-        {"request": request}
+        request=request,
+        name="auth/login.html",
+        context={"request": request},
     )
 
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse(
-        "auth/login.html",
-        {"request": request}
+        request=request,
+        name="auth/login.html",
+        context={"request": request},
     )
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -166,11 +168,15 @@ async def profile(request: Request):
     # Luăm și lista de companii ca să aibă ce alege în dropdown
     companies = await fetch_all('SELECT company_id, name FROM companies')
 
-    return templates.TemplateResponse("auth/profile.html", {
-        "request": request,
-        "user": user,
-        "companies": companies
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="auth/profile.html",
+        context={
+            "request": request,
+            "user": user,
+            "companies": companies,
+        },
+    )
 
 
 ###############################################
@@ -235,7 +241,7 @@ async def update_profile(request: Request):
 # Adaugă această rută GET pentru a afișa formularul
 @router.get("/create_company")
 async def show_create_company_form(request: Request):
-    return templates.TemplateResponse("auth/create_company.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="auth/create_company.html", context={"request": request})
 
 
 

@@ -32,13 +32,17 @@ async def admin_dashboard(request: Request):
     # Punem status='pending' primele
     companies = await fetch_all("SELECT * FROM companies ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, name ASC")
 
-    return templates.TemplateResponse("admin/dashboard.html", {
-        "request": request,
-        "stats": stats,
-        "users": users,
-        "companies": companies,
-        "title": "Admin Panel | s366_turbo"
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/dashboard.html",
+        context={
+            "request": request,
+            "stats": stats,
+            "users": users,
+            "companies": companies,
+            "title": "Admin Panel | s366_turbo",
+        },
+    )
 
 @router.get("/api/stats")
 async def api_stats(request: Request):
@@ -52,10 +56,11 @@ async def api_stats(request: Request):
 async def list_pending_companies(request: Request):
     # Folosim fetch_all din modelul tău
     companies = await fetch_all("SELECT * FROM companies WHERE status = 'pending'")
-    return templates.TemplateResponse("admin/pending.html", {
-        "request": request, 
-        "companies": companies
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/pending.html",
+        context={"request": request, "companies": companies},
+    )
 
 @router.get("/approve/{u_id}/{token}")
 async def approve_admin_via_telegram(request: Request, u_id: int, token: str):

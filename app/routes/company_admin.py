@@ -79,7 +79,7 @@ async def company_dashboard(request: Request, tab: str = None):
     elif current_tab == "settings":
     # 1. Luăm setările din DB (funcția noastră smart care dă și defaults)
         context["settings"] = await get_company_settings(cui)
-    return templates.TemplateResponse("company_admin/dashboard.html", context)
+    return templates.TemplateResponse(request=request, name="company_admin/dashboard.html", context=context)
 
 
 ##########################################################################

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 router = APIRouter()
@@ -21,6 +21,16 @@ async def privacy(request: Request):
 @router.get("/contact", response_class=HTMLResponse, name="contact")
 async def contact(request: Request):
     return templates.TemplateResponse(request=request, name="public/contact.html", context={"request": request})
+
+
+@router.get("/despre", response_class=HTMLResponse, name="despre")
+async def despre_noi(request: Request):
+    return templates.TemplateResponse(request=request, name="public/about.html", context={"request": request})
+
+
+@router.get("/about", include_in_schema=False)
+async def about_redirect():
+    return RedirectResponse(url="/despre", status_code=308)
 
 ##################################################################################
 @router.get("/solutii", response_class=HTMLResponse, name="solutii")

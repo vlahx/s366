@@ -68,7 +68,8 @@ raspunsuri la problemele firmei tale.{%endblock %}
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script type="module" src="{{ url_for('static', path='js/app.js') }}"></script>
+    {# Use relative URL to avoid mixed-content when behind a proxy that doesn't set scheme correctly #}
+    <script type="module" src="/static/js/app.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>

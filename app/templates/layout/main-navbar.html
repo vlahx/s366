@@ -21,9 +21,18 @@
 
     <div class="collapse navbar-collapse" id="navContent">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-            <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
-            <li class="nav-item"><a class="nav-link" href="/contact">Contact</a></li>
-            <li class="nav-item"><a class="nav-link" href="/chat">Chat</a></li>
+            <li class="nav-item">
+                <a class="nav-link{% if request.url.path == '/despre' %} active{% endif %}" href="/despre"{% if request.url.path == '/despre' %} aria-current="page"{% endif %}>Despre noi</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link{% if request.url.path.startswith('/contact') %} active{% endif %}" href="/contact"{% if request.url.path.startswith('/contact') %} aria-current="page"{% endif %}>Contact</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link{% if request.url.path.startswith('/chat') %} active{% endif %}" href="/chat"{% if request.url.path.startswith('/chat') %} aria-current="page"{% endif %}>Chat</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link{% if request.url.path.startswith('/hosting') %} active{% endif %}" href="/hosting"{% if request.url.path.startswith('/hosting') %} aria-current="page"{% endif %}>Hosting</a>
+            </li>
         </ul>
 
         <ul class="navbar-nav ms-auto">

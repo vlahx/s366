@@ -1,0 +1,148 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Soluții custom — hosting aplicații firmă, AI &amp; RAG | S366{% endblock %}
+{% block meta_description %}Hosting pentru gestiune și aplicații critice, AI pe baze de date (analiză, estimări, recomandări), acțiuni controlate în DB, RAG pentru angajați și clienți, dezvoltare la cerere și containere Python/FastAPI.{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-lg-5">
+  <nav class="mb-4" aria-label="Navigare">
+    <a href="/hosting" class="text-decoration-none small"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Înapoi la Hosting &amp; domenii</a>
+  </nav>
+
+  <header class="mx-auto text-center mb-5" style="max-width: 46rem;">
+    <p class="text-primary fw-semibold small text-uppercase mb-2">La cerere</p>
+    <h1 class="fw-bold mb-3">Hosting pentru aplicațiile firmei + AI care înțelege datele tale</h1>
+    <p class="text-body-secondary lead mb-0">
+      Pentru gestiune, contabilitate, CRM și alte sisteme care nu sunt „un site WordPress”.
+      Propunem infrastructură stabilă, backup-uri clare și — dacă ai nevoie — un strat de inteligență artificială
+      care citește din sursele tale autorizate, explică, estimează și recomandă, nu doar listează rânduri.
+    </p>
+  </header>
+
+  <div class="row g-4 mb-5">
+    <div class="col-lg-6">
+      <section class="card h-100 border shadow-sm" aria-labelledby="sec-infra">
+        <div class="card-body p-4">
+          <h2 id="sec-infra" class="h5 fw-bold mb-3"><i class="bi bi-hdd-stack text-primary me-2" aria-hidden="true"></i>Infrastructură &amp; aplicații firmă</h2>
+          <p class="text-body-secondary small mb-3">
+            Găzduim sau mutăm aplicațiile tale critice într-un mediu potrivit: resurse alocate, rețea, acces controlat,
+            monitorizare de bază. Nu înlocuim contabilul sau softul de gestiune — îl punem într-un loc unde poate rula predictibil.
+          </p>
+          <ul class="small text-body-secondary mb-0">
+            <li class="mb-2">Backup <strong class="text-body">regulat</strong> la baze de date și fișiere — frecvență, retenție și test de restaurare stabilite împreună.</li>
+            <li class="mb-2">Separare clară între medii (ex. producție / test) când e cazul.</li>
+            <li>Documentare scurtă: ce rulează unde, cum se recuperează datele după incident.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+    <div class="col-lg-6">
+      <section class="card h-100 border border-primary-subtle shadow-sm" aria-labelledby="sec-ai">
+        <div class="card-body p-4">
+          <h2 id="sec-ai" class="h5 fw-bold mb-3"><i class="bi bi-cpu text-primary me-2" aria-hidden="true"></i>AI pe datele operaționale</h2>
+          <p class="text-body-secondary small mb-3">
+            Configurăm asistenți AI care au acces <strong class="text-body">doar</strong> la ce închei tu contractual și tehnic:
+            vizualizări, API-uri, exporturi controlate sau interogări read-only către baze de date.
+          </p>
+          <ul class="small text-body-secondary mb-0">
+            <li class="mb-2"><strong class="text-body">Înțelegere, nu doar raport:</strong> sinteză, comparații între perioade, explicații în limbaj natural.</li>
+            <li class="mb-2"><strong class="text-body">Estimări și scenarii:</strong> tendințe de vânzări, abateri, „ce se întâmplă dacă…” — mereu cu mențiunea că sunt orientative și depind de calitatea datelor.</li>
+            <li class="mb-2"><strong class="text-body">Recomandări pentru lunile următoare:</strong> pe baza istoricului și a regulilor tale de business (nu sfaturi financiare automate fără validare umană acolo unde legea sau riscul o cer).</li>
+            <li>Legare la documente interne prin <strong class="text-body">RAG</strong> (Retrieval Augmented Generation): proceduri, politici, fișiere aprobate — răspunsurile rămân ancorate în surse.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="card border mb-5" aria-labelledby="sec-write">
+    <div class="card-body p-4 p-lg-5">
+      <h2 id="sec-write" class="h5 fw-bold mb-3"><i class="bi bi-shield-lock text-primary me-2" aria-hidden="true"></i>Scriere în baza de date: doar cu „gardă dublă”</h2>
+      <p class="text-body-secondary mb-3">
+        Pentru fluxuri ca <strong class="text-body">programări</strong>, înregistrări simple sau actualizări de stare, putem proiecta acțiuni automate
+        cu <strong class="text-body">restrictii dure</strong>: roluri minime, tabele/view-uri dedicate, validare, jurnal de audit, rate-limit și — unde e cazul — confirmare umană.
+      </p>
+      <p class="text-body-secondary small mb-0">
+        Scopul e să nu existe „AI cu DELETE liber”: fiecare operațiune de scriere e definită, testată și reversibilă acolo unde are sens.
+      </p>
+    </div>
+  </section>
+
+  <section class="card border mb-5 bg-body-tertiary bg-opacity-50" aria-labelledby="sec-rag">
+    <div class="card-body p-4 p-lg-5">
+      <h2 id="sec-rag" class="h5 fw-bold mb-3"><i class="bi bi-people text-primary me-2" aria-hidden="true"></i>RAG pentru oameni: angajați noi, clienți, manuale de dispozitive</h2>
+      <div class="row g-4">
+        <div class="col-md-6">
+          <h3 class="h6 fw-semibold">Onboarding &amp; instruire</h3>
+          <p class="text-body-secondary small mb-0">
+            Încarci proceduri, ghiduri interne, checklist-uri — AI-ul devine interlocutorul care răspunde la întrebări repetitive,
+            în română, 24/7, cu trimitere la sursa exactă. Util pentru rotații de personal sau filiale.
+          </p>
+        </div>
+        <div class="col-md-6">
+          <h3 class="h6 fw-semibold">Clienți &amp; produse</h3>
+          <p class="text-body-secondary small mb-0">
+            Aceeași tehnologie poate explica cum funcționează un produs, politica de garanție sau pașii de instalare —
+            din manualul tău PDF sau site, fără să inventeze ce nu există în documente.
+          </p>
+        </div>
+        <div class="col-12">
+          <h3 class="h6 fw-semibold">Manual în RAG = instructor pentru dispozitive</h3>
+          <p class="text-body-secondary small mb-0">
+            Un simplu manual de utilizare adăugat în baza de cunoștințe poate face din AI un ghid conversațional:
+            „Cum resetez…?”, „Ce înseamnă lampa asta?” — ideal pentru echipamente pe care le vinzi și vrei suport scalabil fără call center supraîncărcat.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="row g-4 mb-5">
+    <div class="col-lg-6">
+      <section class="card h-100 border" aria-labelledby="sec-dev">
+        <div class="card-body p-4">
+          <h2 id="sec-dev" class="h5 fw-bold mb-3"><i class="bi bi-file-earmark-text text-primary me-2" aria-hidden="true"></i>Dezvoltare aplicație la cerere</h2>
+          <p class="text-body-secondary small mb-3">
+            Când nu există un COTS care se potrivește, putem merge pe o aplicație făcută pentru tine: ecrane, API, roluri, integrări.
+          </p>
+          <ul class="small text-body-secondary mb-3">
+            <li class="mb-2"><strong class="text-body">Caiet de sarcini</strong> comun: obiective, utilizatori, date, constrângeri legale, termene, criterii de acceptanță.</li>
+            <li class="mb-2">Iterații scurte cu demo-uri, ca să vezi progresul înainte de „big bang”.</li>
+            <li>Predare: cod, documentație minimă, unde rulează, cum se face deploy.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+    <div class="col-lg-6">
+      <section class="card h-100 border" aria-labelledby="sec-container">
+        <div class="card-body p-4">
+          <h2 id="sec-container" class="h5 fw-bold mb-3"><i class="bi bi-box-seam text-primary me-2" aria-hidden="true"></i>Container dedicat: Python &amp; FastAPI</h2>
+          <p class="text-body-secondary small mb-3">
+            Pentru API-uri interne, microservicii, integrări sau panouri admin, <strong class="text-body">Python cu FastAPI</strong>
+            e o combinație rapidă și ușor de întreținut. Îți putem livra imagine Docker proprie, aliniată la stack-ul tău:
+            variabile de mediu, secrete, reverse proxy, TLS, logging.
+          </p>
+          <p class="text-body-secondary small mb-0">
+            Astfel ai același tip de izolare ca în producție modernă: upgrade controlat, scalare orizontală când crești,
+            fără să amesteci totul cu un singur server „fără nume”.
+          </p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="card border-primary border-opacity-50 shadow-sm" aria-labelledby="sec-cta">
+    <div class="card-body p-4 p-lg-5 text-center">
+      <h2 id="sec-cta" class="h5 fw-bold mb-2">Următorul pas</h2>
+      <p class="text-body-secondary mb-4 mx-auto" style="max-width: 36rem;">
+        Spune-ne ce aplicații ai astăzi, ce date vrei să înțeleagă AI-ul și ce nivel de risc accepti pentru scrieri automate.
+        Pregătim o propunere tehnică și comercială — fără obligație până validăm împreună caietul de sarcini.
+      </p>
+      <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
+        <a href="/contact?subject=Soluții%20custom%20%28hosting%20aplicații%20%2B%20AI%20%2B%20RAG%29" class="btn btn-primary btn-lg px-4">Discută proiectul</a>
+        <a href="/solutii" class="btn btn-outline-secondary btn-lg px-4">Vezi și soluțiile AI generale</a>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
