@@ -24,6 +24,23 @@ def get_document_path(cui: str, filename: str = None):
     return company_docs_dir
 
 
+async def _ensure_documents_columns(db):
+    """DB-uri vechi: CREATE IF NOT EXISTS nu adaugă coloane noi. Le alterăm aici."""
+    async with db.execute('PRAGMA table_info("documents")') as cursor:
+        existing = {row[1] for row in await cursor.fetchall()}
+    alters = [
+        ("source_id", "TEXT"),
+        ("type", "TEXT NOT NULL DEFAULT 'file'"),
+        ("image_url", "TEXT"),
+        ("created_at", "TEXT"),
+        ("uploaded_at", "TEXT"),
+    ]
+    for name, definition in alters:
+        if name not in existing:
+            await db.execute(
+                f'ALTER TABLE "documents" ADD COLUMN "{name}" {definition}'
+            )
+
 
 # 2. Funcția de conectare
 async def get_db(cui):
@@ -89,6 +106,8 @@ async def init_company_db(cui):
                     "uploaded_at" TEXT DEFAULT (datetime('now')) -- Data la care am făcut noi sync
                 )
             """)
+
+            await _ensure_documents_columns(db)
 
             # 3. Tabelul Chunks (Rămâne la fel, e solid)
             await db.execute("""
