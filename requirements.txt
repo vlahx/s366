@@ -54,3 +54,4 @@ Pillow==10.2.0
 beautifulsoup4
 
 dnspython
+stripe>=10.0.0

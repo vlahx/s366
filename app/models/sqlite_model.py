@@ -79,6 +79,42 @@ async def init_db():
             )
         ''')
 
+        # 5. Comenzi hosting (Stripe → provisioning)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS hosting_orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                domain TEXT NOT NULL,
+                package_tier TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'draft',
+                stripe_checkout_session_id TEXT UNIQUE,
+                stripe_payment_intent_id TEXT,
+                stripe_customer_id TEXT,
+                user_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_error TEXT,
+                metadata_json TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_hosting_orders_status ON hosting_orders(status)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_hosting_orders_domain ON hosting_orders(domain)"
+        )
+
+        # 6. Idempotency webhook Stripe
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+                event_id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                processed_ok INTEGER NOT NULL DEFAULT 0,
+                received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_error TEXT
+            )
+        """)
+
         await db.commit()
         print(f"[DATABASE] Structura verificată în {DB_PATH}")
     finally:
@@ -115,5 +151,16 @@ async def execute_query(query, params=()):
     try:
         await db.execute(query, params)
         await db.commit()
+    finally:
+        await db.close()
+
+
+async def execute_insert(query, params=()):
+    """INSERT și returnează lastrowid."""
+    db = await get_db()
+    try:
+        cursor = await db.execute(query, params)
+        await db.commit()
+        return cursor.lastrowid
     finally:
         await db.close()
