@@ -39,23 +39,25 @@
 
 
     <div class="col-md-12 mb-4">
-        <div class="card bg-dark border-secondary h-100 shadow-sm">
+        <div class="card border shadow-sm h-100 stat-card bg-body-tertiary">
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="card-title mb-0 text-white text-uppercase small fw-bold">
+                    <h6 class="card-title mb-0 text-body text-uppercase small fw-bold">
                         <i class="bi bi-device-ssd-fill text-info me-2"></i>Stocare NVMe RAID
                     </h6>
-                    <span class="badge bg-info text-dark" style="font-size: 0.7rem;">
-                        {{ stats.nvme.total }} Total
+                    <span class="badge text-bg-info" style="font-size: 0.7rem;">
+                        {{ stats.nvme.total }} GB total
                     </span>
                 </div>
 
                 <div class="d-flex justify-content-between mb-1 small">
-                    <span class="text-muted">Utilizat: <strong class="text-white">{{ stats.nvme.used }}</strong></span>
-                    <span class="text-muted">Liber: <strong class="text-info">{{ stats.nvme.free }}</strong></span>
+                    <span class="text-body-secondary">Utilizat: <strong class="text-body">{{ stats.nvme.used }}
+                            GB</strong></span>
+                    <span class="text-body-secondary">Liber: <strong class="text-info">{{ stats.nvme.free }}
+                            GB</strong></span>
                 </div>
 
-                <div class="progress bg-secondary mb-2" style="height: 12px; border-radius: 6px;">
+                <div class="progress mb-2" style="height: 12px; border-radius: 6px;">
                     <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar"
                         style="width: {{ stats.nvme.percent }}%;" aria-valuenow="{{ stats.nvme.percent }}"
                         aria-valuemin="0" aria-valuemax="100">
@@ -64,7 +66,7 @@
 
                 <div class="text-end">
                     <span class="fw-bold text-info" style="font-size: 1.1rem;">{{ stats.nvme.percent }}%</span>
-                    <small class="text-muted ms-1">folosit</small>
+                    <small class="text-body-secondary ms-1">folosit</small>
                 </div>
             </div>
         </div>
@@ -80,8 +82,8 @@
         {% if stats.gpus and stats.gpus|length > 0 %}
         {% for gpu in stats.gpus %}
         <div class="col-12 mb-4">
-            <div class="card text-danger border-0 shadow-lg overflow-hidden bg-body-tertiary">
-                <div class="card-headerder-bottom border-secondary bg-transparent py-3">
+            <div class="card border shadow-sm overflow-hidden bg-body-tertiary">
+                <div class="card-header border-bottom bg-transparent py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <strong class="text-info"><i class="bi bi-cpu-fill"></i> {{ gpu.name }}</strong>
                         <span
@@ -97,7 +99,7 @@
                                 <small class="text-info">VRAM Usage</small>
                                 <small class="fw-bold">{{ gpu.vram_used_mb }} / {{ gpu.vram_total_mb }} MB</small>
                             </div>
-                            <div class="progress" style="height: 12px; background-color: #333;">
+                            <div class="progress bg-body-secondary" style="height: 12px;">
                                 <div class="progress-bar bg-info" style="width: {{ gpu.vram_percent }}%;"></div>
                             </div>
                         </div>
@@ -106,7 +108,7 @@
                                 <small class="text-info">Core Load</small>
                                 <small class="fw-bold">{{ gpu.load_percent }}%</small>
                             </div>
-                            <div class="progress" style="height: 12px; background-color: #333;">
+                            <div class="progress bg-body-secondary" style="height: 12px;">
                                 <div class="progress-bar {% if gpu.load_percent > 80 %}bg-danger{% else %}bg-success{% endif %}"
                                     style="width: {{ gpu.load_percent }}%;"></div>
                             </div>
@@ -146,6 +148,7 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                {% if stats.docker and stats.docker|length > 0 %}
                                 {% for container in stats.docker %}
                                 <tr>
                                     <td class="ps-4"><strong>{{ container.name }}</strong></td>
@@ -158,18 +161,25 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-end pe-4">
-                                        <div class="btn-group btn-group-sm">
-                                            <button onclick="controlContainer('restart', '{{ container.name }}', this)"
-                                                class="btn btn-outline-warning"><i
-                                                    class="bi bi-arrow-clockwise"></i></button>
-                                            <button onclick="controlContainer('start', '{{ container.name }}', this)"
-                                                class="btn btn-outline-success"><i class="bi bi-play-fill"></i></button>
-                                            <button onclick="controlContainer('stop', '{{ container.name }}', this)"
-                                                class="btn btn-outline-danger"><i class="bi bi-stop-fill"></i></button>
+                                        <div class="btn-group btn-group-sm" data-cname="{{ container.name | e }}">
+                                            <button type="button" class="btn btn-outline-warning btn-ctl"
+                                                data-act="restart"><i class="bi bi-arrow-clockwise"></i></button>
+                                            <button type="button" class="btn btn-outline-success btn-ctl"
+                                                data-act="start"><i class="bi bi-play-fill"></i></button>
+                                            <button type="button" class="btn btn-outline-danger btn-ctl"
+                                                data-act="stop"><i class="bi bi-stop-fill"></i></button>
                                         </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-body-secondary py-4">
+                                        <i class="bi bi-docker d-block fs-3 mb-2 opacity-50"></i>
+                                        Nu s-au putut lista containerele (Docker indisponibil din app sau socket neconectat).
+                                    </td>
+                                </tr>
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>
@@ -214,18 +224,38 @@
 </style>
 
 <script>
-    // Logica de control ramane aceeasi, am curatat doar interactiunea cu butoanele
+    document.querySelectorAll('.btn-ctl').forEach((btn) => {
+        btn.addEventListener('click', function () {
+            const grp = this.closest('[data-cname]');
+            const name = grp ? grp.getAttribute('data-cname') : '';
+            controlContainer(this.getAttribute('data-act'), name, this);
+        });
+    });
+
     async function controlContainer(action, name, btnElement) {
         if (!confirm(`Confirmi ${action} pe ${name}?`)) return;
         const icon = btnElement.innerHTML;
         btnElement.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
         btnElement.disabled = true;
         try {
-            const res = await fetch(`/admin/container/${action}/${name}`, { method: 'POST' });
-            if (res.ok) location.reload();
-            else alert('Eroare!');
-        } catch (e) { alert('Server inaccesibil'); }
-        finally { btnElement.innerHTML = icon; btnElement.disabled = false; }
+            const url = `/admin/container/${encodeURIComponent(action)}/${encodeURIComponent(name)}`;
+            const res = await fetch(url, { method: 'POST', credentials: 'same-origin' });
+            if (res.ok) {
+                location.reload();
+                return;
+            }
+            let msg = 'Eroare la control container';
+            try {
+                const j = await res.json();
+                if (j.detail) msg = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail);
+            } catch (_) { }
+            alert(msg);
+        } catch (e) {
+            alert('Server inaccesibil');
+        } finally {
+            btnElement.innerHTML = icon;
+            btnElement.disabled = false;
+        }
     }
 
     // Refresh Live CPU
