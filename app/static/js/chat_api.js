@@ -1,5 +1,10 @@
 // static/js/chat_api.js
-import { createBubble, scrollBottom } from './chat_ui.js';
+import {
+    createBubble,
+    appendTypingIndicator,
+    removeTypingIndicator,
+    setStreamingFollow,
+} from './chat_ui.js';
 import { addToBuffer, setStreamingStatus, startTicker, clearBuffer } from './streaming.js';
 
 /**
@@ -13,10 +18,12 @@ export async function handleUnifiedChat(textInput = null, audioBlob = null, acti
     if (audioBlob) {
         payload.audio_b64 = await blobToBase64(audioBlob);
         userBubble = createBubble('user', '... se procesează vocea ...');
+        appendTypingIndicator();
     } else {
         if (!textInput) return;
         payload.message = textInput;
         createBubble('user', textInput);
+        appendTypingIndicator();
     }
 
     try {
@@ -33,6 +40,7 @@ export async function handleUnifiedChat(textInput = null, audioBlob = null, acti
         let contentDiv = null;
         let isFirstChunk = true;
         setStreamingStatus(true);
+        setStreamingFollow(true);
 
         while (true) {
             const { done, value } = await reader.read();
@@ -80,11 +88,19 @@ export async function handleUnifiedChat(textInput = null, audioBlob = null, acti
                 }
             }
         }
+
+        // Stream închis fără niciun chunk LLM: nu pornește ticker-ul
+        if (isFirstChunk) {
+            removeTypingIndicator();
+            setStreamingFollow(false);
+        }
     } catch (err) {
         console.error('[chat_api] Fetch error:', err);
+        removeTypingIndicator();
+        setStreamingFollow(false);
     } finally {
         setStreamingStatus(false);
-        window.chatBuffer = "";
+        window.chatBuffer = '';
     }
 }
 

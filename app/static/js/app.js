@@ -1,7 +1,7 @@
 // static/js/app.js
 
 // 1. IMPORTURI
-import { createBubble, scrollBottom } from './chat_ui.js';
+import { createBubble, resetUserScrollState } from './chat_ui.js';
 import { startTicker, addToBuffer, setStreamingStatus, clearBuffer } from './streaming.js';
 import { startRecording, stopRecording, playAudioFromBase64 } from './voice_handler.js';
 import { handleUnifiedChat } from './chat_api.js';
@@ -130,6 +130,8 @@ window.addEventListener('DOMContentLoaded', () => {
             if (sendBtn) sendBtn.disabled = true;
 
             try {
+                resetUserScrollState();
+
                 // VERIFICARE: Dacă nu avem sesiune, facem una ACUM (preventiv)
                 if (!activeConvId) {
                     activeConvId = crypto.randomUUID();
@@ -140,22 +142,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 textarea.value = '';
                 textarea.style.height = 'auto';
 
-                const chatBox = document.getElementById('chat-box');
-                const typingDiv = document.createElement('div');
-                typingDiv.id = 'typing-indicator';
-                typingDiv.className = 'bot-msg msg-bubble';
-                typingDiv.innerHTML = `
-                    <div class="typing">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                `;
-
-                chatBox.append(typingDiv);
-                scrollBottom();
-
-                // 5. API Call - acum suntem SIGURI că activeConvId nu e null
+                // 5. API Call — typing indicator se pune în chat_api după bucla user
                 await handleUnifiedChat(text, null, activeConvId);
 
             } catch (err) {

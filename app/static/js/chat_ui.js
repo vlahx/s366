@@ -3,15 +3,53 @@
 /**
  * Gestionează scroll-ul automat la finalul listei de mesaje
  */
-export let userScrolledUp = false; // Flag pentru a detecta dacă user-ul a scrollat în sus
+export let userScrolledUp = false;
 
+/** În timpul răspunsului AI: urmărim fundul chiar dacă user a fost sus (scroll instant). */
+let streamingFollow = false;
 
+export function setStreamingFollow(on) {
+    streamingFollow = !!on;
+}
+
+/** La trimitere mesaj nou: reluăm auto-scroll (altfel rămâne blocat pe vechiul userScrolledUp). */
+export function resetUserScrollState() {
+    userScrolledUp = false;
+}
+
+export function removeTypingIndicator() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+}
+
+/** Indicator „gândește” imediat sub ultimul mesaj user, deasupra locului răspunsului AI. */
+export function appendTypingIndicator() {
+    const chatBox = document.getElementById('chat-box');
+    if (!chatBox) return;
+    removeTypingIndicator();
+    const typingDiv = document.createElement('div');
+    typingDiv.id = 'typing-indicator';
+    typingDiv.className = 'bot-msg msg-bubble';
+    typingDiv.innerHTML = `
+        <div class="typing">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>`;
+    chatBox.appendChild(typingDiv);
+    scrollBottom();
+}
 
 export function scrollBottom() {
-    if (userScrolledUp) return;  // ← cheia: nu facem scroll dacă user-ul e sus
+    if (!streamingFollow && userScrolledUp) return;
 
     const box = document.getElementById('chat-box');
-    if (box) {
+    if (!box) return;
+
+    // În timpul streamului, smooth se „întinde” mereu în urmă: folosim instant.
+    if (streamingFollow) {
+        box.scrollTop = box.scrollHeight;
+    } else {
         box.scrollTo({
             top: box.scrollHeight,
             behavior: 'smooth'

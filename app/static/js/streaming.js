@@ -1,15 +1,15 @@
 // static/js/streaming.js
-import { scrollBottom, addSaveButton } from './chat_ui.js';
+import {
+    scrollBottom,
+    addSaveButton,
+    removeTypingIndicator,
+    setStreamingFollow,
+} from './chat_ui.js';
 
 let messageBuffer = "";
 let isPrinting = false;
 let isStreamingActive = false;
 const DISPLAY_SPEED = 20; // Am mărit puțin viteza pentru fluiditate pe Xeon
-
-const removeTypingIndicator = () => {
-    const indicator = document.getElementById('typing-indicator');
-    if (indicator) indicator.remove();
-};
 
 export function startTicker(container) {
     if (isPrinting) return;
@@ -59,8 +59,8 @@ export function startTicker(container) {
             removeTypingIndicator();
             addSaveButton(container.parentElement);
             scrollBottom();
-            // Curățăm bufferul global pentru următorul mesaj
-            messageBuffer = ""; 
+            setStreamingFollow(false);
+            messageBuffer = "";
         }
     }, DISPLAY_SPEED);
 }
