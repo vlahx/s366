@@ -55,7 +55,7 @@ async def dynamic_entries() -> list[SitemapEntry]:
             SitemapEntry(f"/blog/category/{c.slug}", changefreq="weekly", priority=0.65)
         )
     for slug in await list_published_slugs_for_sitemap():
-        out.append(SitemapEntry(f"/blog/{slug}", changefreq="monthly", priority=0.7))
+        out.append(SitemapEntry(f"/blog/{slug}/", changefreq="monthly", priority=0.7))
     return out
 
 
@@ -84,7 +84,19 @@ def build_sitemap_xml(origin: str, entries: Sequence[SitemapEntry]) -> str:
 
 def build_robots_txt(origin: str) -> str:
     origin = origin.rstrip("/")
-    return f"""User-agent: *
+    # Meta / Facebook: Sharing Debugger afișează adesea „robots.txt block” și la 403 WAF sau răspuns gol.
+    # Grupuri separate per UA — unele parsere tratează slab mai mulți User-agent: în același bloc.
+    # Vezi: https://developers.facebook.com/docs/sharing/webmasters/web-crawlers
+    return f"""User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+User-agent: *
 Disallow: /admin/
 Disallow: /company_admin/
 Disallow: /auth/

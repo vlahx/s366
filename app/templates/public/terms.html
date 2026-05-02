@@ -1,5 +1,9 @@
 {% extends "layout/base.html" %}
 
+{% block extra_head %}
+<link rel="canonical" href="{{ public_canonical }}" />
+{% endblock %}
+
 {% block content %}
 <div class="container mt-5 mb-5" style="max-width: 900px; line-height: 1.6;">
     <div class="card shadow-sm p-4">

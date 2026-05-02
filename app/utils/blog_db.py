@@ -4,7 +4,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from app.models.sqlite_model import execute_query, fetch_all, fetch_one
+from slugify import slugify
+
+from app.models.sqlite_model import execute_insert, execute_query, fetch_all, fetch_one
 
 
 def _sqlite_datetime(dt: datetime | None) -> str | None:
@@ -39,6 +41,17 @@ class BlogPostRow:
     draft: bool
     published_at: datetime | None
     created_at: datetime | None
+    author_firstname: str | None
+
+
+def _row_author_firstname(r) -> str | None:
+    if "author_firstname" not in r.keys():
+        return None
+    raw = r["author_firstname"]
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    return s or None
 
 
 def _row_post(r) -> BlogPostRow:
@@ -64,6 +77,7 @@ def _row_post(r) -> BlogPostRow:
         draft=bool(r["draft"]),
         published_at=_dt(r["published_at"]),
         created_at=_dt(r["created_at"]),
+        author_firstname=_row_author_firstname(r),
     )
 
 
@@ -82,30 +96,91 @@ async def list_categories() -> list[BlogCategory]:
     ]
 
 
+async def admin_create_category(
+    *,
+    name: str,
+    slug: str | None = None,
+    sort_order: int | None = None,
+) -> BlogCategory:
+    """Inserează categorie nouă. Slug gol → din nume (slugify). sort_order gol → după ultimul +1."""
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("Numele categoriei e obligatoriu")
+
+    raw_slug = (slug or "").strip().lower() if slug else ""
+    if not raw_slug:
+        raw_slug = slugify(name, lowercase=True) or "categorie"
+
+    if sort_order is None:
+        r = await fetch_one("SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM blog_categories")
+        sort_order = int(r["n"]) if r and r["n"] is not None else 0
+    else:
+        sort_order = int(sort_order)
+
+    new_id = await execute_insert(
+        "INSERT INTO blog_categories (slug, name, sort_order) VALUES (?, ?, ?)",
+        (raw_slug, name, sort_order),
+    )
+    r = await fetch_one(
+        "SELECT id, slug, name, sort_order FROM blog_categories WHERE id = ?",
+        (int(new_id),),
+    )
+    if not r:
+        raise RuntimeError("Categoria nu s-a putut citi după inserare")
+    return BlogCategory(
+        id=int(r["id"]),
+        slug=str(r["slug"]),
+        name=str(r["name"]),
+        sort_order=int(r["sort_order"]),
+    )
+
+
+def _sql_like_pattern(term: str) -> str:
+    """Pattern LIKE sigur: escape %, _, \\ pentru SQLite ESCAPE '\\'."""
+    t = (term or "").strip()
+    if not t:
+        return ""
+    t = t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{t}%"
+
+
 async def list_published_posts(
     *,
     category_slug: str | None = None,
+    search: str | None = None,
     limit: int = 100,
 ) -> list[BlogPostRow]:
     limit = max(1, min(500, int(limit)))
     base_sql = """
         SELECT p.id, p.slug, p.category_id, c.slug AS category_slug, c.name AS category_name,
                p.title, p.excerpt, p.content_html, p.hero_image_url,
-               p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at
+               p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at,
+               p.author_firstname
         FROM blog_posts p
         LEFT JOIN blog_categories c ON c.id = p.category_id
         WHERE p.draft = 0
     """
+    conditions: list[str] = []
+    params: list = []
+
     if category_slug:
-        rows = await fetch_all(
-            base_sql + " AND c.slug = ? ORDER BY COALESCE(p.published_at, p.created_at) DESC LIMIT ?",
-            (category_slug.strip().lower(), limit),
+        conditions.append("c.slug = ?")
+        params.append(category_slug.strip().lower())
+
+    like_pat = _sql_like_pattern(search) if search else ""
+    if like_pat:
+        conditions.append(
+            "(p.title LIKE ? ESCAPE '\\' OR IFNULL(p.excerpt, '') LIKE ? ESCAPE '\\')"
         )
+        params.extend([like_pat, like_pat])
+
+    tail = " ORDER BY COALESCE(p.published_at, p.created_at) DESC LIMIT ?"
+    if conditions:
+        sql = base_sql + " AND " + " AND ".join(conditions) + tail
     else:
-        rows = await fetch_all(
-            base_sql + " ORDER BY COALESCE(p.published_at, p.created_at) DESC LIMIT ?",
-            (limit,),
-        )
+        sql = base_sql + tail
+    params.append(limit)
+    rows = await fetch_all(sql, tuple(params))
     return [_row_post(r) for r in rows]
 
 
@@ -117,7 +192,8 @@ async def get_published_post_by_slug(slug: str) -> BlogPostRow | None:
         """
         SELECT p.id, p.slug, p.category_id, c.slug AS category_slug, c.name AS category_name,
                p.title, p.excerpt, p.content_html, p.hero_image_url,
-               p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at
+               p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at,
+               p.author_firstname
         FROM blog_posts p
         LEFT JOIN blog_categories c ON c.id = p.category_id
         WHERE p.slug = ? AND p.draft = 0
@@ -143,7 +219,8 @@ async def admin_list_all_posts() -> list[BlogPostRow]:
         """
         SELECT p.id, p.slug, p.category_id, c.slug AS category_slug, c.name AS category_name,
                p.title, p.excerpt, p.content_html, p.hero_image_url,
-               p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at
+               p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at,
+               p.author_firstname
         FROM blog_posts p
         LEFT JOIN blog_categories c ON c.id = p.category_id
         ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC
@@ -160,7 +237,8 @@ async def admin_get_post_by_slug(slug: str) -> BlogPostRow | None:
         """
         SELECT p.id, p.slug, p.category_id, c.slug AS category_slug, c.name AS category_name,
                p.title, p.excerpt, p.content_html, p.hero_image_url,
-               p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at
+               p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at,
+               p.author_firstname
         FROM blog_posts p
         LEFT JOIN blog_categories c ON c.id = p.category_id
         WHERE p.slug = ?
@@ -195,6 +273,7 @@ async def admin_upsert_post(
     og_image_width: int | None,
     og_image_height: int | None,
     create_new: bool = False,
+    author_firstname: str | None = None,
 ) -> str:
     """INSERT sau UPDATE după slug. Returnează slugul final.
     Dacă create_new=True și slugul există deja, ridică ValueError (nu suprascrie)."""
@@ -216,12 +295,14 @@ async def admin_upsert_post(
     if existing:
         if create_new:
             raise ValueError("Există deja un articol cu acest slug. Alege alt slug.")
+        af_up = (author_firstname or "").strip() or None
         await execute_query(
             """
             UPDATE blog_posts SET
                 category_id = ?, title = ?, excerpt = ?, content_html = ?,
                 hero_image_url = ?, og_image_width = ?, og_image_height = ?,
-                draft = ?, published_at = ?, updated_at = datetime('now')
+                draft = ?, published_at = ?, updated_at = datetime('now'),
+                author_firstname = COALESCE(author_firstname, ?)
             WHERE slug = ?
             """,
             (
@@ -234,6 +315,7 @@ async def admin_upsert_post(
                 og_image_height,
                 d_int,
                 pub_sql,
+                af_up,
                 slug,
             ),
         )
@@ -242,13 +324,14 @@ async def admin_upsert_post(
     if not create_new:
         raise ValueError("Articolul nu mai există (slug șters sau invalid).")
 
+    af = (author_firstname or "").strip() or None
     await execute_query(
         """
         INSERT INTO blog_posts (
             slug, category_id, title, excerpt, content_html,
             hero_image_url, og_image_width, og_image_height,
-            draft, published_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            draft, published_at, created_at, updated_at, author_firstname
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?)
         """,
         (
             slug,
@@ -261,6 +344,7 @@ async def admin_upsert_post(
             og_image_height,
             d_int,
             pub_sql,
+            af,
         ),
     )
     return slug

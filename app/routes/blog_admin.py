@@ -12,6 +12,7 @@ from pathlib import Path
 from slugify import slugify
 
 from app.utils.blog_db import (
+    admin_create_category,
     admin_delete_post,
     admin_get_post_by_slug,
     admin_list_all_posts,
@@ -69,6 +70,40 @@ async def blog_admin_list(request: Request):
         name="admin/blog_list.html",
         context={"request": request, "posts": posts, "title": "Administrare blog — S366 AI"},
     )
+
+
+@router.get("/categorii")
+async def blog_admin_categories(request: Request):
+    cats = await list_categories()
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/blog_categories.html",
+        context={"request": request, "categories": cats, "title": "Categorii blog — S366 AI (admin)"},
+    )
+
+
+@router.post("/categorii/nou")
+async def blog_admin_category_create(request: Request):
+    form = await request.form()
+    name = (form.get("name") or "").strip()
+    slug_in = (form.get("slug") or "").strip().lower() or None
+    so_raw = form.get("sort_order")
+    sort_order: int | None = None
+    if so_raw not in (None, ""):
+        try:
+            sort_order = int(so_raw)
+        except (TypeError, ValueError):
+            sort_order = None
+    try:
+        await admin_create_category(name=name, slug=slug_in, sort_order=sort_order)
+    except sqlite3.IntegrityError:
+        _flash(request, "Există deja o categorie cu acest slug. Alege alt slug sau nume.", "danger")
+        return RedirectResponse(url="/admin/blog/categorii", status_code=303)
+    except ValueError as e:
+        _flash(request, str(e), "danger")
+        return RedirectResponse(url="/admin/blog/categorii", status_code=303)
+    _flash(request, "Categorie creată.", "success")
+    return RedirectResponse(url="/admin/blog/categorii", status_code=303)
 
 
 @router.get("/nou")
@@ -172,6 +207,7 @@ async def blog_admin_save(request: Request):
             return RedirectResponse(url=dest, status_code=303)
 
     is_edit = bool(original_slug)
+    author_fn = (request.session.get("firstname") or "").strip() or None
     try:
         await admin_upsert_post(
             slug=final_slug,
@@ -185,6 +221,7 @@ async def blog_admin_save(request: Request):
             og_image_width=og_w,
             og_image_height=og_h,
             create_new=not is_edit,
+            author_firstname=author_fn,
         )
     except sqlite3.IntegrityError:
         _flash(

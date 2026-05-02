@@ -253,7 +253,7 @@ async def get_company_settings(cui):
 
                # print(f"  └─ Row found: {key} = {val}") # Debug pe fiecare rând
                 
-                if key in ["rag_temperature", "rag_threshold"]:
+                if key in ["rag_temperature", "rag_threshold", "rag_repeat_penalty", "llm_temperature"]:
                     settings[key] = float(val)
                 elif key in ["rag_num_ctx", "rag_top_k"]:
                     settings[key] = int(val)

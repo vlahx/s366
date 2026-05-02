@@ -37,24 +37,38 @@
 
     {# 3. SEO & DINAMIC (TITLU/DESC) #}
     {% set site_url = "https://s366.online" %}
+    {#
+      Sursă OG (un singur model, ca să nu dublezi titlu/descriere între Python și template):
+      - seo_og_url, seo_og_image_abs: din route (URL canonic + imagine absolută). Obligatoriu unde nu vrei request.url brut.
+      - og:title / og:description: mereu din aceleași blocuri ca <title> și meta description (self.title / self.meta_description).
+      Opțional seo_og_title / seo_og_description doar dacă vreodată un caz special — altfel nu le seta în context.
+    #}
+    {% set _og_path_qs = request.url.path ~ (('?' ~ request.url.query) if request.url.query else '') %}
+    {% set _og_url = (seo_og_url if (seo_og_url is defined and seo_og_url) else (site_url ~ _og_path_qs)) | trim %}
+    {% set _og_title = (seo_og_title if (seo_og_title is defined and seo_og_title) else self.title()) | trim %}
+    {% set _og_desc = (seo_og_description if (seo_og_description is defined and seo_og_description) else self.meta_description()) | trim %}
     <title>{% block title %}S366 AI{% endblock %}</title>
     <meta name="description"
         content="{% block meta_description %}Asistentul perfect al firmei tale. Dedicat companiilor românești.{% endblock %}">
 
-    {# 4. SOCIAL MEDIA (OG/TWITTER) — blog poate suprascrie og_image_full cu URL absolut #}
+    {# 4. SOCIAL MEDIA (OG/TWITTER) — seo_og_image_abs din route; altfel card default #}
+    {% set _default_og_img = site_url ~ '/static/images/og/chat-ai-s366.png' %}
+    {% set _og_img = ((seo_og_image_abs if (seo_og_image_abs is defined and seo_og_image_abs) else _default_og_img) | trim) %}
+    {% set _tw_img = ((seo_tw_image_abs if (seo_tw_image_abs is defined and seo_tw_image_abs) else _og_img) | trim) %}
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:title" content="{{ self.title() }}">
-    <meta property="og:description" content="{{ self.meta_description() }}">
-    <meta property="og:image"
-        content="{% block og_image_full %}{{ site_url }}{% block og_image %}/static/images/og/chat-ai-s366.png{% endblock %}{% endblock %}">
+    <meta property="og:site_name" content="{% block og_site_name %}S366 AI{% endblock %}">
+    <meta property="og:url" content="{{ _og_url | e }}">
+    <meta property="og:title" content="{{ _og_title | e }}">
+    <meta property="og:description" content="{{ _og_desc | e }}">
+    <meta property="og:image" content="{{ _og_img | e }}" />
+    {# Meta acceptă același URL ca og:image când e HTTPS; fără if — unele medii Jinja/crawler au dat false negativ la startswith. #}
+    <meta property="og:image:secure_url" content="{{ _og_img | e }}" />
 
     <meta name="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="{{ request.url }}">
-    <meta name="twitter:title" content="{{ self.title() }}">
-    <meta name="twitter:description" content="{{ self.meta_description() }}">
-    <meta name="twitter:image"
-        content="{% block tw_image_full %}{{ site_url }}{% block tw_image %}{{ self.og_image() }}{% endblock %}{% endblock %}">
+    <meta name="twitter:url" content="{{ _og_url | e }}">
+    <meta name="twitter:title" content="{{ _og_title | e }}">
+    <meta name="twitter:description" content="{{ _og_desc | e }}">
+    <meta name="twitter:image" content="{{ _tw_img | e }}" />
 
     {% block extra_head %}{% endblock %}
 
@@ -156,12 +170,14 @@
 
     <main class="flex-grow-1 position-relative overflow-hidden">
         {% block content %}{% endblock %}
+        {# Chat: footer în interiorul main, dedesubtul #wrapper — altfel pe unele browsere (ex. Brave) se suprapune peste bara de input #}
+        {% if request.url.path.startswith('/chat') %}
+        {% include 'layout/chat-footer.html' %}
+        {% endif %}
     </main>
 
     {% if not request.url.path.startswith('/chat') %}
     {% include 'layout/main-footer.html' %}
-    {% else %}
-    {% include 'layout/chat-footer.html' %}
     {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

@@ -1,8 +1,8 @@
 # Blog public — articole și categorii
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
@@ -18,7 +18,17 @@ def _base(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
 
-async def _render_blog_index(request: Request, category_slug: str | None):
+def _norm_search(q: str | None) -> str | None:
+    s = (q or "").strip()
+    return s if s else None
+
+
+async def _render_blog_index(
+    request: Request,
+    category_slug: str | None,
+    *,
+    search: str | None = None,
+):
     base = _base(request)
     origin = site_origin(base)
     cats = await list_categories()
@@ -30,7 +40,7 @@ async def _render_blog_index(request: Request, category_slug: str | None):
                 break
         if filtered_category_name is None:
             raise HTTPException(status_code=404, detail="Categorie inexistentă")
-    posts = await list_published_posts(category_slug=category_slug, limit=100)
+    posts = await list_published_posts(category_slug=category_slug, search=search, limit=100)
     posts_view = []
     for p in posts:
         og = build_post_og(
@@ -52,6 +62,11 @@ async def _render_blog_index(request: Request, category_slug: str | None):
         og_image_width=None,
         og_image_height=None,
     )
+    canonical_blog = (
+        f"{origin}/blog/"
+        if not category_slug
+        else f"{origin}/blog/category/{category_slug}"
+    )
     return templates.TemplateResponse(
         request=request,
         name="blog/index.html",
@@ -61,29 +76,32 @@ async def _render_blog_index(request: Request, category_slug: str | None):
             "posts_view": posts_view,
             "active_category": category_slug,
             "filtered_category_name": filtered_category_name,
+            "search_query": search or "",
             "meta_description": idx_og.description,
-            "seo_image_abs": idx_og.image_abs,
             "og_image_width": idx_og.image_width,
             "og_image_height": idx_og.image_height,
-            "canonical_blog": f"{origin}/blog/"
-            if not category_slug
-            else f"{origin}/blog/category/{category_slug}",
+            "seo_og_url": canonical_blog,
+            "canonical_blog": canonical_blog,
+            "seo_og_image_abs": idx_og.image_abs,
         },
     )
 
 
 @router.get("/", response_class=HTMLResponse, name="blog_index")
-async def blog_index(request: Request):
-    return await _render_blog_index(request, None)
+async def blog_index(request: Request, q: str | None = Query(None, max_length=200)):
+    return await _render_blog_index(request, None, search=_norm_search(q))
 
 
 @router.get("/category/{cat_slug}", response_class=HTMLResponse, name="blog_category")
-async def blog_category(request: Request, cat_slug: str):
-    return await _render_blog_index(request, cat_slug.strip().lower())
+async def blog_category(
+    request: Request,
+    cat_slug: str,
+    q: str | None = Query(None, max_length=200),
+):
+    return await _render_blog_index(request, cat_slug.strip().lower(), search=_norm_search(q))
 
 
-@router.get("/{post_slug}", response_class=HTMLResponse, name="blog_post")
-async def blog_post(request: Request, post_slug: str):
+async def _blog_post_page(request: Request, post_slug: str):
     if post_slug.lower() in ("category", "api"):
         raise HTTPException(status_code=404)
     base = _base(request)
@@ -108,7 +126,7 @@ async def blog_post(request: Request, post_slug: str):
         og_image_width=post.og_image_width,
         og_image_height=post.og_image_height,
     )
-    canonical = f"{origin}/blog/{post.slug}"
+    canonical = f"{origin}/blog/{post.slug}/"
     pub = published_utc(post.published_at, post.created_at)
     return templates.TemplateResponse(
         request=request,
@@ -117,12 +135,24 @@ async def blog_post(request: Request, post_slug: str):
             "request": request,
             "post": post,
             "meta_description": og.description,
-            "seo_image_abs": og.image_abs,
             "og_image_width": og.image_width,
             "og_image_height": og.image_height,
             "og_is_card": og.is_default_card,
             "canonical_url": canonical,
             "published_utc": pub,
             "share_url": canonical,
+            "seo_og_url": canonical,
+            "seo_og_image_abs": og.image_abs,
         },
     )
+
+
+@router.get("/{post_slug}/", response_class=HTMLResponse, name="blog_post")
+async def blog_post_trailing_slash(request: Request, post_slug: str):
+    return await _blog_post_page(request, post_slug)
+
+
+@router.get("/{post_slug}", response_class=HTMLResponse, name="blog_post_legacy")
+async def blog_post_redirect_to_slash(post_slug: str):
+    """Canonic cu slash final — vechile linkuri fără / primesc 308."""
+    return RedirectResponse(url=f"/blog/{post_slug}/", status_code=308)

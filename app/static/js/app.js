@@ -21,7 +21,6 @@ let activeConvId = localStorage.getItem(STORAGE_KEY) || null;
 // 3. FUNCȚII HELPER
 function initMobileSidebar() {
     const sidebar = document.querySelector('#sidebar-left');
-    const hamburgerBtn = document.querySelector('#sidebar-hamburger');
     const chatContainer = document.querySelector('#chat-container');
 
     if (chatContainer && sidebar) {
@@ -42,15 +41,19 @@ function initMobileSidebar() {
         });
     }
 
-    if (hamburgerBtn && sidebar) {
-        hamburgerBtn.replaceWith(hamburgerBtn.cloneNode(true));
-        const newBtn = document.querySelector('#sidebar-hamburger');
-        newBtn.addEventListener('click', (e) => {
+    // Delegare pe document: evită pierderea listenerului (clone/re-render) și trece peste straturi care blochează bubble-ul
+    document.body.addEventListener(
+        'click',
+        (e) => {
+            const btn = e.target.closest('#sidebar-hamburger');
+            if (!btn || !sidebar) return;
+            if (window.innerWidth >= 992) return;
             e.preventDefault();
             e.stopPropagation();
             sidebar.classList.toggle('show');
-        });
-    }
+        },
+        true,
+    );
 }
 
 // 4. LOGICA DE URGENȚĂ

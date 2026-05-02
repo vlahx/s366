@@ -11,6 +11,7 @@ import sys
 import json
 
 from app.models.sqlite_company_model import get_company_settings
+from app.utils.text_cleaner import assistant_bubble_to_llm_text
 
 async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, user_role=None, user_lastname=None, user_firstname=None,
                       company_id=None, company_cui=None, company_name=None, client_messages=None):
@@ -69,9 +70,13 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
                 
                 if raw_history:
                     for msg in raw_history:
+                        role = msg.get('sender', 'user')
+                        content = msg.get('message', '') or ''
+                        if role == 'assistant':
+                            content = assistant_bubble_to_llm_text(content)
                         conversation_history.append({
-                            'role': msg.get('sender', 'user'),
-                            'content': msg.get('message', '')
+                            'role': role,
+                            'content': content
                         })
                 # print(f"[DEBUG] Istoric încărcat din: {db_path}", file=sys.stderr)
             except Exception as e:
@@ -188,6 +193,6 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
         },
         "user_input": user_message
     }
-    print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)   
-
+    # Diagnostic: decomentează temporar ca să vezi tot payloadul trimis spre LLM (log greu, poate conține date sensibile).
+    # print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)
     return payload

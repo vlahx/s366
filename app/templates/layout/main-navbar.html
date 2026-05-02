@@ -10,7 +10,7 @@
                     <i class="bi bi-list fs-4"></i>
                 </button>
                 {% endif %}
-                <a class="navbar-brand mb-0 fw-bold flex-shrink-0" href="/">S366 <span class="text-primary">AI</span></a>
+                <a class="navbar-brand mb-0 fw-bold flex-shrink-0{% if request.url.path.startswith('/chat') %} ms-2 ms-lg-0{% endif %}" href="/">S366 <span class="text-primary">AI</span></a>
 
                 {# Cele 4 linkuri: lângă logo pe lg+, cu mică pauză (border-start + gap) #}
                 <ul

@@ -172,6 +172,7 @@ async def init_db():
                 published_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                author_firstname TEXT,
                 FOREIGN KEY (category_id) REFERENCES blog_categories(id) ON DELETE SET NULL
             )
         """)
@@ -181,6 +182,12 @@ async def init_db():
         await db.execute(
             "CREATE INDEX IF NOT EXISTS idx_blog_posts_published ON blog_posts(published_at)"
         )
+        async with db.execute("PRAGMA table_info(blog_posts)") as cur:
+            _blog_cols = {row[1] for row in await cur.fetchall()}
+        if "author_firstname" not in _blog_cols:
+            await db.execute(
+                "ALTER TABLE blog_posts ADD COLUMN author_firstname TEXT"
+            )
 
         async with db.execute("SELECT COUNT(*) FROM blog_posts") as cur:
             _bc = await cur.fetchone()

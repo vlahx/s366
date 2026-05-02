@@ -1,7 +1,9 @@
 {% extends "layout/base.html" %}
 {% block title %}S366 AI Hosting — alege pachetul potrivit pentru site-ul tău{% endblock %}
-{% block meta_description %}Iti oferim un website gata configurat, cu SSL, email, backup, etc. 
-Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. {% endblock %}
+{% block meta_description %}{{ hosting_meta_description }}{% endblock %}
+{% block extra_head %}
+<link rel="canonical" href="{{ hosting_canonical }}" />
+{% endblock %}
 {% block content %}
 <div class="container py-4 py-lg-5">
   <div class="text-center mb-4 mb-lg-5">

@@ -34,8 +34,17 @@
     display: flex;
     flex: 1 1 0;
     min-height: 0;
-    /* Înălțimea vine din lanțul flex (main → wrapper), nu height:100% — evită dublu-scroll cu viewport */
+    width: 100%;
+    align-self: stretch;
     overflow: hidden;
+    position: relative;
+    z-index: 0;
+    /* stacking sub navbar — altfel <main> (după nav în DOM) poate „câștiga” la click peste hamburger */
+}
+
+/* Navbar rămâne deasupra conținutului din main (sticky + z-index explicit) */
+nav.navbar.sticky-top {
+    z-index: 1060;
 }
 
 #sidebar-left {
@@ -55,6 +64,17 @@
 
 #sidebar-left.show {
     transform: translateX(0);
+}
+
+/* Doar off-canvas mobil: fără .show, nu bloca click-uri pe chat / navbar */
+@media (max-width: 991.98px) {
+    #sidebar-left:not(.show) {
+        pointer-events: none;
+    }
+
+    #sidebar-left.show {
+        pointer-events: auto;
+    }
 }
 
 @media (min-width: 992px) {
@@ -77,14 +97,20 @@
 
 #chat-container {
     flex: 1 1 0;
-    /* Ocupă tot spațiul orizontal rămas */
     display: flex;
     flex-direction: column;
     width: 100%;
     min-width: 0;
     min-height: 0;
-    max-height: 100%;
-    /* Coloană cu înălțime fixă în wrapper — altfel #chat-box crește cu mesajele și nu apare scroll intern */
+    align-self: stretch;
+    /* Fără Bootstrap h-100: evită ciclu height % pe mobil când sidebar e fixed */
+}
+
+/* Footer chat: ultimul copil al <main>, dedesubtul #wrapper (nu după main — evită suprapunere cu input) */
+html.is-chat-app main.flex-grow-1 > footer {
+    flex-shrink: 0;
+    width: 100%;
+    z-index: 1;
 }
 
 

@@ -1,7 +1,7 @@
 services:
   turbo_py:
     build: .
-    container_name: s366_turbo
+    container_name: s366
     ports:
       - "5005:5000"
     volumes:

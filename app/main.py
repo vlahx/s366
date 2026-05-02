@@ -2,7 +2,7 @@ import sys
 import os
 import logging
 import asyncio
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import RedirectResponse, FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,15 +10,15 @@ from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.routes.chat import router as chat_router
+from app.routes.chat import chat_home_page, router as chat_router
 from app.routes.auth import router as auth_router
 from app.routes.admin import router as admin_router
 from app.routes.public import router as public_router
 from app.routes.company_admin import router as company_admin_router
-from app.routes.hosting import router as hosting_router
+from app.routes.hosting import _hosting_home_page, router as hosting_router
 from app.routes.payments import router as payments_router
 from app.routes.seo import router as seo_router
-from app.routes.blog import router as blog_router
+from app.routes.blog import _norm_search, _render_blog_index, router as blog_router
 from app.routes.blog_admin import router as blog_admin_router
 
 from app.models.sqlite_model import init_db
@@ -52,6 +52,56 @@ class ForwardedProtoMiddleware:
                 scope["scheme"] = proto
         await self.app(scope, receive, send)
 
+
+class HeadToGetMiddleware:
+    """
+    Crawleri (Facebook, etc.) trimit des HEAD. Fără rute HEAD explicite → 405.
+    Transformă HEAD în GET, rulează handler-ul GET, apoi taie corpul răspunsului
+    (headerele rămân, inclusiv Content-Length — conform RFC).
+
+    Trebuie să fie cel mai exterior (ultimul add_middleware), astfel încât
+    SessionMiddleware și restul stack-ului văd deja method=GET — evită edge-case-uri
+    cu sesiunea / cookie pe HEAD.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope.get("method") != "HEAD":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path") or ""
+        if path.startswith("/static"):
+            await self.app(scope, receive, send)
+            return
+
+        scope_get = dict(scope)
+        scope_get["method"] = "GET"
+
+        saw_start = False
+        body_sent = False
+
+        async def send_strip_body(message):
+            nonlocal saw_start, body_sent
+            if message["type"] == "http.response.start":
+                await send(message)
+                saw_start = True
+            elif message["type"] == "http.response.body":
+                if body_sent:
+                    return
+                if message.get("more_body"):
+                    return
+                await send({"type": "http.response.body", "body": b"", "more_body": False})
+                body_sent = True
+            else:
+                await send(message)
+
+        await self.app(scope_get, receive, send_strip_body)
+        if saw_start and not body_sent:
+            await send({"type": "http.response.body", "body": b"", "more_body": False})
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Sistemul S366 AI pornește...")
@@ -72,8 +122,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # Middleware-uri — Caddy trimite de obicei X-Forwarded-Proto=https către upstream HTTP.
+# add_middleware: primul în listă = cel mai „interior”; ultimul = primul care vede request-ul.
+# Dorim: HeadToGet (exterior) → Session → ForwardedProto → rute.
 app.add_middleware(ForwardedProtoMiddleware)
 app.add_middleware(SessionMiddleware, secret_key="@Leia1990")
+app.add_middleware(HeadToGetMiddleware)
 
 # ✅ Static & Templates (definite ACUM, înainte de handlers)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -108,6 +161,26 @@ app.include_router(blog_admin_router, prefix="/admin", tags=["Admin Blog"])
 app.include_router(company_admin_router, prefix="/company_admin", tags=["Company Admin"])
 app.include_router(hosting_router, prefix="/hosting", tags=["Hosting"])
 app.include_router(payments_router, prefix="/payments", tags=["Payments"])
+
+@app.get("/blog", include_in_schema=False)
+async def blog_no_trailing_slash(
+    request: Request, q: str | None = Query(None, max_length=200)
+):
+    """Aceeași pagină ca /blog/ — fără redirect gol pentru crawleri / curl fără -L."""
+    return await _render_blog_index(request, None, search=_norm_search(q))
+
+
+@app.get("/chat", include_in_schema=False)
+async def chat_no_trailing_slash(request: Request):
+    """Aceeași pagină ca /chat/."""
+    return await chat_home_page(request)
+
+
+@app.get("/hosting", include_in_schema=False)
+async def hosting_no_trailing_slash(request: Request):
+    """Aceeași pagină ca /hosting/ — fără redirect. Curl fără -L și unii crawleri vedeau corp gol la 308."""
+    return await _hosting_home_page(request)
+
 
 @app.get("/health")
 async def health_check():

@@ -1,8 +1,6 @@
 {% extends "layout/base.html" %}
-{% block title %}{% if filtered_category_name %}{{ filtered_category_name }} — S366 AI Blog{% else %}S366 AI Blog{% endif %}{% endblock %}
+{% block title %}{% if search_query %}„{{ search_query }}” — {% endif %}{% if filtered_category_name %}{{ filtered_category_name }} — S366 AI Blog{% else %}S366 AI Blog{% endif %}{% endblock %}
 {% block meta_description %}{{ meta_description }}{% endblock %}
-{% block og_image_full %}{{ seo_image_abs }}{% endblock %}
-{% block tw_image_full %}{{ seo_image_abs }}{% endblock %}
 
 {% block extra_head %}
 <link rel="canonical" href="{{ canonical_blog }}" />
@@ -43,6 +41,21 @@
     <p class="text-body-secondary lead mb-3 mx-auto" style="max-width: 36rem;">
       Noutăți, ghiduri și perspective despre AI și automatizare pentru firme.
     </p>
+    <form class="row g-2 justify-content-center mb-4 mx-auto" style="max-width: 32rem;" method="get"
+          action="{% if active_category %}/blog/category/{{ active_category }}{% else %}/blog/{% endif %}">
+      <div class="col min-w-0">
+        <label class="visually-hidden" for="blog-search-q">Caută în articole</label>
+        <input type="search" class="form-control rounded-pill" id="blog-search-q" name="q"
+               value="{{ search_query }}" maxlength="200" placeholder="Caută în titluri și rezumate…" autocomplete="off">
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <button type="submit" class="btn btn-primary rounded-pill px-3">Caută</button>
+        {% if search_query %}
+        <a href="{% if active_category %}/blog/category/{{ active_category }}{% else %}/blog/{% endif %}"
+           class="btn btn-outline-secondary rounded-pill">Reset</a>
+        {% endif %}
+      </div>
+    </form>
     <div class="d-flex flex-wrap justify-content-center gap-2">
       <a href="/blog/" class="btn btn-sm rounded-pill {% if not active_category %}btn-primary{% else %}btn-outline-secondary{% endif %}">Toate</a>
       {% for c in categories %}
@@ -52,7 +65,14 @@
   </header>
 
   {% if not posts_view %}
-  <p class="text-center text-body-secondary">Încă nu există articole publicate în această secțiune.</p>
+  <p class="text-center text-body-secondary">
+    {% if search_query %}
+    Niciun articol nu se potrivește cu „{{ search_query }}”.
+    {% if active_category %}Încearcă fără filtru de categorie sau alt termen.{% else %}Încearcă alt termen.{% endif %}
+    {% else %}
+    Încă nu există articole publicate în această secțiune.
+    {% endif %}
+  </p>
   {% endif %}
 
   <div class="blog-hero">
@@ -60,7 +80,7 @@
     {% set p = item.post %}
     <article class="blog-row {% if loop.index0 % 2 == 1 %}reverse{% endif %}">
       <div class="blog-img">
-        <a href="/blog/{{ p.slug }}" class="d-block text-decoration-none">
+        <a href="/blog/{{ p.slug }}/" class="d-block text-decoration-none">
           <img src="{{ item.card_image }}" alt="{{ p.title }}" loading="lazy" decoding="async" width="1200" height="630" />
         </a>
       </div>
@@ -72,9 +92,9 @@
           <a href="/blog/category/{{ p.category_slug }}" class="text-decoration-none">{{ p.category_name }}</a>
           {% endif %}
         </div>
-        <h2 class="h4 fw-bold mt-1 mb-2"><a href="/blog/{{ p.slug }}" class="text-decoration-none text-body-emphasis">{{ p.title }}</a></h2>
+        <h2 class="h4 fw-bold mt-1 mb-2"><a href="/blog/{{ p.slug }}/" class="text-decoration-none text-body-emphasis">{{ p.title }}</a></h2>
         <p class="text-body-secondary mb-3">{{ p.excerpt or '' }}</p>
-        <a href="/blog/{{ p.slug }}" class="btn btn-outline-primary align-self-start rounded-pill">Citește articolul</a>
+        <a href="/blog/{{ p.slug }}/" class="btn btn-outline-primary align-self-start rounded-pill">Citește articolul</a>
       </div>
     </article>
     {% endfor %}

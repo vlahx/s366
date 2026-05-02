@@ -19,6 +19,7 @@ import aiosqlite
 
 from app.models.sqlite_model import fetch_one, execute_query, fetch_all
 from app.utils.notifier import send_telegram_admin_alert, send_telegram_company_approval
+from app.utils.hosting_checkout import public_base_url
 from app.utils.session import sync_user_session
 
 
@@ -26,13 +27,22 @@ from app.utils.session import sync_user_session
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
+
+def _login_template_context(request: Request) -> dict:
+    o = public_base_url(str(request.base_url).rstrip("/"))
+    return {
+        "request": request,
+        "seo_og_image_abs": f"{o}/static/images/og/lo-shack.png",
+        "seo_tw_image_abs": f"{o}/static/images/robo/lo-shack.png",
+    }
+
+
 @router.get("/", response_class=HTMLResponse)
 async def auth_page(request: Request):
-    
     return templates.TemplateResponse(
         request=request,
         name="auth/login.html",
-        context={"request": request},
+        context=_login_template_context(request),
     )
 
 
@@ -41,7 +51,7 @@ async def login_page(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="auth/login.html",
-        context={"request": request},
+        context=_login_template_context(request),
     )
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
