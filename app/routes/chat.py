@@ -7,15 +7,33 @@ import aiosqlite
 
 from app.utils.payload_builder import build_llm_payload
 from app.utils.db_helpers import get_db_path
+from app.utils.blog_og import default_card_image_path
+from app.utils.hosting_checkout import public_base_url
 from app.utils.sqlite_handler import SQLiteHandler
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
+async def chat_home_page(request: Request):
+    """Folosit pentru /chat/ și /chat (fără slash) în main."""
+    origin = public_base_url(str(request.base_url).rstrip("/"))
+    canonical = f"{origin}/chat/"
+    return templates.TemplateResponse(
+        request=request,
+        name="chat/chat.html",
+        context={
+            "request": request,
+            "public_canonical": canonical,
+            "seo_og_url": canonical,
+            "seo_og_image_abs": f"{origin}{default_card_image_path()}",
+        },
+    )
+
+
 @router.get("/", response_class=HTMLResponse)
 async def chat_page(request: Request):
-    return templates.TemplateResponse(request=request, name="chat/chat.html", context={"request": request})
+    return await chat_home_page(request)
 
 @router.post("/send")
 async def handle_chat(request: Request):
@@ -26,8 +44,11 @@ async def handle_chat(request: Request):
     user_message = data.get("message")
     audio_b64 = data.get("audio_b64")
     conv_uuid = data.get("conversation_uuid") or str(uuid.uuid4())
-    
+    client_history = data.get("conversation_history")
+
     user_id = request.session.get('user_id')
+    if user_id:
+        client_history = None
     user_firstname = request.session.get('firstname', 'Vizitator')
     user_lastname = request.session.get('lastname', '')
     company_id = request.session.get('company_id') #or '1'.strip()  # Fallback la '1' dacă nu există în sesiune
@@ -42,7 +63,8 @@ async def handle_chat(request: Request):
         user_lastname=user_lastname,
         company_id=company_id,
         company_cui=company_cui,
-        conversation_uuid=conv_uuid
+        conversation_uuid=conv_uuid,
+        client_messages=client_history,
     )
 
     if audio_b64:

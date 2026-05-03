@@ -1,7 +1,11 @@
 {% extends "layout/base.html" %}
 
-{% block title %}S366 Turbo — AI, hosting & domenii pentru afacerea ta{% endblock %}
+{% block title %}S366 AI — inteligență artificială, hosting & domenii pentru afacerea ta{% endblock %}
 {% block meta_description %}Asistenți AI pe documentele tale, hosting gestionat, WordPress, WooCommerce și înregistrare domenii — totul într-un singur loc.{% endblock %}
+
+{% block extra_head %}
+<link rel="canonical" href="{{ public_canonical }}" />
+{% endblock %}
 
 {% block content %}
 <style>
@@ -79,7 +83,7 @@
 
     <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 home-fade-up">
       <a href="/solutii" class="btn btn-primary btn-lg px-4 px-sm-5 py-3 fw-semibold rounded-pill shadow-sm">
-        Soluții AI Turbo
+        Soluții S366 AI
       </a>
       <a href="/hosting" class="btn btn-outline-primary btn-lg px-4 px-sm-5 py-3 rounded-pill">
         Hosting &amp; domenii

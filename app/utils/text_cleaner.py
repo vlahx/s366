@@ -1,4 +1,5 @@
 # /utils/text_cleaner.py
+import html
 import re
 import unicodedata
 import markdown
@@ -6,6 +7,24 @@ import markdown
 # ===================================================================
 # 1. FUNCTIA PENTRU CURATARE TTS (PLAIN TEXT)
 # ===================================================================
+
+def assistant_bubble_to_llm_text(text: str) -> str:
+    """
+    Mesajele asistentului sunt salvate ca HTML (markdown → HTML în SQLite).
+    Pentru următorul apel LLM trebuie text simplu: altfel modelul vede <p>…</p>
+    în istoric și poate intra în bucle (tokeni repeți, tag-uri rupte).
+    """
+    if not text:
+        return ""
+    s = text.strip()
+    if "<" not in s:
+        return s
+    t = re.sub(r"(?i)<\s*br\s*/?>", "\n", s)
+    t = re.sub(r"(?i)</\s*p\s*>", "\n\n", t)
+    t = re.sub(r"<[^>]+>", "", t)
+    t = html.unescape(t)
+    return re.sub(r"\n{3,}", "\n\n", t).strip()
+
 
 def sanitize_llm_text(text: str) -> str:
     if not text:

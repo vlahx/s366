@@ -6,7 +6,7 @@
         <div>
             <h1 class="fw-bold text-white">Profil Utilizator</h1>
             <p class="text-muted mb-0 italic">Gestionare cont <span
-                    class="text-primary font-monospace">s366_turbo</span></p>
+                    class="text-primary font-monospace">S366 AI</span></p>
         </div>
         <div class="badge text-success border border-success p-2">
             <span class="text-success">●</span> SESIUNE ACTIVĂ
@@ -20,8 +20,8 @@
                     <img src="{{ request.session.get('photo_url') or '/static/images/anonymous.png' }}"
                         class="rounded-circle border border-primary border-3 mb-3"
                         style="width: 120px; height: 120px; object-fit: cover;">
-                    <h3 class="mb-0">{{ user.firstname }} {{ user.lastname }}</h3>
-                    <p class="text-primary font-monospace small">@{{ user.username }}</p>
+                    <h3 class="mb-0">{{ user.firstname|default('', true) }} {{ user.lastname|default('', true) }}</h3>
+                    <p class="text-primary font-monospace small">@{{ user.username|default('—', true) }}</p>
                     <div class="mt-4">
                         <span class="badge bg-secondary text-uppercase tracking-wider">Rol: {{ user.role }}</span>
                     </div>
@@ -30,8 +30,7 @@
         </div>
 
         <div class="col-lg-8">
-            <form action="/auth/profile/update" method="POST">
-
+            <form action="/auth/profile/update" method="POST" id="profileForm">
                 <div class="card text-white border-secondary shadow mb-4">
                     <div class="card-header border-secondary bg-transparent">
                         <h5 class="mb-0 text-info italic">Informații Personale</h5>
@@ -40,13 +39,13 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label text-muted small">Prenume</label>
-                                <input type="text" name="firstname" value="{{ user.firstname or '' }}"
-                                    class="form-control  border-secondary">
+                                <input type="text" name="firstname" value="{{ user.firstname|default('', true) }}"
+                                    class="form-control  border-secondary" placeholder="Prenume" autocomplete="given-name">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label text-muted small">Nume</label>
-                                <input type="text" name="lastname" value="{{ user.lastname or '' }}"
-                                    class="form-control border-secondary">
+                                <input type="text" name="lastname" value="{{ user.lastname|default('', true) }}"
+                                    class="form-control border-secondary" placeholder="Nume" autocomplete="family-name">
                             </div>
                             <div class="md:col-span-2 space-y-2">
                                 <label class="text-sm font-medium text-gray-400 ml-1">Compania ta:</label>
@@ -85,7 +84,7 @@
                             <label class="form-check-label" for="intent_admin">
                                 <strong class="text-primary">Vreau să administrez o companie</strong><br>
                                 <small class="text-muted">Solicit acces la instrumentele de management
-                                    S366_turbo.</small>
+                                    S366 AI.</small>
                             </label>
                         </div>
                     </div>
@@ -100,6 +99,58 @@
                 </div>
 
             </form>
+
+            <div class="card text-white border-secondary shadow mt-4" id="billing-summary">
+                <div class="card-header border-secondary bg-transparent d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                        <h5 class="mb-0 text-warning italic">Date facturare</h5>
+                        <p class="small text-muted mb-0 mt-1">Rezumat — modificarea se face pe pagina dedicată (comenzi / plată).</p>
+                    </div>
+                    {% if billing.ok %}
+                    <span class="badge bg-success border border-success">Complet</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark border border-warning">Incomplet</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% set ct = (user.invoice_customer_type or '')|upper %}
+                    {% if not ct %}
+                    <p class="text-muted small mb-3 mb-md-0">Nu ai setat încă tipul de facturare (PF / PJ). Poți completa datele când plasezi o comandă sau oricând de mai jos.</p>
+                    {% elif ct == 'PF' %}
+                    <dl class="row small mb-0">
+                        <dt class="col-sm-4 text-muted">Tip</dt><dd class="col-sm-8">Persoană fizică (PF)</dd>
+                        <dt class="col-sm-4 text-muted">Nume pe factură</dt><dd class="col-sm-8">{{ user.invoice_full_name|default('—', true) }}</dd>
+                        <dt class="col-sm-4 text-muted">Adresă</dt><dd class="col-sm-8">{{ user.invoice_street|default('—', true) }}, {{ user.invoice_postal_code|default('', true) }} {{ user.invoice_city|default('', true) }}, {{ user.invoice_county|default('', true) }}</dd>
+                        <dt class="col-sm-4 text-muted">Țară</dt><dd class="col-sm-8">{{ user.invoice_country|default('—', true) }}</dd>
+                        <dt class="col-sm-4 text-muted">Telefon</dt><dd class="col-sm-8">{{ user.invoice_phone|default('—', true) }}</dd>
+                    </dl>
+                    {% else %}
+                    <dl class="row small mb-0">
+                        <dt class="col-sm-4 text-muted">Tip</dt><dd class="col-sm-8">Persoană juridică (PJ)</dd>
+                        <dt class="col-sm-4 text-muted">Firmă</dt><dd class="col-sm-8">{{ company.name|default('—', true) if company else '—' }} <span class="text-muted">(CUI {{ company.cui|default('—', true) if company else '—' }})</span></dd>
+                        <dt class="col-sm-4 text-muted">Telefon facturare</dt><dd class="col-sm-8">{{ user.invoice_phone|default('—', true) }}</dd>
+                        {% if company %}
+                        <dt class="col-sm-4 text-muted">Adresă sediu</dt><dd class="col-sm-8">{{ company.invoice_street|default(company.address|default('—', true), true) }}, {{ company.invoice_postal_code|default('', true) }} {{ company.invoice_city|default('', true) }}, {{ company.invoice_county|default('', true) }}</dd>
+                        <dt class="col-sm-4 text-muted">Reg. com.</dt><dd class="col-sm-8">{{ company.reg_com|default('—', true) }}</dd>
+                        <dt class="col-sm-4 text-muted">TVA</dt><dd class="col-sm-8">{% if company.is_vat_payer %}Plătitor{% else %}Neplătitor{% endif %}</dd>
+                        {% endif %}
+                    </dl>
+                    {% endif %}
+                    {% if not billing.ok and ct %}
+                    <ul class="small text-warning mb-0 mt-3 ps-3">
+                        {% for key, label in billing.missing_user %}
+                        <li>{{ label }}</li>
+                        {% endfor %}
+                        {% for key, label in billing.missing_company %}
+                        <li>{{ label }} (firmă)</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    <div class="mt-3">
+                        <a href="/auth/billing" class="btn btn-outline-warning btn-sm">Editează date facturare</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

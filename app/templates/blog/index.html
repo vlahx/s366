@@ -1,0 +1,103 @@
+{% extends "layout/base.html" %}
+{% block title %}{% if search_query %}„{{ search_query }}” — {% endif %}{% if filtered_category_name %}{{ filtered_category_name }} — S366 AI Blog{% else %}S366 AI Blog{% endif %}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block extra_head %}
+<link rel="canonical" href="{{ canonical_blog }}" />
+{% if og_image_width and og_image_height %}
+<meta property="og:image:width" content="{{ og_image_width }}" />
+<meta property="og:image:height" content="{{ og_image_height }}" />
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .blog-hero { max-width: 920px; margin-inline: auto; }
+  .blog-cat-pill.active { background: var(--bs-primary); color: var(--bs-primary-text-emphasis); border-color: var(--bs-primary); }
+  .blog-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 1.5rem; margin-bottom: 2.5rem; }
+  .blog-row.reverse { flex-direction: row-reverse; }
+  .blog-row .blog-img { flex: 1 1 280px; max-width: 100%; }
+  .blog-row .blog-txt { flex: 1 1 280px; max-width: 100%; }
+  .blog-row .blog-img img {
+    width: 100%; height: 260px; object-fit: cover; border-radius: 1rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,.12);
+  }
+  [data-bs-theme="dark"] .blog-row .blog-img img {
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,.4);
+  }
+  @media (max-width: 767.98px) {
+    .blog-row, .blog-row.reverse { flex-direction: column; }
+    .blog-row .blog-img img { height: 200px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-lg-5 px-3">
+  <header class="blog-hero text-center mb-4 mb-lg-5">
+    <h1 class="display-6 fw-bold text-body-emphasis mb-2">
+      {% if filtered_category_name %}{{ filtered_category_name }}{% else %}Blog{% endif %}
+    </h1>
+    <p class="text-body-secondary lead mb-3 mx-auto" style="max-width: 36rem;">
+      Noutăți, ghiduri și perspective despre AI și automatizare pentru firme.
+    </p>
+    <form class="row g-2 justify-content-center mb-4 mx-auto" style="max-width: 32rem;" method="get"
+          action="{% if active_category %}/blog/category/{{ active_category }}{% else %}/blog/{% endif %}">
+      <div class="col min-w-0">
+        <label class="visually-hidden" for="blog-search-q">Caută în articole</label>
+        <input type="search" class="form-control rounded-pill" id="blog-search-q" name="q"
+               value="{{ search_query }}" maxlength="200" placeholder="Caută în titluri și rezumate…" autocomplete="off">
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <button type="submit" class="btn btn-primary rounded-pill px-3">Caută</button>
+        {% if search_query %}
+        <a href="{% if active_category %}/blog/category/{{ active_category }}{% else %}/blog/{% endif %}"
+           class="btn btn-outline-secondary rounded-pill">Reset</a>
+        {% endif %}
+      </div>
+    </form>
+    <div class="d-flex flex-wrap justify-content-center gap-2">
+      <a href="/blog/" class="btn btn-sm rounded-pill {% if not active_category %}btn-primary{% else %}btn-outline-secondary{% endif %}">Toate</a>
+      {% for c in categories %}
+      <a href="/blog/category/{{ c.slug }}" class="btn btn-sm rounded-pill {% if active_category == c.slug %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ c.name }}</a>
+      {% endfor %}
+    </div>
+  </header>
+
+  {% if not posts_view %}
+  <p class="text-center text-body-secondary">
+    {% if search_query %}
+    Niciun articol nu se potrivește cu „{{ search_query }}”.
+    {% if active_category %}Încearcă fără filtru de categorie sau alt termen.{% else %}Încearcă alt termen.{% endif %}
+    {% else %}
+    Încă nu există articole publicate în această secțiune.
+    {% endif %}
+  </p>
+  {% endif %}
+
+  <div class="blog-hero">
+    {% for item in posts_view %}
+    {% set p = item.post %}
+    <article class="blog-row {% if loop.index0 % 2 == 1 %}reverse{% endif %}">
+      <div class="blog-img">
+        <a href="/blog/{{ p.slug }}/" class="d-block text-decoration-none">
+          <img src="{{ item.card_image }}" alt="{{ p.title }}" loading="lazy" decoding="async" width="1200" height="630" />
+        </a>
+      </div>
+      <div class="blog-txt d-flex flex-column justify-content-center">
+        <div class="small text-body-secondary mb-1">
+          {% if p.published_at %}{{ p.published_at.strftime('%d %B %Y') }}{% endif %}
+          {% if p.category_name %}
+          <span class="mx-1">·</span>
+          <a href="/blog/category/{{ p.category_slug }}" class="text-decoration-none">{{ p.category_name }}</a>
+          {% endif %}
+        </div>
+        <h2 class="h4 fw-bold mt-1 mb-2"><a href="/blog/{{ p.slug }}/" class="text-decoration-none text-body-emphasis">{{ p.title }}</a></h2>
+        <p class="text-body-secondary mb-3">{{ p.excerpt or '' }}</p>
+        <a href="/blog/{{ p.slug }}/" class="btn btn-outline-primary align-self-start rounded-pill">Citește articolul</a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

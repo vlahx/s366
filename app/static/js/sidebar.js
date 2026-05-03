@@ -1,42 +1,71 @@
 import { fetchSessions, renameSessionRequest, deleteSessionRequest, getConversationMessages } from './sidebar_logic.js';
-import { createBubble, scrollBottom } from './chat_ui.js';
+import { createBubble } from './chat_ui.js';
+import {
+    isChatLoggedIn,
+    loadGuestStore,
+    ensureGuestSession,
+    guestSessionsForSidebar,
+    deleteGuestSession,
+    renameGuestSession,
+    toggleGuestPin,
+    getGuestMessages,
+    GUEST_NEW_THREAD_MSG,
+} from './guest_storage.js';
+
+async function loadSessionsUnified() {
+    if (isChatLoggedIn()) return fetchSessions();
+    return guestSessionsForSidebar(loadGuestStore());
+}
+
+async function deleteSessionUnified(uuid) {
+    if (isChatLoggedIn()) return deleteSessionRequest(uuid);
+    const st = loadGuestStore();
+    deleteGuestSession(st, uuid);
+    return true;
+}
+
+async function renameSessionUnified(uuid, oldTitle, newTitle) {
+    if (isChatLoggedIn()) return renameSessionRequest(uuid, newTitle);
+    return renameGuestSession(loadGuestStore(), uuid, newTitle);
+}
 
 export async function renderSessions(activeId, onSwitch) {
     const list = document.getElementById('session-list');
     if (!list) return;
 
-    const sessions = await fetchSessions();
+    if (!isChatLoggedIn() && activeId) {
+        const st = loadGuestStore();
+        if (!st.sessions.some((s) => s.conversation_uuid === activeId)) {
+            ensureGuestSession(st, activeId);
+        }
+    }
+
+    const sessions = await loadSessionsUnified();
     list.innerHTML = '';
 
-    sessions.forEach(conv => {
+    sessions.forEach((conv) => {
         const uuid = conv.conversation_uuid;
-        const isSelected = (uuid === activeId);
-        const title = conv.title || "Conversație nouă";
+        const isSelected = uuid === activeId;
+        const title = conv.title || 'Conversație nouă';
 
-        // Cream wrapper-ul sesiunii (clasa ta: session-wrapper)
         const container = document.createElement('div');
         container.className = `session-wrapper d-flex align-items-center justify-content-between p-2 mb-1 ${isSelected ? 'active-session' : ''}`;
         container.style.cursor = 'pointer';
 
-        // 1. Zona de text (Titlul)
         const textZone = document.createElement('div');
         textZone.className = 'flex-grow-1 text-truncate pe-2';
         textZone.innerHTML = `<span class="session-title">${title}</span>`;
         textZone.onclick = () => onSwitch(uuid);
 
-        // 2. Containerul pentru Dropdown (clasa ta: dropdown-custom-container)
         const dropdownContainer = document.createElement('div');
         dropdownContainer.className = 'dropdown-custom-container';
 
-        // Butonul de 3 puncte (clasa ta: dots-icon)
         const dotsBtn = document.createElement('div');
         dotsBtn.className = 'dots-icon';
         dotsBtn.innerHTML = '⋮';
 
-        // Meniul ascuns (clasa ta: custom-dropdown-content)
         const menuContent = document.createElement('div');
         menuContent.className = 'custom-dropdown-content shadow';
-        // În interiorul renderSessions, la meniul HTML:
         menuContent.innerHTML = `
     <div class="menu-item p-2 rounded d-flex align-items-center" data-action="rename">
         <i class="bi bi-pencil-square me-2"></i> Redenumește
@@ -49,17 +78,14 @@ export async function renderSessions(activeId, onSwitch) {
     </div>
 `;
 
-        // Logica de deschidere meniu
         dotsBtn.onclick = (e) => {
             e.stopPropagation();
-            // Închidem alte meniuri deschise înainte
-            document.querySelectorAll('.custom-dropdown-content').forEach(el => {
+            document.querySelectorAll('.custom-dropdown-content').forEach((el) => {
                 if (el !== menuContent) el.classList.remove('show');
             });
             menuContent.classList.toggle('show');
         };
 
-        // Logica pentru acțiuni (Rename/Delete)
         menuContent.onclick = async (e) => {
             e.stopPropagation();
             const actionNode = e.target.closest('[data-action]');
@@ -69,47 +95,45 @@ export async function renderSessions(activeId, onSwitch) {
             menuContent.classList.remove('show');
 
             if (action === 'delete') {
-                if (confirm("Ștergi această conversație?")) {
-                    const success = await deleteSessionRequest(uuid);
+                if (confirm('Ștergi această conversație?')) {
+                    const success = await deleteSessionUnified(uuid);
                     if (success) {
-                        // 1. Curățăm imediat chat-ul (ca la butonul Nou)
                         document.getElementById('chat-box').innerHTML = '';
 
-                        // 2. Cerem lista nouă de sesiuni
-                        const updatedSessions = await fetchSessions();
+                        const updatedSessions = await loadSessionsUnified();
 
                         if (updatedSessions && updatedSessions.length > 0) {
                             const nextUuid = updatedSessions[0].conversation_uuid;
                             localStorage.setItem('s366_active_conv', nextUuid);
-
-
                             await switchConversation(nextUuid, onSwitch);
-
-                            // 4. Redesenăm sidebar-ul (ca să se vadă selecția pe noua sesiune)
                             await renderSessions(nextUuid, onSwitch);
                         } else {
-                            // Dacă nu mai e nimic, resetăm tot
                             localStorage.removeItem('s366_active_conv');
                             await renderSessions(null, onSwitch);
-
-                            // Dacă totuși nu s-a închis, forțăm funcția ta de închidere (dacă o ai definită)
                             if (typeof closeSidebar === 'function') closeSidebar();
                         }
                     }
                 }
-            }
-            else if (action === 'rename') {
-                const newTitle = prompt("Introdu noul nume pentru conversație:", conv.title);
-
-                // Verificăm să nu fie gol și să fie diferit de cel vechi
-                if (newTitle && newTitle.trim() !== "" && newTitle !== conv.title) {
-                    const success = await renameSessionRequest(uuid, newTitle.trim());
-                    if (success) {
-                        // Reîncărcăm lista ca să apară titlul nou în sidebar
-                        await renderSessions(activeId, onSwitch);
-                    } else {
-                        alert("Eroare la redenumire. Încearcă din nou.");
-                    }
+            } else if (action === 'rename') {
+                const newTitle = prompt('Introdu noul nume pentru conversație:', conv.title);
+                if (newTitle && newTitle.trim() !== '' && newTitle !== conv.title) {
+                    const success = await renameSessionUnified(uuid, conv.title, newTitle.trim());
+                    if (success) await renderSessions(activeId, onSwitch);
+                    else alert('Eroare la redenumire. Încearcă din nou.');
+                }
+            } else if (action === 'pin') {
+                if (isChatLoggedIn()) {
+                    const newPin = conv.pinned ? 0 : 1;
+                    const response = await fetch(`/chat/api/sessions/${uuid}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pinned: newPin }),
+                    });
+                    if (response.ok) await renderSessions(activeId, onSwitch);
+                } else {
+                    const st = loadGuestStore();
+                    toggleGuestPin(st, uuid);
+                    await renderSessions(activeId, onSwitch);
                 }
             }
         };
@@ -123,37 +147,36 @@ export async function renderSessions(activeId, onSwitch) {
     });
 }
 
-// Închidem meniul dacă dăm click oriunde altundeva în pagină
 document.addEventListener('click', () => {
-    document.querySelectorAll('.custom-dropdown-content').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('.custom-dropdown-content').forEach((el) => el.classList.remove('show'));
 });
 
 export async function switchConversation(uuid, updateStateCallback) {
-    // ... partea cu sidebar ...
-
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML = '';
 
-    // 1. Facem chat-ul INVIZIBIL temporar (ca să nu vadă nimic trecând)
     chatBox.style.visibility = 'hidden';
-    chatBox.style.position = 'absolute';  // opțional, ca să nu ocupe spațiu în layout în timpul load-ului
+    chatBox.style.position = 'absolute';
 
-    const messages = await getConversationMessages(uuid);
+    let messages;
+    if (isChatLoggedIn()) {
+        messages = await getConversationMessages(uuid);
+    } else {
+        messages = getGuestMessages(loadGuestStore(), uuid);
+    }
 
-    // 2. Adaugă toate mesajele VECHI fără niciun scroll
-    messages.forEach(msg => {
+    messages.forEach((msg) => {
         createBubble(msg.sender, msg.message, msg.sender === 'assistant', true);
     });
 
-    // 3. Acum facem chat-ul vizibil și forțăm scroll la bottom
+    if (!isChatLoggedIn() && messages.length === 0) {
+        createBubble('assistant', GUEST_NEW_THREAD_MSG, false);
+    }
+
     requestAnimationFrame(() => {
         chatBox.style.visibility = 'visible';
-        chatBox.style.position = '';  // revenim la normal
-
-        // Scroll direct, fără smooth, ca să fie instant
+        chatBox.style.position = '';
         chatBox.scrollTop = chatBox.scrollHeight;
-
-        //console.log('Conversatie veche încărcată INVIZIBIL → direct la final');
     });
 
     if (updateStateCallback) updateStateCallback(uuid);

@@ -1,0 +1,14 @@
+{% extends "layout/base.html" %}
+{% block title %}Plată nefinalizată — S366 AI{% endblock %}
+{% block meta_description %}Poți reveni oricând pentru a finaliza plata.{% endblock %}
+{% block content %}
+<div class="container py-5 text-center" style="max-width: 560px;">
+    <div class="text-warning display-4 mb-3"><i class="bi bi-slash-circle" aria-hidden="true"></i></div>
+    <h1 class="h3 fw-bold text-body-emphasis mb-3">Plata nu a fost finalizată</h1>
+    <p class="text-body-secondary mb-0">Nu s-a percepe nicio sumă. Poți reîncerca când ești gata — linkul rămâne același.</p>
+    <div class="d-flex flex-wrap gap-2 justify-content-center mt-5">
+        <a href="/payments/service" class="btn btn-primary">Încearcă din nou</a>
+        <a href="/" class="btn btn-outline-secondary">Acasă</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,5 +1,9 @@
 {% extends "layout/base.html" %}
 
+{% block extra_head %}
+<link rel="canonical" href="{{ public_canonical }}" />
+{% endblock %}
+
 {% block content %}
 <div class="container mt-5 mb-5" style="max-width: 900px; line-height: 1.6;">
     <div class="card shadow-sm p-4">
@@ -9,7 +13,7 @@
 
         <section class="mb-4">
             <h3 class="h4">1. Introducere</h3>
-            <p>Bun venit la <strong>s366_turbo</strong>. Prin accesarea și utilizarea acestei aplicații, sunteți de
+            <p>Bun venit la <strong>S366 AI</strong>. Prin accesarea și utilizarea acestei aplicații, sunteți de
                 acord să respectați termenii și condițiile de mai jos. Dacă nu sunteți de acord cu acești termeni, vă
                 rugăm să nu utilizați serviciile noastre.</p>
         </section>
@@ -27,7 +31,7 @@
             <ul>
                 <li>Nu utilizeze aplicația pentru activități ilegale sau frauduloase.</li>
                 <li>Nu încerce să compromită securitatea infrastructurii noastre (Docker, FastAPI, MariaDB).</li>
-                <li>Respecte drepturile de proprietate intelectuală ale proiectului s366_turbo.</li>
+                <li>Respecte drepturile de proprietate intelectuală ale proiectului S366 AI.</li>
             </ul>
         </section>
 
@@ -40,7 +44,7 @@
 
         <section class="mb-4">
             <h3 class="h4">5. Limitarea Răspunderii</h3>
-            <p>s366_turbo este oferit "ca atare" (as is). Deși depunem eforturi constante pentru a asigura stabilitatea
+            <p>S366 AI este oferit "ca atare" (as is). Deși depunem eforturi constante pentru a asigura stabilitatea
                 pe serverul nostru Dell Precision, nu garantăm disponibilitatea neîntreruptă a serviciului sau absența
                 erorilor tehnice.</p>
         </section>
@@ -51,9 +55,20 @@
                 publicarea modificărilor constituie acceptarea acestora.</p>
         </section>
 
-        <div class="mt-5 p-3 rounded">
-            <p class="mb-0"><strong>Contact:</strong> Pentru întrebări legate de acești termeni, ne puteți contacta prin
-                secțiunea dedicată din platformă.</p>
+        <section class="mb-4">
+            <h3 class="h4">7. Date de contact legale</h3>
+            <p>Pentru întrebări referitoare la acești termeni sau la executarea contractului:</p>
+            <ul class="mb-0">
+                <li><strong>E-mail legal:</strong> <a href="mailto:legal@s366.online">legal@s366.online</a></li>
+                <li><strong>Suport utilizatori:</strong> <a href="mailto:support@s366.online">support@s366.online</a></li>
+                <li><strong>Contact general:</strong> <a href="mailto:contact@s366.online">contact@s366.online</a> sau
+                    <a href="/contact">pagina de contact</a>.</li>
+            </ul>
+        </section>
+
+        <div class="mt-4 p-3 rounded bg-body-secondary">
+            <p class="mb-0 small text-body-secondary">Domeniu site: <strong>s366.online</strong>. Mesajele către adresele
+                de mai sus sunt monitorizate în ordinea primirii.</p>
         </div>
     </div>
 </div>

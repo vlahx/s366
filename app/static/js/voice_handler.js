@@ -1,6 +1,13 @@
 // static/js/voice_handler.js
 import { handleUnifiedChat } from './chat_api.js';
 import { activeConvId } from './app.js';
+import {
+    isChatLoggedIn,
+    loadGuestStore,
+    getGuestMessages,
+    guestMessagesToConversationHistory,
+    persistGuestTurnIfNeeded,
+} from './guest_storage.js';
 
 let mediaRecorder;
 let audioChunks = [];
@@ -22,8 +29,17 @@ export async function ensureMicrophone() {
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                 audioChunks = [];
-                // Trimitem către API (activeConvId vine din app.js)
-                await handleUnifiedChat(null, audioBlob, activeConvId);
+                const opts = {};
+                if (!isChatLoggedIn()) {
+                    const st = loadGuestStore();
+                    const hist = guestMessagesToConversationHistory(getGuestMessages(st, activeConvId));
+                    if (hist.length) opts.conversationHistory = hist;
+                }
+                await handleUnifiedChat(null, audioBlob, activeConvId, opts);
+                if (!isChatLoggedIn()) {
+                    persistGuestTurnIfNeeded(activeConvId, false);
+                    window.__s366ChatAfterGuestTurn?.();
+                }
 
                 // Oprim hardware-ul microfonului pentru economie/privacy
                 if (micStream) {

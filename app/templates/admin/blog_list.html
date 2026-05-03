@@ -1,0 +1,66 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Administrare blog — S366 AI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-body-emphasis fw-bold">Articole blog</h1>
+            <p class="text-body-secondary mb-0 small">Doar superadmin. Ciorne și publicate.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/admin" class="btn btn-outline-secondary btn-sm">← Consolă admin</a>
+            <a href="/admin/blog/categorii" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-folder me-1"></i>Categorii
+            </a>
+            <a href="/admin/blog/nou" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>Articol nou
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Titlu</th>
+                        <th>Slug</th>
+                        <th>Categorie</th>
+                        <th>Stare</th>
+                        <th class="text-end">Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in posts %}
+                    <tr>
+                        <td class="fw-medium">{{ p.title }}</td>
+                        <td><code class="small">{{ p.slug }}</code></td>
+                        <td>{{ p.category_name or '—' }}</td>
+                        <td>
+                            {% if p.draft %}
+                            <span class="badge text-bg-secondary">Ciornă</span>
+                            {% else %}
+                            <span class="badge text-bg-success">Publicat</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="/admin/blog/editare/{{ p.slug }}" class="btn btn-sm btn-outline-primary">Editează</a>
+                            <form method="post" action="/admin/blog/sterge/{{ p.slug }}" class="d-inline"
+                                onsubmit="return confirm('Ștergi definitiv acest articol?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Șterge</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-body-secondary text-center py-4">Niciun articol încă.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

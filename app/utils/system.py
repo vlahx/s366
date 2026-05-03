@@ -55,7 +55,6 @@ def get_gpu_status():
         # Nu lăsăm eroarea să crape tot app-ul dacă driverul e ocupat
         print(f"⚠️ [GPU MONITOR] Eroare NVML: {e}")
         return []
-        return []
 
 def get_docker_info():
     try:

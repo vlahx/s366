@@ -1,174 +1,44 @@
 {% extends "layout/base.html" %}
-{% block title %}Soluții hosting — Alege pachetul de hosting potrivit pentru tine.{% endblock %}
-{% block meta_description %}Iti oferim un website gata configurat, cu SSL, email, backup, etc. 
-Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. {% endblock %}
+{% block title %}S366 AI Hosting — alege pachetul potrivit pentru site-ul tău{% endblock %}
+{% block meta_description %}{{ hosting_meta_description }}{% endblock %}
+{% block extra_head %}
+<link rel="canonical" href="{{ hosting_canonical }}" />
+{% endblock %}
 {% block content %}
 <div class="container py-4 py-lg-5">
   <div class="text-center mb-4 mb-lg-5">
     <h1 class="fw-bold mb-2">Hosting & Domenii</h1>
-    <p class="text-body-secondary mb-0">Alege pachetul, verifică domeniul și lansează-ți proiectul în minute.</p>
+    <p class="text-body-secondary mb-0">Începi cu domeniul, alegi pachetul, apoi modul de plată — pașii de mai jos.</p>
   </div>
 
-  <!-- Pachete -->
-  <section class="row g-3 g-lg-4 mb-4 mb-lg-5" aria-label="Pachete hosting">
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="card h-100 border hosting-card" data-package="starter">
-        <div class="card-body d-flex flex-column">
-          <div class="d-flex align-items-baseline justify-content-between mb-2">
-            <h3 class="h5 mb-0">Starter</h3>
-            <span class="badge text-bg-secondary-subtle border">Entry</span>
-          </div>
-          <ul class="list-unstyled small text-body-secondary mb-3">
-            <li class="py-1 border-bottom">1 Website</li>
-            <li class="py-1 border-bottom">1 GB SSD</li>
-            <li class="py-1 border-bottom">1 Cont Email</li>
-            <li class="py-1">SSL Gratuit</li>
-          </ul>
-          <div class="mt-auto">
-            <div class="fs-3 fw-bold mb-2">3 € <span class="fs-6 fw-normal text-body-secondary">/ lună</span></div>
-            <button class="btn btn-outline-primary w-100" type="button" onclick="selectPackage(event, 'starter')">
-              Selectează
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="card h-100 border border-primary-subtle shadow-sm hosting-card hosting-card-featured" data-package="pro">
-        <div class="card-body d-flex flex-column">
-          <div class="d-flex align-items-baseline justify-content-between mb-2">
-            <h3 class="h5 mb-0">WordPress Blog</h3>
-            <span class="badge text-bg-primary">Recomandat</span>
-          </div>
-          <ul class="list-unstyled small text-body-secondary mb-3">
-            <li class="py-1 border-bottom">WordPress preinstalat (blog/jurnal)</li>
-            <li class="py-1 border-bottom">5 GB SSD</li>
-            <li class="py-1 border-bottom">5 Conturi Email</li>
-            <li class="py-1">SSL Gratuit + Backup</li>
-          </ul>
-          <div class="mt-auto">
-            <div class="fs-3 fw-bold mb-2">5 € <span class="fs-6 fw-normal text-body-secondary">/ lună</span></div>
-            <button class="btn btn-primary w-100" type="button" onclick="selectPackage(event, 'pro')">
-              Selectează
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="card h-100 border hosting-card" data-package="business">
-        <div class="card-body d-flex flex-column">
-          <div class="d-flex align-items-baseline justify-content-between mb-2">
-            <h3 class="h5 mb-0">WordPress Shop</h3>
-            <span class="badge text-bg-success-subtle border">Scale</span>
-          </div>
-          <ul class="list-unstyled small text-body-secondary mb-3">
-            <li class="py-1 border-bottom">WordPress + WooCommerce preinstalat</li>
-            <li class="py-1 border-bottom">20 GB SSD</li>
-            <li class="py-1 border-bottom">Email Nelimitat</li>
-            <li class="py-1">SSL + Backup + Suport Prioritar</li>
-          </ul>
-          <div class="mt-auto">
-            <div class="fs-3 fw-bold mb-2">10 € <span class="fs-6 fw-normal text-body-secondary">/ lună</span></div>
-            <button class="btn btn-outline-primary w-100" type="button" onclick="selectPackage(event, 'business')">
-              Selectează
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="card h-100 border hosting-custom-card d-flex flex-column">
-        <div class="card-body d-flex flex-column flex-grow-1">
-          <div class="d-flex align-items-baseline justify-content-between mb-2">
-            <h3 class="h5 mb-0">Aplicații firmă</h3>
-            <span class="badge text-bg-warning-subtle border">La cerere</span>
-          </div>
-          <ul class="list-unstyled small text-body-secondary mb-3">
-            <li class="py-1 border-bottom">Hosting pentru aplicațiile companiei (gestiune, contabilitate, CRM, etc.)</li>
-            <li class="py-1 border-bottom">Backup regulat al bazelor de date și fișierelor — frecvență și retenție stabilite împreună</li>
-            <li class="py-1 border-bottom">AI integrat: analiză, tendințe, recomandări și RAG — nu doar „export din baza de date”</li>
-            <li class="py-1">Mediu pentru sarcini critice + opțiuni dezvoltare aplicație la cerere (inclusiv Python/FastAPI în container dedicat)</li>
-          </ul>
-          <div class="mt-auto">
-            <p class="small text-body-secondary mb-3 mb-xl-2">
-              <strong class="text-body">Fără preț afișat aici.</strong> Depinde de aplicații, volum, SLA, AI și migrare — vezi pagina dedicată, apoi discutăm oferta.
-            </p>
-            <a class="btn btn-outline-secondary w-100" href="/hosting/solutii-custom">Citește mai mult</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Ce primești odată cu hostingul -->
-  <section class="row g-3 g-lg-4 mb-4 mb-lg-5" aria-label="Servicii incluse automat">
-    <div class="col-12 col-md-6">
-      <div class="card h-100 border hosting-info-card">
-        <div class="card-body d-flex gap-3">
-          <div class="flex-shrink-0 text-primary fs-2 lh-1" aria-hidden="true">
-            <i class="bi bi-hdd-stack"></i>
-          </div>
-          <div>
-            <h2 class="h5 mb-2">Hosting pregătit pentru tine</h2>
-            <p class="small text-body-secondary mb-2">
-              Spațiu pe server, trafic și mediu securizat: îți ridicăm contul, DNS și certificate SSL, plus cutiile poștale incluse în pachet.
-              Nu instalezi manual serverul — îl primești gata configurat după ce finalizezi comanda.
-            </p>
-            <ul class="list-unstyled small text-body-secondary mb-0">
-              <li class="py-1 border-top border-opacity-25"><i class="bi bi-check2-circle text-success me-1"></i>Activare și legare domeniu ghidate</li>
-              <li class="py-1 border-top border-opacity-25"><i class="bi bi-check2-circle text-success me-1"></i>Backup și monitorizare de bază (conform pachetului)</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-6">
-      <div class="card h-100 border hosting-info-card">
-        <div class="card-body d-flex gap-3">
-          <div class="flex-shrink-0 text-primary fs-2 lh-1" aria-hidden="true">
-            <i class="bi bi-wordpress"></i>
-          </div>
-          <div>
-            <h2 class="h5 mb-2">Blog sau magazin online, livrat automat</h2>
-            <p class="small text-body-secondary mb-2">
-              La pachetele <span class="fw-semibold">WordPress Blog</span> și <span class="fw-semibold">WordPress Shop</span> îți generăm instalarea WordPress (și WooCommerce la shop)
-              în aceeași tură cu hostingul: temă de start, permalinks și setări esențiale, ca să poți publica sau vinde fără să treci prin „5 pași de instalare”.
-            </p>
-            <ul class="list-unstyled small text-body-secondary mb-0">
-              <li class="py-1 border-top border-opacity-25"><i class="bi bi-check2-circle text-success me-1"></i>Blog / jurnal — pachet Blog</li>
-              <li class="py-1 border-top border-opacity-25"><i class="bi bi-check2-circle text-success me-1"></i>Magazin cu coș și plată — pachet Shop (WooCommerce)</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Verificare Domeniu -->
-  <section class="card border" aria-label="Verificare domeniu">
+  <!-- Pas 1: Domeniu -->
+  <section class="card border mb-4 mb-lg-5 shadow-sm" aria-label="Pas 1 — Domeniu">
     <div class="card-body p-3 p-lg-4">
-      <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2 mb-3">
-        <div>
-          <h2 class="h5 mb-1">Verifică disponibilitatea domeniului</h2>
-          <div class="text-body-secondary small">Ex: <span class="font-monospace">magazin.ro</span>, <span class="font-monospace">afacere.online</span></div>
-        </div>
-        <div class="small text-body-secondary">
-          Pachet ales: <span id="selectedPackage" class="fw-semibold">—</span>
-        </div>
+      <div class="mb-3">
+        <span class="badge text-bg-primary-subtle border mb-2">Pas 1</span>
+        <h2 class="h5 mb-1">Domeniul tău</h2>
+        <p class="text-body-secondary small mb-0">
+          Scrie numele domeniului și apasă Verifică (disponibilitate și preț estimativ). Mai jos poți indica dacă îl ai deja la alt registrar.
+        </p>
       </div>
 
-      <div class="input-group mb-2">
+      <div class="input-group mb-2" id="domainGroup">
         <input class="form-control" type="text" id="domainInput" placeholder="ex: magazin.ro" autocomplete="off" />
         <button class="btn btn-primary" id="checkBtn" type="button" onclick="checkDomain()">Verifică</button>
       </div>
+      <div class="text-body-secondary small mb-3" id="domainHint">
+        Verifică domeniul ca să știm dacă îl putem înregistra pentru tine sau dacă îl ai deja.
+      </div>
 
-      <div id="domainStatus" class="alert py-2 my-3 d-none" role="status" aria-live="polite"></div>
+      <div id="domainStatus" class="alert py-2 mb-3 d-none" role="status" aria-live="polite"></div>
 
-      <div id="domainDetails" class="d-none">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="byodToggle" onchange="toggleBYOD()" />
+        <label class="form-check-label" for="byodToggle">Am deja domeniu, doresc doar hosting</label>
+      </div>
+      <p class="small text-body-secondary mt-2 mb-0">Dacă bifezi, nu mai verificăm disponibilitatea aici — ne dai domeniul și îl legăm de hosting după plată.</p>
+
+      <div id="domainDetails" class="d-none mt-4 pt-3 border-top">
         <div class="d-flex flex-column flex-lg-row gap-2 justify-content-between align-items-lg-center mb-2">
           <div class="small text-body-secondary">
             Domeniu: <span id="checkedDomain" class="font-monospace"></span>
@@ -223,20 +93,205 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
           </div>
         </div>
       </div>
+    </div>
+  </section>
 
-      <div class="form-check form-switch mb-3">
-        <input class="form-check-input" type="checkbox" role="switch" id="byodToggle" onchange="toggleBYOD()" />
-        <label class="form-check-label" for="byodToggle">Am deja un domeniu propriu configurat</label>
+  <!-- Pas 2: Pachete -->
+  <section class="mb-4 mb-lg-5" aria-label="Pas 2 — Pachete hosting">
+    <div class="d-flex flex-column flex-sm-row align-items-sm-start justify-content-between gap-2 mb-3">
+      <div>
+        <span class="badge text-bg-primary-subtle border mb-2">Pas 2</span>
+        <h2 class="h5 mb-0">Alege pachetul de hosting</h2>
+        <p class="small text-body-secondary mb-0 mt-1">Potrivit pentru site simplu, blog WordPress sau magazin online.</p>
+      </div>
+      <div class="small text-body-secondary text-sm-end">
+        Selectat: <span id="selectedPackage" class="fw-semibold text-body">—</span>
+      </div>
+    </div>
+    <div class="row g-3 g-lg-4">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card h-100 border hosting-card hosting-card-selectable position-relative" role="button" tabindex="0" data-package="starter" aria-pressed="false" aria-label="Pachet Starter, apasă pentru a selecta">
+        <span class="hosting-picked-ribbon badge rounded-pill bg-primary shadow-sm">Selectat</span>
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-baseline justify-content-between mb-2">
+            <h3 class="h5 mb-0">Starter</h3>
+            <span class="badge text-bg-secondary-subtle border">Entry</span>
+          </div>
+          <ul class="list-unstyled small text-body-secondary mb-3">
+            <li class="py-1 border-bottom">1 Website</li>
+            <li class="py-1 border-bottom">1 GB SSD</li>
+            <li class="py-1 border-bottom">1 Cont Email</li>
+            <li class="py-1">SSL Gratuit</li>
+          </ul>
+          <div class="mt-auto">
+            <div class="fs-3 fw-bold mb-2">3 € <span class="fs-6 fw-normal text-body-secondary">/ lună</span></div>
+            <span class="btn btn-outline-primary w-100 hosting-pkg-select">
+              <span class="d-block hosting-pkg-select-label">Selectează</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card h-100 border border-primary-subtle shadow-sm hosting-card hosting-card-featured hosting-card-selectable position-relative" role="button" tabindex="0" data-package="pro" aria-pressed="false" aria-label="Pachet WordPress Blog, apasă pentru a selecta">
+        <span class="hosting-picked-ribbon badge rounded-pill bg-primary shadow-sm">Selectat</span>
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-baseline justify-content-between mb-2">
+            <h3 class="h5 mb-0">WordPress Blog</h3>
+            <span class="badge text-bg-secondary-subtle border">Blog</span>
+          </div>
+          <ul class="list-unstyled small text-body-secondary mb-3">
+            <li class="py-1 border-bottom">WordPress preinstalat (blog/jurnal)</li>
+            <li class="py-1 border-bottom">5 GB SSD</li>
+            <li class="py-1 border-bottom">5 Conturi Email</li>
+            <li class="py-1">SSL Gratuit + Backup</li>
+          </ul>
+          <div class="mt-auto">
+            <div class="fs-3 fw-bold mb-2">5 € <span class="fs-6 fw-normal text-body-secondary">/ lună</span></div>
+            <span class="btn btn-outline-primary w-100 hosting-pkg-select">
+              <span class="d-block hosting-pkg-select-label">Selectează</span>
+              <sub class="hosting-select-sub text-body-secondary">recomandat</sub>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card h-100 border hosting-card hosting-card-selectable position-relative" role="button" tabindex="0" data-package="business" aria-pressed="false" aria-label="Pachet WordPress Shop, apasă pentru a selecta">
+        <span class="hosting-picked-ribbon badge rounded-pill bg-primary shadow-sm">Selectat</span>
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-baseline justify-content-between mb-2">
+            <h3 class="h5 mb-0">WordPress Shop</h3>
+            <span class="badge text-bg-success-subtle border">Scale</span>
+          </div>
+          <ul class="list-unstyled small text-body-secondary mb-3">
+            <li class="py-1 border-bottom">WordPress + WooCommerce preinstalat</li>
+            <li class="py-1 border-bottom">20 GB SSD</li>
+            <li class="py-1 border-bottom">Email Nelimitat</li>
+            <li class="py-1">SSL + Backup + Suport Prioritar</li>
+          </ul>
+          <div class="mt-auto">
+            <div class="fs-3 fw-bold mb-2">10 € <span class="fs-6 fw-normal text-body-secondary">/ lună</span></div>
+            <span class="btn btn-outline-primary w-100 hosting-pkg-select">
+              <span class="d-block hosting-pkg-select-label">Selectează</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card h-100 border hosting-custom-card d-flex flex-column">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-baseline justify-content-between mb-2">
+            <h3 class="h5 mb-0">Aplicații firmă</h3>
+            <span class="badge text-bg-warning-subtle border">La cerere</span>
+          </div>
+          <ul class="list-unstyled small text-body-secondary mb-3">
+            <li class="py-1 border-bottom">Aplicații companie: gestiune, CRM, contabilitate…</li>
+            <li class="py-1 border-bottom">Backup pentru DB și fișiere — parametri agreați</li>
+            <li class="py-1">Mediu critic + dev la cerere (ex. Python / FastAPI)</li>
+          </ul>
+          <div class="mt-auto">
+            <p class="small text-body-secondary mb-2">
+              <strong class="text-body">Preț la cerere</strong> — volum, SLA, migrare; detalii pe pagina dedicată.
+            </p>
+            <a class="btn btn-outline-secondary w-100" href="/hosting/solutii-custom">Citește mai mult</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- Pas 3: Facturare hosting + rezumat -->
+  <section class="card border mb-4 mb-lg-5 shadow-sm" aria-label="Pas 3 — Facturare și rezumat">
+    <div class="card-body p-3 p-lg-4">
+      <div class="mb-3">
+        <span class="badge text-bg-primary-subtle border mb-2">Pas 3</span>
+        <h2 class="h5 mb-1">Facturare hosting și total estimat</h2>
+        <p class="text-body-secondary small mb-0">
+          Înregistrarea domeniului e plătită o dată pe an (când e cazul). Aici alegi cum se reînnoiește <strong>hostingul</strong>: lunar sau anual — la anual, ofertă <strong>11 plătite / 12 primite</strong>.
+        </p>
+      </div>
+
+      <div class="mb-4 pb-3 border-bottom" role="radiogroup" aria-labelledby="billingIntervalLabel">
+        <div id="billingIntervalLabel" class="fw-semibold mb-2">Perioada de plată pentru hosting</div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="radio" name="hostingBillingInterval" id="billMonthly" value="month" checked />
+          <label class="form-check-label" for="billMonthly">Lunar — plătești hostingul în fiecare lună</label>
+        </div>
+        <div class="form-check mb-0">
+          <input class="form-check-input" type="radio" name="hostingBillingInterval" id="billYearly" value="year" />
+          <label class="form-check-label" for="billYearly">
+            <span class="d-block fw-semibold">Anual — o singură plată pe an pentru hosting</span>
+            <span class="d-block small text-success mt-1"><i class="bi bi-gift me-1" aria-hidden="true"></i>Plătești echivalentul a <strong>11 luni</strong> și beneficiezi de <strong>12</strong> (1 lună cadou).</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="priceBreakdown" class="border rounded p-3 bg-body-tertiary d-none mb-4" aria-live="polite">
+        <div class="fw-semibold mb-2">Prețuri estimate</div>
+        <div id="priceBreakdownLines" class="small"></div>
+        <div id="priceBreakdownTotal" class="mt-2 pt-2 border-top small"></div>
+        <p id="priceBreakdownFooter" class="small text-body-secondary mt-2 mb-0"></p>
       </div>
 
       <button id="continueBtn" class="btn btn-success w-100" type="button" disabled onclick="window.location.href='/hosting/provision'">
-        Continuă configurarea
+        Continuă la plată
       </button>
-      <div class="text-body-secondary small mt-2">
-        Continuarea se deblochează după verificare sau dacă bifezi „am deja domeniu”.
+      <div class="text-body-secondary small mt-2 mb-0">
+        Activ când ai pachetul ales și domeniul setat (verificat sau bifat „am deja domeniu” cu nume introdus).
       </div>
     </div>
   </section>
+
+  <!-- Ce primești odată cu hostingul -->
+  <section class="row g-3 g-lg-4 mb-4 mb-lg-5" aria-label="Servicii incluse automat">
+    <div class="col-12 col-md-6">
+      <div class="card h-100 border hosting-info-card">
+        <div class="card-body d-flex gap-3">
+          <div class="flex-shrink-0 text-primary fs-2 lh-1" aria-hidden="true">
+            <i class="bi bi-hdd-stack"></i>
+          </div>
+          <div>
+            <h2 class="h5 mb-2">Hosting pregătit pentru tine</h2>
+            <p class="small text-body-secondary mb-2">
+              Spațiu pe server, trafic și mediu securizat: îți ridicăm contul, DNS și certificate SSL, plus cutiile poștale incluse în pachet.
+              Nu instalezi manual serverul — îl primești gata configurat după ce finalizezi comanda.
+            </p>
+            <ul class="list-unstyled small text-body-secondary mb-0">
+              <li class="py-1 border-top border-opacity-25"><i class="bi bi-check2-circle text-success me-1"></i>Activare și legare domeniu ghidate</li>
+              <li class="py-1 border-top border-opacity-25"><i class="bi bi-check2-circle text-success me-1"></i>Backup și monitorizare de bază (conform pachetului)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="card h-100 border hosting-info-card">
+        <div class="card-body d-flex gap-3">
+          <div class="flex-shrink-0 text-primary fs-2 lh-1" aria-hidden="true">
+            <i class="bi bi-wordpress"></i>
+          </div>
+          <div>
+            <h2 class="h5 mb-2">Blog sau magazin online, livrat automat</h2>
+            <p class="small text-body-secondary mb-2">
+              La pachetele <span class="fw-semibold">WordPress Blog</span> și <span class="fw-semibold">WordPress Shop</span> îți generăm instalarea WordPress (și WooCommerce la shop)
+              în aceeași tură cu hostingul: temă de start, permalinks și setări esențiale, ca să poți publica sau vinde fără să treci prin „5 pași de instalare”.
+            </p>
+            <ul class="list-unstyled small text-body-secondary mb-0">
+              <li class="py-1 border-top border-opacity-25"><i class="bi bi-check2-circle text-success me-1"></i>Blog / jurnal — pachet Blog</li>
+              <li class="py-1 border-top border-opacity-25"><i class="bi bi-check2-circle text-success me-1"></i>Magazin cu coș și plată — pachet Shop (WooCommerce)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <style>
@@ -246,21 +301,76 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
   .hosting-custom-card {
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   }
-  .hosting-card:hover,
+  .hosting-card:hover:not(.hosting-card-selectable),
   .hosting-info-card:hover,
   .hosting-custom-card:hover {
     transform: translateY(-2px);
   }
+  .hosting-card-selectable {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .hosting-card-selectable:hover:not(.is-selected) {
+    transform: translateY(-3px);
+    box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.08);
+  }
+  .hosting-card-selectable:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.45);
+  }
+  .hosting-picked-ribbon {
+    display: none;
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    z-index: 2;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0.35em 0.65em;
+  }
+  .hosting-card-selectable.is-selected .hosting-picked-ribbon {
+    display: inline-flex;
+    align-items: center;
+    animation: hosting-pick-in 0.18s ease;
+  }
+  @keyframes hosting-pick-in {
+    from {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  .hosting-card-selectable.is-selected {
+    border-color: var(--bs-primary) !important;
+    border-width: 3px !important;
+    background: linear-gradient(
+      165deg,
+      rgba(var(--bs-primary-rgb), 0.16) 0%,
+      rgba(var(--bs-primary-rgb), 0.04) 100%
+    );
+    box-shadow:
+      0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.22),
+      0 0.65rem 1.65rem rgba(var(--bs-primary-rgb), 0.22) !important;
+    transform: translateY(-2px);
+  }
+  .hosting-card-featured.hosting-card-selectable.is-selected {
+    box-shadow:
+      0 0 0 0.22rem rgba(var(--bs-primary-rgb), 0.28),
+      0 0.85rem 2rem rgba(var(--bs-primary-rgb), 0.28) !important;
+  }
+  .hosting-card-selectable.is-selected .hosting-pkg-select {
+    color: #fff !important;
+    background-color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+  }
   .badge.text-bg-warning-subtle {
     color: var(--bs-body-color);
     background-color: rgba(var(--bs-warning-rgb), 0.18) !important;
-  }
-  .hosting-card.is-selected {
-    border-color: var(--bs-primary) !important;
-    box-shadow: 0 0.5rem 1.25rem rgba(var(--bs-primary-rgb), 0.18);
-  }
-  .hosting-card-featured.is-selected {
-    box-shadow: 0 0.75rem 1.75rem rgba(var(--bs-primary-rgb), 0.24);
   }
   .badge.text-bg-secondary-subtle,
   .badge.text-bg-success-subtle {
@@ -270,7 +380,29 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
   .badge.text-bg-success-subtle {
     background-color: rgba(var(--bs-success-rgb), 0.14) !important;
   }
+  /* „recomandat” sub buton — lizibil, fără subscript chimic */
+  .hosting-pkg-select {
+    min-height: 3.35rem;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .hosting-select-sub {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 500;
+    line-height: 1.15;
+    margin-top: 0.2rem;
+    bottom: auto;
+    opacity: 0.9;
+  }
 </style>
+
+<script id="hosting-pricing-embed" type="application/json">{{ hosting_pricing_json | safe }}</script>
 
 <script>
   const domainInput = document.getElementById('domainInput');
@@ -291,40 +423,263 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
   const byodToggle = document.getElementById('byodToggle');
   const continueBtn = document.getElementById('continueBtn');
   const selectedPackageEl = document.getElementById('selectedPackage');
+  const domainHint = document.getElementById('domainHint');
+  const priceBreakdown = document.getElementById('priceBreakdown');
+  const priceBreakdownLines = document.getElementById('priceBreakdownLines');
+  const priceBreakdownTotal = document.getElementById('priceBreakdownTotal');
+  const priceBreakdownFooter = document.getElementById('priceBreakdownFooter');
 
   let selectedPackage = null;
   let lastDomainResult = null;
+  let billingInterval = 'month';
+
+  document.querySelectorAll('input[name="hostingBillingInterval"]').forEach(function (el) {
+    el.addEventListener('change', function () {
+      const c = document.querySelector('input[name="hostingBillingInterval"]:checked');
+      billingInterval = c ? c.value : 'month';
+      updatePriceBreakdown();
+      updateContinueHref();
+    });
+  });
+
+  function hostingNetCents(pkgRow, interval) {
+    if (!pkgRow) return 0;
+    if (interval === 'year') {
+      const y = pkgRow.eur_cents_yearly;
+      if (y != null && y > 0) return y;
+      const m = pkgRow.eur_cents_monthly || 0;
+      return m * 11;
+    }
+    return pkgRow.eur_cents_monthly || 0;
+  }
+
+  function hostPricingConfig() {
+    try {
+      const el = document.getElementById('hosting-pricing-embed');
+      if (!el || !el.textContent) {
+        return { vat_rate: 0.19, vat_display: 'excluded', packages: [], prices_stored_as_net: true, domain_catalog_is_gross: true, currency: 'EUR', footer_note: '' };
+      }
+      return JSON.parse(el.textContent);
+    } catch (e) {
+      return { vat_rate: 0.19, vat_display: 'excluded', packages: [], prices_stored_as_net: true, domain_catalog_is_gross: true, currency: 'EUR', footer_note: '' };
+    }
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function formatEurCents(cents) {
+    if (cents == null || Number.isNaN(Number(cents))) return '—';
+    const n = Math.round(Number(cents));
+    return (n / 100).toLocaleString('ro-RO', { style: 'currency', currency: 'EUR' });
+  }
+
+  function netToTtc(netCents, rate) {
+    const r = Number(rate) || 0;
+    const vat = Math.round(netCents * r);
+    return { net: netCents, vat: vat, ttc: netCents + vat };
+  }
+
+  function ttcToNet(ttcCents, rate) {
+    const r = Number(rate) || 0;
+    if (r <= 0) return { net: ttcCents, vat: 0, ttc: ttcCents };
+    const net = Math.round(ttcCents / (1 + r));
+    return { net: net, vat: ttcCents - net, ttc: ttcCents };
+  }
+
+  function formatSplitBlock(sp, p, suffix) {
+    const mode = p.vat_display || 'excluded';
+    const pct = Math.round((Number(p.vat_rate) || 0) * 100);
+    const suf = suffix ? ' ' + suffix : '';
+    if (mode === 'included') {
+      return '<span class="fw-semibold">' + formatEurCents(sp.ttc) + suf + '</span> <span class="text-body-secondary small">(cu TVA)</span>';
+    }
+    if (mode === 'both') {
+      return '<span class="fw-semibold">' + formatEurCents(sp.net) + '</span> + TVA ' + formatEurCents(sp.vat) + ' = <span class="fw-semibold">' + formatEurCents(sp.ttc) + suf + '</span>';
+    }
+    return (
+      '<span class="text-body-secondary small d-block">' + formatEurCents(sp.net) + ' fără TVA' + suf + '</span>' +
+      '<span class="text-body-secondary small d-block">TVA ' + pct + '%: ' + formatEurCents(sp.vat) + '</span>' +
+      '<span class="d-block fw-semibold">' + formatEurCents(sp.ttc) + ' cu TVA' + suf + '</span>'
+    );
+  }
+
+  function updatePriceBreakdown() {
+    const p = hostPricingConfig();
+    if (!priceBreakdown || !priceBreakdownLines || !priceBreakdownTotal) return;
+
+    // Domeniu deja luat la verificare — nu afișăm estimări de preț (nu vindem înregistrarea acelui FQDN).
+    if (!byodToggle.checked && lastDomainResult && lastDomainResult.status === 'taken') {
+      priceBreakdown.classList.add('d-none');
+      return;
+    }
+
+    if (!selectedPackage) {
+      priceBreakdown.classList.add('d-none');
+      return;
+    }
+
+    const pkgRow = (p.packages || []).find(function (x) { return x.id === selectedPackage; });
+    if (!pkgRow) {
+      priceBreakdown.classList.add('d-none');
+      return;
+    }
+
+    const hostCents = hostingNetCents(pkgRow, billingInterval);
+    const lines = [];
+    const rate = p.vat_rate != null ? p.vat_rate : 0.19;
+    const hostSp = p.prices_stored_as_net !== false ? netToTtc(hostCents, rate) : ttcToNet(hostCents, rate);
+    const periodSlug = billingInterval === 'year' ? '/an' : '/lună';
+    const periodAdj = billingInterval === 'year' ? 'anual' : 'lunar';
+
+    if (byodToggle.checked) {
+      lines.push(
+        '<div class="mb-2"><span class="text-body-secondary">Hosting — ' + escapeHtml(pkgRow.label) + ' (' + periodAdj + ')</span><br />' +
+        '<div class="fs-6">' + formatSplitBlock(hostSp, p, periodSlug) + '</div></div>'
+      );
+      lines.push('<p class="small text-body-secondary mb-0">Ai deja domeniu — plătești doar hostingul la noi; înregistrarea domeniului rămâne la registrarul tău curent.</p>');
+      priceBreakdownLines.innerHTML = lines.join('');
+      priceBreakdownTotal.innerHTML =
+        '<div class="text-body-secondary">Total cu TVA — hosting (' + (billingInterval === 'year' ? 'perioada anuală' : 'prima lună') + ')</div>' +
+        '<div class="fs-5 fw-bold mt-1">' + formatEurCents(hostSp.ttc) + '</div>';
+      priceBreakdownFooter.textContent = p.footer_note || '';
+      priceBreakdown.classList.remove('d-none');
+      return;
+    }
+
+    let domainRaw = null;
+    const det = lastDomainResult && lastDomainResult.details;
+    if (det && det.hostinger && det.hostinger.catalog && det.hostinger.catalog.price_cents != null) {
+      domainRaw = parseInt(det.hostinger.catalog.price_cents, 10);
+      if (Number.isNaN(domainRaw)) domainRaw = null;
+    } else if (det && det.gandi && det.gandi.best_price && det.gandi.best_price.price_after_taxes != null) {
+      domainRaw = Math.round(parseFloat(String(det.gandi.best_price.price_after_taxes)) * 100);
+    }
+
+    let domainSp = null;
+    if (domainRaw != null) {
+      domainSp = p.domain_catalog_is_gross !== false ? ttcToNet(domainRaw, rate) : netToTtc(domainRaw, rate);
+      lines.push(
+        '<div class="mb-3"><span class="text-body-secondary">Domeniu — înregistrare estimativă (1 an)</span><br />' +
+        '<div class="fs-6">' + formatSplitBlock(domainSp, p, '/an') + '</div></div>'
+      );
+    } else if (lastDomainResult && isVerifiedDomainAvailable(lastDomainResult)) {
+      lines.push('<div class="mb-3 text-body-secondary small">Domeniu — preț anual indisponibil momentan din catalog; îl confirmăm înainte de plată.</div>');
+    } else if (lastDomainResult) {
+      lines.push('<div class="mb-3 text-body-secondary small">Domeniu — după verificare putem estima și înregistrarea (dacă e liber).</div>');
+    } else {
+      lines.push('<div class="mb-3 text-body-secondary small">Domeniu — apasă „Verifică” mai sus pentru disponibilitate și preț estimativ.</div>');
+    }
+
+    lines.push(
+      '<div class="mb-2"><span class="text-body-secondary">Hosting — ' + escapeHtml(pkgRow.label) + ' (' + periodAdj + ')</span><br />' +
+      '<div class="fs-6">' + formatSplitBlock(hostSp, p, periodSlug) + '</div></div>'
+    );
+
+    priceBreakdownLines.innerHTML = lines.join('');
+
+    if (domainSp != null) {
+      const firstPayTtc = domainSp.ttc + hostSp.ttc;
+      const hostBit = billingInterval === 'year' ? '1 an hosting' : 'prima lună hosting';
+      priceBreakdownTotal.innerHTML =
+        '<div class="text-body-secondary">Total cu TVA la prima plată <span class="small">(1 an domeniu + ' + hostBit + ')</span></div>' +
+        '<div class="fs-5 fw-bold mt-1">' + formatEurCents(firstPayTtc) + '</div>' +
+        '<div class="small text-body-secondary mt-1">Apoi: reînnoire domeniu la fiecare an; hosting ' +
+        (billingInterval === 'year' ? 'se reînnoiește anual.' : 'se facturează lunar.') +
+        ' TVA-ul folosit mai sus este cel din baza de date la încărcarea paginii.</div>';
+    } else {
+      priceBreakdownTotal.innerHTML =
+        '<div class="text-body-secondary">Total cu TVA — ' + (billingInterval === 'year' ? 'primul an doar hosting' : 'primă lună doar hosting') + '</div>' +
+        '<div class="fs-5 fw-bold mt-1">' + formatEurCents(hostSp.ttc) + '</div>';
+    }
+
+    priceBreakdownFooter.textContent = p.footer_note || '';
+    priceBreakdown.classList.remove('d-none');
+  }
 
   function setStatus(type, text) {
-    domainStatus.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-secondary');
+    domainStatus.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-secondary', 'alert-info');
     if (type === 'success') domainStatus.classList.add('alert-success');
     else if (type === 'error') domainStatus.classList.add('alert-danger');
+    else if (type === 'loading') domainStatus.classList.add('alert-info');
     else domainStatus.classList.add('alert-secondary');
     domainStatus.textContent = text;
   }
 
   function toggleBYOD() {
     if (byodToggle.checked) {
-      domainInput.value = ''; domainInput.disabled = true;
+      // BYOD: user își aduce domeniul; nu mai facem verificare automată,
+      // dar trebuie să putem introduce domeniul pentru pasul Stripe.
+      domainInput.disabled = false;
       checkBtn.disabled = true;
+      checkBtn.classList.add('d-none');
+      domainInput.placeholder = 'Introdu aici domeniul tău (ex: firma.ro)';
+      if (domainHint) {
+        domainHint.textContent = 'Introdu domeniul tău, iar noi îl conectăm la hosting după plată (fără verificare automată aici).';
+      }
       domainStatus.classList.add('d-none');
       domainDetails.classList.add('d-none');
-      continueBtn.disabled = false;
+      lastDomainResult = null;
+      updateContinueHref();
+      updatePriceBreakdown();
     } else {
       domainInput.disabled = false; checkBtn.disabled = false;
-      continueBtn.disabled = true;
+      checkBtn.classList.remove('d-none');
+      domainInput.placeholder = 'ex: magazin.ro';
+      if (domainHint) {
+        domainHint.textContent = 'Verifică domeniul ca să știm dacă îl putem înregistra pentru tine sau dacă îl ai deja.';
+      }
+      updateContinueHref();
+      updatePriceBreakdown();
     }
   }
 
+  /** Același criteriu ca în renderDomainResult: disponibil pentru continuare checkout. */
+  function isVerifiedDomainAvailable(data) {
+    return !!(data && (data.available || data.status === 'available'));
+  }
+
+  /** Preț catalog domeniu (cenți), ca pe server — pentru URL provision / afișare. */
+  function catalogDomainGrossCentsFromLastCheck() {
+    if (byodToggle.checked) return null;
+    const det = lastDomainResult && lastDomainResult.details;
+    if (!det) return null;
+    if (det.hostinger && det.hostinger.catalog && det.hostinger.catalog.price_cents != null) {
+      const n = parseInt(det.hostinger.catalog.price_cents, 10);
+      return Number.isNaN(n) || n <= 0 ? null : n;
+    }
+    if (det.gandi && det.gandi.best_price && det.gandi.best_price.price_after_taxes != null) {
+      const n = Math.round(parseFloat(String(det.gandi.best_price.price_after_taxes)) * 100);
+      return Number.isNaN(n) || n <= 0 ? null : n;
+    }
+    return null;
+  }
+
   function updateContinueHref() {
-    const domain = (lastDomainResult && lastDomainResult.domain) ? lastDomainResult.domain : '';
+    const domain = byodToggle.checked
+      ? (domainInput.value || '').trim()
+      : ((lastDomainResult && lastDomainResult.domain) ? lastDomainResult.domain : '');
     const pkg = selectedPackage || '';
     const params = new URLSearchParams();
     if (domain) params.set('domain', domain);
     if (pkg) params.set('package', pkg);
+    params.set('billing', billingInterval === 'year' ? 'year' : 'month');
+    if (byodToggle.checked) {
+      params.set('byod', '1');
+    } else {
+      const dg = catalogDomainGrossCentsFromLastCheck();
+      if (dg != null) params.set('domain_reg_gross_cents', String(dg));
+    }
     const qs = params.toString();
     const url = qs ? `/hosting/provision?${qs}` : '/hosting/provision';
     continueBtn.setAttribute('onclick', `window.location.href='${url}'`);
+
+    const verifiedOk = isVerifiedDomainAvailable(lastDomainResult);
+    const canContinue = byodToggle.checked ? (domain && pkg) : (verifiedOk && pkg);
+    continueBtn.disabled = !canContinue;
   }
 
   function setTextOrDash(el, value) {
@@ -341,6 +696,8 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
     const details = (data && data.details) ? data.details : {};
     const dns = details.dns || {};
     const gandi = details.gandi || {};
+    const hostinger = details.hostinger || {};
+    const hiSelected = hostinger.selected || null;
     const bestPrice = gandi.best_price || null;
 
     function formatPrice(p) {
@@ -358,7 +715,7 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
     if (data.available || data.status === 'available') {
       domainVerdictEl.textContent = 'Disponibil';
       domainVerdictEl.className = 'fw-semibold text-success';
-      domainExplanationEl.innerHTML = '<div class="fw-semibold">Vești bune — domeniul pare liber.</div><div class="text-body-secondary small">Îl putem înregistra pentru tine și îl conectăm automat la hosting.</div>';
+      domainExplanationEl.innerHTML = '<div class="fw-semibold">Vești bune — domeniul este liber.</div><div class="text-body-secondary small">Îl putem înregistra pentru tine și îl conectăm automat la hostingul ales.</div>';
 
       domainHighlightsEl.innerHTML = '';
       domainHighlightsEl.insertAdjacentHTML('beforeend', '<li>Poți continua configurarea imediat.</li>');
@@ -366,22 +723,32 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
       domainHighlightsEl.insertAdjacentHTML('beforeend', '<li>Dacă ai deja domeniu la alt furnizor, bifează „am deja un domeniu” și te ghidăm la conectare.</li>');
 
       buyFromOwnerBtn.classList.add('d-none');
-      continueBtn.disabled = false;
     } else if (data.status === 'taken') {
       domainVerdictEl.textContent = 'Luat';
       domainVerdictEl.className = 'fw-semibold text-danger';
-      domainExplanationEl.innerHTML = '<div class="fw-semibold">Domeniul pare deja înregistrat.</div><div class="text-body-secondary small">Nu îl putem cumpăra direct, dar te putem ajuta să contactezi proprietarul sau să alegi o variantă similară.</div>';
 
-      domainHighlightsEl.innerHTML = '';
-      if (priceText) domainHighlightsEl.insertAdjacentHTML('beforeend', `<li>Domeniu premium / cu preț special: <span class="fw-semibold">${priceText}</span></li>`);
-      if (dns && (dns.ns || dns.a)) {
-        if (dns.ns && dns.ns.length) domainHighlightsEl.insertAdjacentHTML('beforeend', `<li>Nameservere detectate: <span class="font-monospace">${dns.ns.join(', ')}</span></li>`);
-        if (dns.a && dns.a.length) domainHighlightsEl.insertAdjacentHTML('beforeend', `<li>IP detectat: <span class="font-monospace">${dns.a.join(', ')}</span></li>`);
+      const fromHostinger = (data.provider === 'hostinger');
+      if (fromHostinger) {
+        domainExplanationEl.innerHTML = '<div class="fw-semibold">Domeniul este deja înregistrat.</div><div class="text-body-secondary small">Registrarul (Hostinger) confirmă că nu este disponibil pentru o nouă înregistrare. Putem să te ajutăm să iei legătura cu deținătorul sau să alegi un nume alternativ.</div>';
       } else {
-        domainHighlightsEl.insertAdjacentHTML('beforeend', '<li>Există semnal DNS că domeniul e activ, dar nu avem detalii complete.</li>');
+        domainExplanationEl.innerHTML = '<div class="fw-semibold">Domeniul este deja înregistrat sau nu poate fi înregistrat acum.</div><div class="text-body-secondary small">Nu îl putem achiziționa ca domeniu liber; te putem ajuta să contactezi proprietarul sau să alegi o variantă similară.</div>';
       }
 
-      continueBtn.disabled = true;
+      domainHighlightsEl.innerHTML = '';
+      if (fromHostinger && hiSelected && typeof hiSelected === 'object') {
+        const fqdn = (hiSelected.domain != null && String(hiSelected.domain).trim()) ? String(hiSelected.domain).trim() : domain;
+        domainHighlightsEl.insertAdjacentHTML('beforeend', `<li>Răspuns registrar: <span class="font-monospace">${escapeHtml(fqdn)}</span> — indisponibil pentru înregistrare.</li>`);
+        const rest = hiSelected.restriction;
+        if (rest != null && String(rest).trim()) {
+          domainHighlightsEl.insertAdjacentHTML('beforeend', `<li>Informație suplimentară: <span class="fw-semibold">${escapeHtml(String(rest))}</span></li>`);
+        }
+      }
+      if (priceText) domainHighlightsEl.insertAdjacentHTML('beforeend', `<li>Estimare preț (alt registrar): <span class="fw-semibold">${priceText}</span></li>`);
+      if (!fromHostinger && dns && (dns.ns || dns.a)) {
+        if (dns.ns && dns.ns.length) domainHighlightsEl.insertAdjacentHTML('beforeend', `<li>Nameservere (DNS): <span class="font-monospace">${dns.ns.join(', ')}</span></li>`);
+        if (dns.a && dns.a.length) domainHighlightsEl.insertAdjacentHTML('beforeend', `<li>Adrese IP (DNS): <span class="font-monospace">${dns.a.join(', ')}</span></li>`);
+      }
+
       const contactParams = new URLSearchParams({ subject: 'Achiziție domeniu', domain });
       buyFromOwnerBtn.href = `/contact?${contactParams.toString()}`;
       buyFromOwnerBtn.classList.remove('d-none');
@@ -391,14 +758,12 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
       domainExplanationEl.innerHTML = '<div class="fw-semibold">Format domeniu invalid.</div><div class="text-body-secondary small">Exemplu: <span class="font-monospace">magazin.ro</span></div>';
       domainHighlightsEl.innerHTML = '';
       buyFromOwnerBtn.classList.add('d-none');
-      continueBtn.disabled = true;
     } else {
       domainVerdictEl.textContent = 'Neclar';
       domainVerdictEl.className = 'fw-semibold text-warning';
       domainExplanationEl.innerHTML = '<div class="fw-semibold">Nu am putut confirma sigur statusul.</div><div class="text-body-secondary small">Poate fi o problemă temporară. Încearcă încă o dată peste 10 secunde.</div>';
       domainHighlightsEl.innerHTML = '';
       buyFromOwnerBtn.classList.add('d-none');
-      continueBtn.disabled = true;
     }
 
     // Mod avansat (formatat)
@@ -408,6 +773,7 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
     setTextOrDash(dnsAaaaEl, dns.aaaa);
     setTextOrDash(dnsMxEl, dns.mx);
     setTextOrDash(checkedAtEl, details.checked_at || '—');
+    updatePriceBreakdown();
   }
 
   async function checkDomain() {
@@ -436,6 +802,8 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
       if (!res.ok) {
         const msg = (data && (data.message || data.detail)) ? (data.message || data.detail) : `Eroare server (${res.status}).`;
         setStatus('error', msg);
+        lastDomainResult = null;
+        updateContinueHref();
         return;
       }
 
@@ -453,20 +821,74 @@ Ai propriul magazin virtual sau blogul personal in pachetul cumparat de la noi. 
       updateContinueHref();
     } catch (err) {
       setStatus('error', 'Eroare de conexiune. Încearcă din nou.');
+      lastDomainResult = null;
+      updateContinueHref();
     } finally {
       checkBtn.disabled = false;
+      updatePriceBreakdown();
     }
   }
 
-  function selectPackage(evt, pkg) {
+  function selectPackage(evt, pkg, opts) {
+    opts = opts || {};
     selectedPackage = pkg;
-    selectedPackageEl.textContent = pkg;
-    document.querySelectorAll('.hosting-card').forEach(c => c.classList.remove('is-selected'));
-    evt.currentTarget.closest('.hosting-card')?.classList.add('is-selected');
+    const prow = (hostPricingConfig().packages || []).find(function (x) { return x.id === pkg; });
+    selectedPackageEl.textContent = prow ? prow.label : pkg;
+    document.querySelectorAll('.hosting-card-selectable').forEach(function (c) {
+      c.classList.remove('is-selected');
+      c.setAttribute('aria-pressed', 'false');
+    });
+    document.querySelectorAll('.hosting-card-selectable .hosting-pkg-select-label').forEach(function (el) {
+      el.textContent = 'Selectează';
+    });
+    let card = (evt && evt.currentTarget) ? evt.currentTarget.closest('.hosting-card-selectable') : null;
+    if (!card) {
+      card = document.querySelector('.hosting-card-selectable[data-package="' + pkg + '"]');
+    }
+    card?.classList.add('is-selected');
+    card?.setAttribute('aria-pressed', 'true');
+    const selLabel = card && card.querySelector('.hosting-pkg-select-label');
+    if (selLabel) selLabel.textContent = 'Ales';
 
-    // UX: după select, mutăm focus pe domeniu
-    domainInput.focus();
+    if (opts.focusDomain !== false) {
+      domainInput.focus();
+    }
     updateContinueHref();
+    updatePriceBreakdown();
   }
+
+  document.querySelectorAll('.hosting-card-selectable').forEach(function (card) {
+    card.addEventListener('click', function (e) {
+      const pkg = card.getAttribute('data-package');
+      if (!pkg) return;
+      selectPackage(e, pkg, { focusDomain: true });
+    });
+    card.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      const pkg = card.getAttribute('data-package');
+      if (!pkg) return;
+      selectPackage(e, pkg, { focusDomain: true });
+    });
+  });
+
+  // Dacă user scrie domeniul (mai ales în BYOD), actualizăm URL + butonul.
+  domainInput.addEventListener('input', function () {
+    updateContinueHref();
+  });
+
+  // Enter în câmp = același lucru ca butonul Verifică (fără mouse).
+  domainInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    if (byodToggle.checked) return;
+    e.preventDefault();
+    checkDomain();
+  });
+
+  // Inițializare: setăm UI corect în funcție de starea switch-ului.
+  toggleBYOD();
+  // Implicit: pachetul Pro (recomandat) — același stil de buton ca restul, fără focus pe domeniu la load.
+  selectPackage(null, 'pro', { focusDomain: false });
+  updatePriceBreakdown();
 </script>
 {% endblock %}

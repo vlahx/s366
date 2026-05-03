@@ -1,0 +1,131 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* TinyMCE: meniuri / floating panels nu trebuie tăiate de overflow pe main */
+    main.flex-grow-1.position-relative.overflow-hidden {
+        overflow: visible !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-0 text-body-emphasis fw-bold">{% if post %}Editare articol{% else %}Articol nou{% endif %}</h1>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="/admin/blog/posts" class="btn btn-outline-secondary btn-sm">← Listă articole</a>
+            <a href="/admin/blog/categorii" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-folder me-1"></i>Categorii
+            </a>
+            {% if post and not post.draft %}
+            <a href="/blog/{{ post.slug }}/" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">Vezi pe site</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="post" action="/admin/blog/salveaza" enctype="multipart/form-data" class="card border-0 shadow-sm">
+        <div class="card-body">
+            {% if post %}
+            <input type="hidden" name="original_slug" value="{{ post.slug }}">
+            {% endif %}
+
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label" for="title">Titlu</label>
+                    <input type="text" class="form-control" id="title" name="title" required
+                        value="{{ post.title if post else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="slug">Slug (URL)</label>
+                    {% if post %}
+                    <input type="text" class="form-control" id="slug" name="slug" readonly
+                        value="{{ post.slug }}" title="Slugul nu se schimbă la editare">
+                    {% else %}
+                    <input type="text" class="form-control" id="slug" name="slug" value=""
+                        placeholder="lăsat gol → generat din titlu">
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="category_id">Categorie</label>
+                    <select class="form-select" id="category_id" name="category_id">
+                        <option value="">— fără categorie —</option>
+                        {% for c in categories %}
+                        <option value="{{ c.id }}" {% if post and post.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="published_at">Publicat la (opțional, UTC/local în câmp)</label>
+                    <input type="datetime-local" class="form-control" id="published_at" name="published_at"
+                        value="{{ published_at_local if post else '' }}">
+                    <div class="form-text">Dacă lași gol și debifezi „Ciornă”, se pune data curentă.</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="excerpt">Rezumat (excerpt)</label>
+                    <textarea class="form-control" id="excerpt" name="excerpt" rows="2">{{ post.excerpt if post else '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="content_html">Conținut</label>
+                    <textarea class="form-control" id="content_html" name="content_html" rows="16">{{ post.content_html if post else '' }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="hero">Imagine hero (opțional)</label>
+                    <input type="file" class="form-control" id="hero" name="hero" accept="image/jpeg,image/png,image/gif,image/webp">
+                    {% if post and post.hero_image_url %}
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="clear_hero" id="clear_hero" value="on">
+                        <label class="form-check-label" for="clear_hero">Șterge imaginea hero actuală</label>
+                    </div>
+                    <div class="mt-2 small">
+                        Actual: <a href="{{ post.hero_image_url }}" target="_blank" rel="noopener">{{ post.hero_image_url }}</a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="draft" id="draft" value="on"
+                            {% if not post or post.draft %}checked{% endif %}>
+                        <label class="form-check-label" for="draft">Ciornă (nu apare pe site)</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer bg-body-tertiary d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Salvează</button>
+            <a href="/admin/blog/posts" class="btn btn-outline-secondary">Renunță</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.4/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+    (function () {
+        var base = {{ editor_document_base | tojson }};
+        tinymce.init({
+            selector: '#content_html',
+            height: 520,
+            resize: 'both',
+            menubar: false,
+            branding: false,
+            plugins: 'lists link image code autoresize fullscreen',
+            toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image | removeformat | code fullscreen',
+            images_upload_url: '/admin/blog/upload-image',
+            automatic_uploads: true,
+            document_base_url: base,
+            relative_urls: false,
+            remove_script_host: false,
+            convert_urls: true,
+            object_resizing: true,
+            image_dimensions: true,
+            content_style: 'body { font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.5; } img { max-width: none; height: auto; }'
+        });
+    })();
+</script>
+{% endblock %}

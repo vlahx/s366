@@ -11,9 +11,10 @@ import sys
 import json
 
 from app.models.sqlite_company_model import get_company_settings
+from app.utils.text_cleaner import assistant_bubble_to_llm_text
 
 async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, user_role=None, user_lastname=None, user_firstname=None,
-                      company_id=None, company_cui=None, company_name=None):
+                      company_id=None, company_cui=None, company_name=None, client_messages=None):
 
 
     user_id = user_id 
@@ -69,15 +70,30 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
                 
                 if raw_history:
                     for msg in raw_history:
+                        role = msg.get('sender', 'user')
+                        content = msg.get('message', '') or ''
+                        if role == 'assistant':
+                            content = assistant_bubble_to_llm_text(content)
                         conversation_history.append({
-                            'role': msg.get('sender', 'user'),
-                            'content': msg.get('message', '')
+                            'role': role,
+                            'content': content
                         })
                 # print(f"[DEBUG] Istoric încărcat din: {db_path}", file=sys.stderr)
             except Exception as e:
                 print(f"EROARE la citirea istoricului din {db_path}: {e}", file=sys.stderr)
         else:
             print(f"[DEBUG] Fișier DB inexistent (Prima conversație?): {db_path}", file=sys.stderr)
+
+    elif client_messages and isinstance(client_messages, list):
+        # Vizitator fără SQLite: istoric trimis de client (LocalStorage), validat minimal
+        for msg in client_messages:
+            if not isinstance(msg, dict):
+                continue
+            role = msg.get("role")
+            content = (msg.get("content") or "").strip()
+            if role not in ("user", "assistant") or not content:
+                continue
+            conversation_history.append({"role": role, "content": content})
 
     # Adaugă mesajul curent al userului
     conversation_history.append({"role": "user", "content": user_message})
@@ -177,6 +193,6 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
         },
         "user_input": user_message
     }
-    print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)   
-
+    # Diagnostic: decomentează temporar ca să vezi tot payloadul trimis spre LLM (log greu, poate conține date sensibile).
+    # print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)
     return payload

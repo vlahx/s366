@@ -1,9 +1,24 @@
 <!DOCTYPE html>
-<html lang="ro" data-bs-theme="dark">
+<html lang="ro"
+    class="{% if request.url.path.startswith('/chat') %}is-chat-app{% endif %}">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {# Tema din localStorage înainte de paint (evită flash). Cheie: theme #}
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('theme');
+                var theme = (stored === 'dark' || stored === 'light') ? stored : null;
+                if (!theme && window.matchMedia) {
+                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                if (!theme) theme = 'light';
+                document.documentElement.setAttribute('data-bs-theme', theme);
+            } catch (e) { document.documentElement.setAttribute('data-bs-theme', 'light'); }
+        })();
+    </script>
 
     {# 1. RESURSE CRITICE (CSS & FONTS) - Browserele le vor imediat #}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -16,31 +31,46 @@
     <meta name="theme-color" content="#0b0d11" id="theme-color-meta">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="S366 Turbo">
+    <meta name="apple-mobile-web-app-title" content="S366 AI">
     <link rel="apple-touch-icon" href="/static/images/icons/icon-192x192.png">
     <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon" />
 
     {# 3. SEO & DINAMIC (TITLU/DESC) #}
     {% set site_url = "https://s366.online" %}
-    <title>{% block title %}S366 Turbo AI{% endblock %}</title>
+    {#
+      Sursă OG (un singur model, ca să nu dublezi titlu/descriere între Python și template):
+      - seo_og_url, seo_og_image_abs: din route (URL canonic + imagine absolută). Obligatoriu unde nu vrei request.url brut.
+      - og:title / og:description: mereu din aceleași blocuri ca <title> și meta description (self.title / self.meta_description).
+      Opțional seo_og_title / seo_og_description doar dacă vreodată un caz special — altfel nu le seta în context.
+    #}
+    {% set _og_path_qs = request.url.path ~ (('?' ~ request.url.query) if request.url.query else '') %}
+    {% set _og_url = (seo_og_url if (seo_og_url is defined and seo_og_url) else (site_url ~ _og_path_qs)) | trim %}
+    {% set _og_title = (seo_og_title if (seo_og_title is defined and seo_og_title) else self.title()) | trim %}
+    {% set _og_desc = (seo_og_description if (seo_og_description is defined and seo_og_description) else self.meta_description()) | trim %}
+    <title>{% block title %}S366 AI{% endblock %}</title>
     <meta name="description"
         content="{% block meta_description %}Asistentul perfect al firmei tale. Dedicat companiilor românești.{% endblock %}">
 
-    {# 4. SOCIAL MEDIA (OG/TWITTER) - Botiștii au răbdare, userii nu #}
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:title" content="{{ self.title() }}">
-    <meta property="og:description" content="{{ self.meta_description() }}">
-    <meta property="og:image"
-        content="{{ site_url }}{% block og_image %}/static/images/og/chat-ai-s366.png{% endblock %}">
+    {# 4. SOCIAL MEDIA (OG/TWITTER) — seo_og_image_abs din route; altfel card default #}
+    {% set _default_og_img = site_url ~ '/static/images/og/chat-ai-s366.png' %}
+    {% set _og_img = ((seo_og_image_abs if (seo_og_image_abs is defined and seo_og_image_abs) else _default_og_img) | trim) %}
+    {% set _tw_img = ((seo_tw_image_abs if (seo_tw_image_abs is defined and seo_tw_image_abs) else _og_img) | trim) %}
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:site_name" content="{% block og_site_name %}S366 AI{% endblock %}">
+    <meta property="og:url" content="{{ _og_url | e }}">
+    <meta property="og:title" content="{{ _og_title | e }}">
+    <meta property="og:description" content="{{ _og_desc | e }}">
+    <meta property="og:image" content="{{ _og_img | e }}" />
+    {# Meta acceptă același URL ca og:image când e HTTPS; fără if — unele medii Jinja/crawler au dat false negativ la startswith. #}
+    <meta property="og:image:secure_url" content="{{ _og_img | e }}" />
 
     <meta name="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="{{ request.url }}">
-    <meta name="twitter:title" content="{{ self.title() }}">
-    <meta name="twitter:description" content="{{ self.meta_description() }}">
-    <meta name="twitter:image" content="{{ site_url }}{% block tw_image %}{{ self.og_image() }}{% endblock %}">
+    <meta name="twitter:url" content="{{ _og_url | e }}">
+    <meta name="twitter:title" content="{{ _og_title | e }}">
+    <meta name="twitter:description" content="{{ _og_desc | e }}">
+    <meta name="twitter:image" content="{{ _tw_img | e }}" />
 
-
+    {% block extra_head %}{% endblock %}
 
     <style>
         body {
@@ -58,10 +88,39 @@
     
             {% if request.url.path.startswith ('/chat') %}
 
-        html,
-        body {
-            height: 100vh;
-            overflow: hidden;
+        /*
+         * Chat: UN singur scroll — în #chat-box. Fără scroll pe document (altfel două bare + scrollTop pe chat nu „ține”).
+         * body.min-vh-100 e exclus pe /chat; is-chat-app pe <html> + is-chat-app-body pe <body>.
+         */
+        html.is-chat-app {
+            height: 100%;
+            min-height: 100dvh;
+            max-height: 100dvh;
+            overflow: hidden !important;
+            overscroll-behavior: none;
+        }
+
+        html.is-chat-app body.is-chat-app-body {
+            height: 100%;
+            min-height: 0 !important;
+            max-height: 100dvh;
+            overflow: hidden !important;
+            overscroll-behavior: none;
+        }
+
+        html.is-chat-app main.flex-grow-1 {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+        }
+
+        html.is-chat-app main.flex-grow-1 > #wrapper {
+            flex: 1 1 0;
+            min-height: 0;
+            height: auto;
+            max-height: none;
         }
 
             {% else %}
@@ -88,7 +147,8 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body class="d-flex flex-column min-vh-100">
+<body
+    class="d-flex flex-column {% if request.url.path.startswith('/chat') %}is-chat-app-body{% else %}min-vh-100{% endif %}">
 
 
 
@@ -110,34 +170,54 @@
 
     <main class="flex-grow-1 position-relative overflow-hidden">
         {% block content %}{% endblock %}
+        {# Chat: footer în interiorul main, dedesubtul #wrapper — altfel pe unele browsere (ex. Brave) se suprapune peste bara de input #}
+        {% if request.url.path.startswith('/chat') %}
+        {% include 'layout/chat-footer.html' %}
+        {% endif %}
     </main>
 
     {% if not request.url.path.startswith('/chat') %}
     {% include 'layout/main-footer.html' %}
-    {% else %}
-    {% include 'layout/chat-footer.html' %}
     {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // Logica ta de temă (păstrată 100% originală)
-        const getStoredTheme = () => localStorage.getItem('theme');
-        const setStoredTheme = theme => localStorage.setItem('theme', theme);
+        const THEME_KEY = 'theme';
+        const getStoredTheme = () => localStorage.getItem(THEME_KEY);
+        const setStoredTheme = (t) => localStorage.setItem(THEME_KEY, t);
         const getPreferredTheme = () => {
-            const storedTheme = getStoredTheme();
-            if (storedTheme) return storedTheme;
+            const stored = getStoredTheme();
+            if (stored === 'dark' || stored === 'light') return stored;
             return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-        const setTheme = theme => { document.documentElement.setAttribute('data-bs-theme', theme); }
-        setTheme(getPreferredTheme());
+        };
 
-        document.getElementById('themeToggler')?.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(newTheme);
-            setStoredTheme(newTheme);
-            if (typeof window.updateMapTheme === 'function') { window.updateMapTheme(newTheme); }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-bs-theme', theme);
+            var meta = document.getElementById('theme-color-meta');
+            if (meta) {
+                meta.setAttribute('content', theme === 'dark' ? '#0b0d11' : '#f8f9fa');
+            }
+            document.querySelectorAll('.theme-toggle-icon').forEach(function (icon) {
+                icon.classList.remove('bi-sun-fill', 'bi-moon-stars-fill');
+                if (theme === 'dark') {
+                    icon.classList.add('bi-sun-fill');
+                    icon.setAttribute('title', 'Comută la temă deschisă');
+                } else {
+                    icon.classList.add('bi-moon-stars-fill');
+                    icon.setAttribute('title', 'Comută la temă închisă');
+                }
+            });
+            if (typeof window.updateMapTheme === 'function') window.updateMapTheme(theme);
+        }
+
+        applyTheme(getPreferredTheme());
+
+        document.getElementById('themeToggler')?.addEventListener('click', function () {
+            var cur = document.documentElement.getAttribute('data-bs-theme') || 'light';
+            var next = cur === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+            setStoredTheme(next);
         });
 
         // Auto-inchidere alerte

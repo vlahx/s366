@@ -26,11 +26,12 @@ from app.utils.db_prompts import (
 )
 
 from app.utils.db_rags import (
-    list_docs, 
+    list_docs,
     get_document_path,
     chunk_document_text,
     save_uploaded_document,
-    delete_company_document
+    delete_company_document,
+    revectorize_document,
 )
 
 # Activăm protecția direct pe router. Cine nu e Superadmin sau Company Admin cu ID, nici nu intră aici.
@@ -183,6 +184,26 @@ async def delete_document_action(doc_id: int, request: Request):
     success, message = await delete_company_document(cui, doc_id)
 
     # Ne întoarcem la bază, simplu, fără 'active_tabs' sau alte balasturi
+    return RedirectResponse(url="/company_admin/dashboard/docs", status_code=303)
+
+
+@router.post("/dashboard/rag/revectorize/{doc_id}")
+async def revectorize_document_action(
+    doc_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    cui = request.session.get('company_cui')
+    if not cui:
+        return RedirectResponse(url="/auth/login", status_code=303)
+
+    def run_revectorize():
+        import asyncio
+
+        ok, msg = asyncio.run(revectorize_document(cui, doc_id))
+        print(f"{'✅' if ok else '❌'} [RAG] Re-vectorizare doc {doc_id}: {msg}")
+
+    background_tasks.add_task(run_revectorize)
     return RedirectResponse(url="/company_admin/dashboard/docs", status_code=303)
 
 

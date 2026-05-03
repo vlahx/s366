@@ -24,6 +24,23 @@ def get_document_path(cui: str, filename: str = None):
     return company_docs_dir
 
 
+async def _ensure_documents_columns(db):
+    """DB-uri vechi: CREATE IF NOT EXISTS nu adaugă coloane noi. Le alterăm aici."""
+    async with db.execute('PRAGMA table_info("documents")') as cursor:
+        existing = {row[1] for row in await cursor.fetchall()}
+    alters = [
+        ("source_id", "TEXT"),
+        ("type", "TEXT NOT NULL DEFAULT 'file'"),
+        ("image_url", "TEXT"),
+        ("created_at", "TEXT"),
+        ("uploaded_at", "TEXT"),
+    ]
+    for name, definition in alters:
+        if name not in existing:
+            await db.execute(
+                f'ALTER TABLE "documents" ADD COLUMN "{name}" {definition}'
+            )
+
 
 # 2. Funcția de conectare
 async def get_db(cui):
@@ -74,7 +91,7 @@ async def init_company_db(cui):
                 )
             """)
             
-            # 2. Tabelul de Documente (Versiunea Turbo)
+            # 2. Tabelul de documente (RAG)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS "documents" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,6 +106,8 @@ async def init_company_db(cui):
                     "uploaded_at" TEXT DEFAULT (datetime('now')) -- Data la care am făcut noi sync
                 )
             """)
+
+            await _ensure_documents_columns(db)
 
             # 3. Tabelul Chunks (Rămâne la fel, e solid)
             await db.execute("""
@@ -148,7 +167,7 @@ async def init_company_db(cui):
                     content_type TEXT,          -- 'news'
                     title TEXT,                 -- Titlul curățat
                     raw_content TEXT,           -- Textul curățat (Source of Truth)
-                    embedding BLOB,             -- Amprenta Vectorială (384 dimensiuni)
+                    embedding BLOB,             -- Amprenta vectorială (mxbai-embed-large, 1024 dim)
                     url TEXT,                   -- Link original
                     price REAL DEFAULT 0.0,     
                     discount REAL DEFAULT 0.0,  
@@ -234,7 +253,7 @@ async def get_company_settings(cui):
 
                # print(f"  └─ Row found: {key} = {val}") # Debug pe fiecare rând
                 
-                if key in ["rag_temperature", "rag_threshold"]:
+                if key in ["rag_temperature", "rag_threshold", "rag_repeat_penalty", "llm_temperature"]:
                     settings[key] = float(val)
                 elif key in ["rag_num_ctx", "rag_top_k"]:
                     settings[key] = int(val)

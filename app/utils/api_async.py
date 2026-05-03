@@ -46,9 +46,15 @@ class LLMServiceAsync:
 
         settings = await get_company_settings(company_cui) or {} 
 
+        # rag_temperature în DB e folosită și la RAG; pentru chat evităm valori foarte mici (ex. 0.1) care destabilizează qwen3.5 în Ollama.
+        if "llm_temperature" in settings:
+            chat_temp = float(settings["llm_temperature"])
+        else:
+            chat_temp = max(float(settings.get("rag_temperature", 0.55)), 0.45)
         llm_options = {
-            "temperature": float(settings.get("rag_temperature", 0.1)),
-            "num_ctx": int(settings.get("rag_num_ctx", 8192))
+            "temperature": chat_temp,
+            "num_ctx": int(settings.get("rag_num_ctx", 8192)),
+            "repeat_penalty": float(settings.get("rag_repeat_penalty", 1.15)),
         }
 
         full_messages = []

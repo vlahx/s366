@@ -1,15 +1,19 @@
 {% extends "layout/base.html" %}
 
+{% block extra_head %}
+<link rel="canonical" href="{{ public_canonical }}" />
+{% endblock %}
+
 {% block content %}
 <div class="container mt-5 mb-5" style="max-width: 900px; line-height: 1.6;">
-    <divclass="card shadow-sm p-4 border-0">
+    <div class="card shadow-sm p-4 border-0">
         <h1 class="display-5 mb-3">Politica de Confidențialitate</h1>
         <p class="text-muted">Ultima actualizare: 11 Martie 2026</p>
         <hr>
 
         <section class="mb-4">
             <h3 class="h4 text-primary">1. Ce date colectăm?</h3>
-            <p>Prin utilizarea autentificării Google, <strong>s366_turbo</strong> accesează următoarele informații de
+            <p>Prin utilizarea autentificării Google, <strong>S366 AI</strong> accesează următoarele informații de
                 bază:</p>
             <ul>
                 <li><strong>Adresa de e-mail:</strong> Folosită exclusiv pentru identificarea unică a contului tău.</li>
@@ -39,9 +43,10 @@
 
         <section class="mb-4">
             <h3 class="h4 text-primary">4. Drepturile utilizatorului</h3>
-            <p>Conform GDPR, ai dreptul de a solicita oricând ștergerea contului și a datelor asociate. Poți face acest
-                lucru trimițând o solicitare prin formularul de contact sau direct din setările profilului (unde este
-                disponibil).</p>
+            <p>Conform GDPR, ai dreptul de a solicita oricând ștergerea contului și a datelor asociate. Poți trimite
+                solicitarea la <a href="mailto:support@s366.online">support@s366.online</a> sau la
+                <a href="mailto:contact@s366.online">contact@s366.online</a>, prin <a href="/contact">pagina de contact</a>,
+                sau din setările profilului (unde este disponibil).</p>
         </section>
 
         <section class="mb-4">
@@ -51,7 +56,7 @@
         </section>
         <section class="mb-4">
             <h3 class="h4 text-primary">6. Garanția „Zero-Footprint” la Reziliere</h3>
-            <p>În <strong>s366_turbo</strong>, proprietatea asupra datelor aparține în totalitate companiei. Ne luăm
+            <p>În <strong>S366 AI</strong>, proprietatea asupra datelor aparține în totalitate companiei. Ne luăm
                 următorul angajament tehnic:</p>
             <div class="p-3 border-start border-primary ">
                 <p class="mb-2"><strong>Eliminare în Cascadă:</strong> În momentul în care o companie este ștearsă din
@@ -72,8 +77,9 @@
 
         <div class="alert alert-info mt-5">
             <p class="mb-0 small"><strong>Notă:</strong> Această politică este creată pentru a asigura transparența
-                totală între <strong>s366_turbo</strong> și utilizatorii săi.</p>
+                totală între <strong>S366 AI</strong> și utilizatorii săi. Operator:
+                <a href="mailto:legal@s366.online" class="alert-link">legal@s366.online</a>.</p>
         </div>
-</div>
+    </div>
 </div>
 {% endblock %}

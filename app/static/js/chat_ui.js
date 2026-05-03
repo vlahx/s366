@@ -3,20 +3,82 @@
 /**
  * Gestionează scroll-ul automat la finalul listei de mesaje
  */
-export let userScrolledUp = false; // Flag pentru a detecta dacă user-ul a scrollat în sus
+export let userScrolledUp = false;
 
+/** Răspuns AI în curs (pentru logică UI). Urmărirea fundului depinde de userScrolledUp — dacă user a urcat, nu îl tragem înapoi. */
+let streamingFollow = false;
 
+export function setStreamingFollow(on) {
+    streamingFollow = !!on;
+}
+
+/** La trimitere mesaj nou: reluăm auto-scroll (altfel rămâne blocat pe vechiul userScrolledUp). */
+export function resetUserScrollState() {
+    userScrolledUp = false;
+}
+
+export function removeTypingIndicator() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+}
+
+/** Indicator „gândește” imediat sub ultimul mesaj user, deasupra locului răspunsului AI. */
+export function appendTypingIndicator() {
+    const chatBox = document.getElementById('chat-box');
+    if (!chatBox) return;
+    removeTypingIndicator();
+    const typingDiv = document.createElement('div');
+    typingDiv.id = 'typing-indicator';
+    typingDiv.className = 'bot-msg msg-bubble';
+    typingDiv.innerHTML = `
+        <div class="typing">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>`;
+    chatBox.appendChild(typingDiv);
+    scrollBottom();
+}
+
+/** Scroll forțat la fundul #chat-box (compensare subpixel + scroll anchoring). */
+function scrollChatBoxToBottom() {
+    const box = document.getElementById('chat-box');
+    if (!box) return;
+
+    const maxTop = Math.max(0, box.scrollHeight - box.clientHeight);
+    box.scrollTop = maxTop;
+
+    const last = box.lastElementChild;
+    if (last) {
+        try {
+            last.scrollIntoView({ block: 'end', inline: 'nearest', behavior: 'auto' });
+        } catch {
+            last.scrollIntoView(false);
+        }
+    }
+}
 
 export function scrollBottom() {
-    if (userScrolledUp) return;  // ← cheia: nu facem scroll dacă user-ul e sus
+    if (userScrolledUp) return;
 
-    const box = document.getElementById('chat-box');
-    if (box) {
-        box.scrollTo({
-            top: box.scrollHeight,
-            behavior: 'smooth'
-        });
-    }
+    const apply = () => {
+        if (streamingFollow) {
+            scrollChatBoxToBottom();
+        } else {
+            const box = document.getElementById('chat-box');
+            if (!box) return;
+            box.scrollTo({
+                top: Math.max(0, box.scrollHeight - box.clientHeight),
+                behavior: 'smooth',
+            });
+        }
+    };
+
+    apply();
+    requestAnimationFrame(() => {
+        apply();
+        requestAnimationFrame(apply);
+    });
 }
 
 /**
@@ -123,25 +185,38 @@ function initScrollDetection() {
 
     let debounceTimeout = null;
     let touchStartY = 0;
+    let lastScrollTop = chatBox.scrollTop;
 
-    // Listener clasic pe scroll (bun pentru desktop și momentum)
+    // Distanța de la fund nu e suficientă în timpul streamului (conținutul crește fără scrollTop să urmărească) — folosim și „scrollTop a scăzut” = user a urcat.
     chatBox.addEventListener('scroll', () => {
         clearTimeout(debounceTimeout);
 
         debounceTimeout = setTimeout(() => {
-            const distanceFromBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight;
+            const st = chatBox.scrollTop;
+            const distanceFromBottom = chatBox.scrollHeight - st - chatBox.clientHeight;
 
-            if (distanceFromBottom > 80) {  // mai sensibil decât 100
+            // Nu folosi doar distanceFromBottom mare: la creșterea conținutului în stream, fără scrollTop actualizat încă, ar opri urmărirea pe fals.
+            if (lastScrollTop >= 0 && st < lastScrollTop - 2) {
                 userScrolledUp = true;
-                // console.log('Scroll detectat → oprim auto-scroll (distanță:', distanceFromBottom, 'px)');
             } else if (distanceFromBottom < 40) {
                 userScrolledUp = false;
-                // console.log('User jos → reluăm auto-scroll');
             }
-        }, 80); // debounce mic ca să nu tremure
+            lastScrollTop = st;
+        }, 40);
     }, { passive: true });
 
-    // Detectare touch pentru mobil (esențial!)
+    chatBox.addEventListener(
+        'wheel',
+        (e) => {
+            if (e.deltaY < -2) userScrolledUp = true;
+            if (e.deltaY > 2) {
+                const d = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight;
+                if (d < 48) userScrolledUp = false;
+            }
+        },
+        { passive: true },
+    );
+
     chatBox.addEventListener('touchstart', (e) => {
         touchStartY = e.touches[0].clientY;
     }, { passive: true });
@@ -152,16 +227,11 @@ function initScrollDetection() {
         const touchCurrentY = e.touches[0].clientY;
         const deltaY = touchCurrentY - touchStartY;
 
-        // Dacă trage în sus (deltaY pozitiv = scroll up pe touch)
-        if (deltaY > 25) {  // 25 px e foarte sensibil pe mobil
-            if (!userScrolledUp) {
-                userScrolledUp = true;
-                // console.log('Touch up detectat → oprim auto-scroll');
-            }
+        if (deltaY > 25) {
+            userScrolledUp = true;
         }
     }, { passive: true });
 
-    // La touchend verificăm poziția finală (ca să repornim dacă user-ul a revenit jos)
     chatBox.addEventListener('touchend', () => {
         clearTimeout(debounceTimeout);
 
@@ -169,10 +239,22 @@ function initScrollDetection() {
             const distanceFromBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight;
             if (distanceFromBottom < 40) {
                 userScrolledUp = false;
-                // console.log('Touch end – user jos → reluăm auto-scroll');
             }
         }, 120);
     }, { passive: true });
+
+    // În timpul streamului: auto-scroll doar dacă user nu a ales să citească mai sus.
+    let moRaf = 0;
+    const mo = new MutationObserver(() => {
+        if (!streamingFollow || userScrolledUp) return;
+        if (moRaf) return;
+        moRaf = requestAnimationFrame(() => {
+            moRaf = 0;
+            if (!streamingFollow || userScrolledUp) return;
+            scrollChatBoxToBottom();
+        });
+    });
+    mo.observe(chatBox, { childList: true, subtree: true });
 }
 // Pornim inițializarea
 initScrollDetection();

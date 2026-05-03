@@ -1,5 +1,7 @@
 import hashlib
 import os
+import docker
+from docker.errors import NotFound, APIError
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -40,7 +42,7 @@ async def admin_dashboard(request: Request):
             "stats": stats,
             "users": users,
             "companies": companies,
-            "title": "Admin Panel | s366_turbo",
+            "title": "Admin — S366 AI",
         },
     )
 
@@ -51,6 +53,40 @@ async def api_stats(request: Request):
 
     stats = get_system_stats()
     return JSONResponse(content=stats)
+
+
+@router.post("/container/{action}/{container_name}")
+async def admin_container_control(
+    request: Request,
+    action: str,
+    container_name: str,
+):
+    """start | stop | restart — folosește numele Docker (ex. din `docker ps -a --format '{{.Names}}'`)."""
+    if request.session.get("role") != "superadmin":
+        raise HTTPException(status_code=403, detail="Acces interzis")
+
+    if action not in ("start", "stop", "restart"):
+        raise HTTPException(status_code=400, detail="Acțiune invalidă (start|stop|restart)")
+
+    try:
+        client = docker.from_env()
+        c = client.containers.get(container_name)
+        if action == "start":
+            c.start()
+        elif action == "stop":
+            c.stop(timeout=20)
+        else:
+            c.restart(timeout=20)
+        return JSONResponse(
+            content={"ok": True, "action": action, "container": container_name}
+        )
+    except NotFound:
+        raise HTTPException(status_code=404, detail=f"Container „{container_name}” negăsit")
+    except APIError as e:
+        msg = getattr(e, "explanation", None) or str(e)
+        raise HTTPException(status_code=502, detail=msg)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/pending-companies")
 async def list_pending_companies(request: Request):

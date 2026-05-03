@@ -17,7 +17,7 @@ def clean_wp_content(raw_html: str) -> str:
 
 async def sync_wp_content(company_cui: str, target_url: str, count: int = 10):
     """
-    Sincronizare Turbo cu Debug Logs: Detecție -> Curățare -> Vectorizare -> Salvare.
+    Sincronizare WordPress cu debug: detecție → curățare → vectorizare → salvare.
     """
     print(f"🔍 [SCRAPER {company_cui}] Încep verificarea pentru: {target_url}")
     

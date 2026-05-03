@@ -32,12 +32,19 @@
 
 #wrapper {
     display: flex;
-    flex: 1;
-    /* Ocupă tot spațiul dintre navbar și footer */
-    height: 100%;
-    /* Se întinde pe toată înălțimea lui <main> */
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    align-self: stretch;
     overflow: hidden;
-    /* Nu lasă scroll-ul să iasă din el */
+    position: relative;
+    z-index: 0;
+    /* stacking sub navbar — altfel <main> (după nav în DOM) poate „câștiga” la click peste hamburger */
+}
+
+/* Navbar rămâne deasupra conținutului din main (sticky + z-index explicit) */
+nav.navbar.sticky-top {
+    z-index: 1060;
 }
 
 #sidebar-left {
@@ -59,6 +66,17 @@
     transform: translateX(0);
 }
 
+/* Doar off-canvas mobil: fără .show, nu bloca click-uri pe chat / navbar */
+@media (max-width: 991.98px) {
+    #sidebar-left:not(.show) {
+        pointer-events: none;
+    }
+
+    #sidebar-left.show {
+        pointer-events: auto;
+    }
+}
+
 @media (min-width: 992px) {
 
     /* lg breakpoint bootstrap */
@@ -78,14 +96,21 @@
 }
 
 #chat-container {
-    flex: 1;
-    /* Ocupă tot spațiul orizontal rămas */
+    flex: 1 1 0;
     display: flex;
     flex-direction: column;
     width: 100%;
-    /* Forțează lățimea completă */
     min-width: 0;
-    /* Magic fix pentru flexbox overflow pe orizontală */
+    min-height: 0;
+    align-self: stretch;
+    /* Fără Bootstrap h-100: evită ciclu height % pe mobil când sidebar e fixed */
+}
+
+/* Footer chat: ultimul copil al <main>, dedesubtul #wrapper (nu după main — evită suprapunere cu input) */
+html.is-chat-app main.flex-grow-1 > footer {
+    flex-shrink: 0;
+    width: 100%;
+    z-index: 1;
 }
 
 
@@ -122,15 +147,23 @@
     align-self: flex-start;
 }
 
-/* Și containerul părinte trebuie să fie flex ca align-self să meargă */
+/* Zona scrollabilă: flex-basis 0 + grow = ocupă doar spațiul rămas, nu „împinge” coloana */
 #chat-box {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-anchor: none;
+    overscroll-behavior: contain;
+    /* Nu propagă impulsul de scroll la document când ajungi la capătul listei */
+    /* Evită scroll anchoring în Chrome care poate contracara scrollTop în timpul streamului */
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 20px;
-    /* Spațiu în jurul mesajelor */
-    overflow-y: auto;
-    /* Scroll vertical dacă e nevoie */
+}
+
+.chat-input-area {
+    flex-shrink: 0;
 }
 
 .typing {
@@ -184,10 +217,12 @@
     text-decoration: underline;
 }
 
+/* Padding/border pe .chat-input-area — aici doar layout formular */
 #chat-form {
-    padding: 16px 24px;
-    background: var(--bg);
-    border-top: 1px solid var(--border);
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
 }
 
 #user-input {

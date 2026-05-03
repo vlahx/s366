@@ -1,3 +1,6 @@
+from typing import Optional
+from urllib.parse import quote
+
 from fastapi import APIRouter, Request, Depends, HTTPException, Form
 from fastapi.responses import StreamingResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -19,29 +22,46 @@ import aiosqlite
 
 from app.models.sqlite_model import fetch_one, execute_query, fetch_all
 from app.utils.notifier import send_telegram_admin_alert, send_telegram_company_approval
+from app.utils.hosting_checkout import public_base_url
 from app.utils.session import sync_user_session
+from app.utils.billing_profile import billing_readiness, clean_row_for_forms, safe_internal_path
 
 
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
+
+def _login_template_context(request: Request) -> dict:
+    o = public_base_url(str(request.base_url).rstrip("/"))
+    return {
+        "request": request,
+        "seo_og_image_abs": f"{o}/static/images/og/lo-shack.png",
+        "seo_tw_image_abs": f"{o}/static/images/robo/lo-shack.png",
+    }
+
+
 @router.get("/", response_class=HTMLResponse)
-async def auth_page(request: Request):
-    
+async def auth_page(request: Request, next: Optional[str] = None):
+    sn = safe_internal_path(next)
+    if sn:
+        request.session["oauth_next"] = sn
     return templates.TemplateResponse(
         request=request,
         name="auth/login.html",
-        context={"request": request},
+        context=_login_template_context(request),
     )
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
+async def login_page(request: Request, next: Optional[str] = None):
+    sn = safe_internal_path(next)
+    if sn:
+        request.session["oauth_next"] = sn
     return templates.TemplateResponse(
         request=request,
         name="auth/login.html",
-        context={"request": request},
+        context=_login_template_context(request),
     )
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -102,7 +122,9 @@ async def google_callback(request: Request, code: str):
     # 4. Sincronizare sesiune (Marea Sincronizare)
     await sync_user_session(request, user_id)
 
-    return RedirectResponse(url="/auth/profile")
+    next_raw = request.session.pop("oauth_next", None)
+    target = safe_internal_path(next_raw) or "/auth/profile"
+    return RedirectResponse(url=target)
 
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -136,58 +158,238 @@ async def telegram_auth(request: Request):
     user = await fetch_one('SELECT * FROM users WHERE oauth_id = ?', (oauth_id,))
     
     if not user:
-        # User Nou -> Îl băgăm în DB
-        # Notă: Am pus provider 'telegram' ca să știm de unde a venit
-        await execute_query('''
+        await execute_query(
+            """
             INSERT INTO users (oauth_id, firstname, lastname, username, photo_url, role) 
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (oauth_id, firstname, lastname, username, photo_url, 'none'))
-        
-        # Luăm userul proaspăt creat pentru a-i obține ID-ul intern
-        user = await fetch_one('SELECT * FROM users WHERE oauth_id = ?', (oauth_id,))
-        current_role = 'none'
-        target_path = '/auth/profile'
-    else:
-      
-        user_id = user['id']
+            """,
+            (oauth_id, firstname, lastname, username, photo_url, "none"),
+        )
+        user = await fetch_one("SELECT * FROM users WHERE oauth_id = ?", (oauth_id,))
 
-    # Marea Sincronizare
+    user_id = user["id"]
+
     await sync_user_session(request, user_id)
     request.session["flash_messages"] = [{"text": "Te-ai logat cu succes!", "type": "success"}]
-    return RedirectResponse(url="/auth/profile")
+    next_raw = request.session.pop("oauth_next", None)
+    target = safe_internal_path(next_raw) or "/auth/profile"
+    return RedirectResponse(url=target)
 
 @router.get("/profile", name="profile")
-async def profile(request: Request):
-    user_id = request.session.get('user_id')
+async def profile(
+    request: Request,
+    billing_required: int = 0,
+    next: Optional[str] = None,
+):
+    user_id = request.session.get("user_id")
     if not user_id:
-        return RedirectResponse(url="/auth/login")
+        dest = quote(str(request.url.path) + (f"?{request.url.query}" if request.url.query else ""))
+        return RedirectResponse(url=f"/auth/login?next={dest}")
 
-    # Luăm datele userului din database.db
-    user = await fetch_one('SELECT * FROM users WHERE id = ?', (user_id,))
-    
-    # Luăm și lista de companii ca să aibă ce alege în dropdown
-    companies = await fetch_all('SELECT company_id, name FROM companies')
+    if billing_required:
+        bn = safe_internal_path(next)
+        dest = "/auth/billing" + (f"?next={quote(bn)}" if bn else "")
+        return RedirectResponse(url=dest, status_code=303)
+
+    user = await fetch_one(
+        """
+        SELECT u.*, c.name AS company_name_join
+        FROM users u
+        LEFT JOIN companies c ON u.company_id = c.company_id
+        WHERE u.id = ?
+        """,
+        (user_id,),
+    )
+    user_d = clean_row_for_forms(dict(user))
+    if user_d.get("company_name_join") and not user_d.get("company_name"):
+        user_d["company_name"] = user_d["company_name_join"]
+
+    company = None
+    if user_d.get("company_id"):
+        company = await fetch_one(
+            "SELECT * FROM companies WHERE company_id = ?",
+            (user_d["company_id"],),
+        )
+
+    company_d = clean_row_for_forms(dict(company)) if company else None
+    br = billing_readiness(user_d, company_d)
 
     return templates.TemplateResponse(
         request=request,
         name="auth/profile.html",
         context={
             "request": request,
-            "user": user,
-            "companies": companies,
+            "user": user_d,
+            "company": company_d,
+            "billing": br,
         },
     )
 
 
-###############################################
-###############################################
+async def _apply_billing_from_form(user_id: int, form_data) -> str:
+    inv_type = (form_data.get("invoice_customer_type") or "").strip().upper()
+    if inv_type in ("PF", "PJ"):
+        ic = _form_strip(form_data, "invoice_country") or "RO"
+        await execute_query(
+            """
+            UPDATE users SET
+                invoice_customer_type=?,
+                invoice_full_name=?,
+                invoice_street=?,
+                invoice_city=?,
+                invoice_county=?,
+                invoice_postal_code=?,
+                invoice_country=?,
+                invoice_phone=?
+            WHERE id=?
+            """,
+            (
+                inv_type,
+                _form_strip(form_data, "invoice_full_name"),
+                _form_strip(form_data, "invoice_street"),
+                _form_strip(form_data, "invoice_city"),
+                _form_strip(form_data, "invoice_county"),
+                _form_strip(form_data, "invoice_postal_code"),
+                ic,
+                _form_strip(form_data, "invoice_phone"),
+                user_id,
+            ),
+        )
+    if inv_type == "PJ":
+        urow = await fetch_one("SELECT company_id FROM users WHERE id=?", (user_id,))
+        cid = urow["company_id"] if urow else None
+        if cid:
+            vat_raw = form_data.get("company_is_vat_payer")
+            is_vat = 1 if vat_raw in ("on", "1", "true", "yes") else 0
+            coc = _form_strip(form_data, "company_invoice_country") or "RO"
+            await execute_query(
+                """
+                UPDATE companies SET
+                    reg_com=?,
+                    invoice_legal_name=?,
+                    invoice_street=?,
+                    invoice_city=?,
+                    invoice_county=?,
+                    invoice_postal_code=?,
+                    invoice_country=?,
+                    is_vat_payer=?
+                WHERE company_id=?
+                """,
+                (
+                    _form_strip(form_data, "company_reg_com"),
+                    _form_strip(form_data, "company_invoice_legal_name"),
+                    _form_strip(form_data, "company_invoice_street"),
+                    _form_strip(form_data, "company_invoice_city"),
+                    _form_strip(form_data, "company_invoice_county"),
+                    _form_strip(form_data, "company_invoice_postal_code"),
+                    coc,
+                    is_vat,
+                    cid,
+                ),
+            )
+    return inv_type
+
+
+@router.get("/billing", response_class=HTMLResponse)
+async def billing_page(request: Request, next: Optional[str] = None):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        dest = quote("/auth/billing" + (f"?next={next}" if next else ""))
+        return RedirectResponse(url=f"/auth/login?next={dest}")
+
+    user = await fetch_one(
+        """
+        SELECT u.*, c.name AS company_name_join
+        FROM users u
+        LEFT JOIN companies c ON u.company_id = c.company_id
+        WHERE u.id = ?
+        """,
+        (user_id,),
+    )
+    user_d = clean_row_for_forms(dict(user))
+    if user_d.get("company_name_join") and not user_d.get("company_name"):
+        user_d["company_name"] = user_d["company_name_join"]
+
+    company = None
+    if user_d.get("company_id"):
+        company = await fetch_one(
+            "SELECT * FROM companies WHERE company_id = ?",
+            (user_d["company_id"],),
+        )
+    company_d = clean_row_for_forms(dict(company)) if company else None
+    br = billing_readiness(user_d, company_d)
+    billing_next = safe_internal_path(next)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="auth/billing.html",
+        context={
+            "request": request,
+            "user": user_d,
+            "company": company_d,
+            "billing": br,
+            "billing_next": billing_next,
+        },
+    )
+
+
+@router.post("/billing/save")
+async def billing_save(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/auth/login", status_code=303)
+
+    form_data = await request.form()
+    await _apply_billing_from_form(int(user_id), form_data)
+    await sync_user_session(request, int(user_id))
+
+    u = await fetch_one("SELECT * FROM users WHERE id=?", (user_id,))
+    if not u:
+        return RedirectResponse(url="/auth/login", status_code=303)
+    ud = dict(u)
+    co = None
+    cid = ud.get("company_id")
+    if cid:
+        co = await fetch_one(
+            "SELECT * FROM companies WHERE company_id=?",
+            (cid,),
+        )
+    u_d = clean_row_for_forms(ud)
+    co_d = clean_row_for_forms(dict(co)) if co else None
+
+    next_url = safe_internal_path(form_data.get("billing_next"))
+    if next_url and billing_readiness(u_d, co_d)["ok"]:
+        request.session["flash_messages"] = [
+            {"text": "Date facturare salvate. Continuă comanda.", "type": "success"}
+        ]
+        return RedirectResponse(url=next_url, status_code=303)
+
+    request.session["flash_messages"] = [
+        {"text": "Date salvate. Verifică câmpurile marcate ca obligatorii.", "type": "warning"}
+    ]
+    redir = "/auth/billing"
+    if next_url:
+        redir = f"/auth/billing?next={quote(next_url)}"
+    return RedirectResponse(url=redir, status_code=303)
+
+
+def _form_strip(form_data, key: str):
+    v = form_data.get(key)
+    if v is None:
+        return None
+    s = str(v).strip()
+    return s or None
+
+
 ###############################################
 @router.post("/profile/update")
 async def update_profile(request: Request):
-    user_id = request.session.get('user_id')
-    username = request.session.get('username')
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/auth/login", status_code=303)
+
     form_data = await request.form()
-    
+
     intent = form_data.get("user_intent") # 'be_visible' sau 'be_admin'
     firstname = form_data.get("firstname")
     lastname = form_data.get("lastname")
@@ -217,7 +419,7 @@ async def update_profile(request: Request):
     
     
 
-    # 🚨 MOMENTUL TURBO: Alertă Telegram
+    # 🚨 Alertă Telegram (înregistrare admin)
   
     if intent == "be_admin":
         msg = f"🔔 *Cerere Admin*: {firstname} {lastname}"
@@ -230,8 +432,6 @@ async def update_profile(request: Request):
         request.session["flash_messages"] = [{"text": "Situatia ta s-a schimbat, de acum poti fi vazut de catre administratorii companiilor!", "type": "success"}]
         return RedirectResponse(url="/auth/profile?success=1", status_code=303)
 
-
-    # Dacă nu e nici admin, nici visible, intră aici implicit:
     request.session["flash_messages"] = [{"text": "Profil actualizat!", "type": "success"}]
     return RedirectResponse(url="/auth/profile?success=1", status_code=303)
 
@@ -289,7 +489,7 @@ async def create_company(request: Request):
     # 6. Sync Sesiune
     await sync_user_session(request, user_id)
     
-    # 🚨 7. MOMENTUL TURBO: Generare Token și Alertă Telegram
+    # 🚨 7. Generare token și alertă Telegram (firmă nouă)
     secret = os.getenv("APP_SECRET_KEY", "schimba-ma-frate")
     # Generăm același tip de token pe care îl așteaptă ruta de aprobare
     token = hashlib.sha256(f"comp_{c_id}{secret}".encode()).hexdigest()[:16]

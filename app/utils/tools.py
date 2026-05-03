@@ -175,7 +175,7 @@ async def execute_tool(tool_call):
             return {"error": str(e)}
     
     logger.warning(f"⚠️ Unealta {name} nu este definită în available_tools.")
-    return {"error": f"Tool {name} not found in S366_turbo registry"}    
+    return {"error": f"Tool {name} not found in S366 AI registry"}
     
 
 TOOLS_DESCRIPTION = [
