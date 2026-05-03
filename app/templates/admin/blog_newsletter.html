@@ -1,0 +1,105 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Newsletter blog — S366 AI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-body-emphasis fw-bold">Newsletter blog</h1>
+            <p class="text-body-secondary mb-0 small">Abonați și trimitere (SMTP separat, variabile <code>NEWSLETTER_*</code>).</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/admin/blog/posts" class="btn btn-outline-secondary btn-sm">← Articole</a>
+            <a href="/admin/blog/newsletter/export.csv" class="btn btn-outline-primary btn-sm">Export CSV</a>
+        </div>
+    </div>
+
+    {% if not smtp_configured %}
+    <div class="alert alert-warning">
+        Trimiterea nu e activă: setează <code>NEWSLETTER_SMTP_HOST</code> (și de obicei
+        <code>NEWSLETTER_SMTP_USER</code> / <code>NEWSLETTER_SMTP_PASSWORD</code>).
+        Expeditor implicit: <code>no-reply@s366.online</code> — creează aliasul la mail/host;
+        altfel suprascrie cu <code>NEWSLETTER_FROM_EMAIL</code>.
+        Opțional: <code>NEWSLETTER_PUBLIC_ORIGIN</code> (ex. <code>https://s366.online</code>).
+        Dacă SMTP e <code>hosting_mailserver</code> și vezi în log „unknown ca” / STARTTLS eșuat: setează
+        <code>NEWSLETTER_SMTP_TLS_VERIFY=false</code> (cert intern) sau montează CA-ul și <code>NEWSLETTER_SMTP_CAFILE</code>.
+        Trimitere automată după articol: <code>NEWSLETTER_BATCH_SIZE</code> (implicit 15),
+        <code>NEWSLETTER_BATCH_PAUSE_SECONDS</code> (implicit 4).
+    </div>
+    {% else %}
+    <div class="alert alert-light border small mb-4">
+        Expeditor: <code>NEWSLETTER_FROM_EMAIL</code> dacă e setat, altfel implicit <strong>no-reply@s366.online</strong>
+        (creează aliasul la serverul de mail). PTR pentru IP SMTP: ideal același nume ca în MX (<code>mail.s366.online</code>).
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-body-tertiary py-2">
+                    <strong>Trimite campanie</strong>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/admin/blog/newsletter/trimite"
+                          onsubmit="return confirm('Trimit newsletter-ul către toți abonații activi?');">
+                        <div class="mb-3">
+                            <label class="form-label" for="nw-subj">Subiect</label>
+                            <input type="text" class="form-control" id="nw-subj" name="subject" required maxlength="200"
+                                   placeholder="Ex.: Articol nou pe blog">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="nw-html">Conținut HTML</label>
+                            <textarea class="form-control font-monospace small" id="nw-html" name="html_body" rows="12" required
+                                      placeholder="<p>Bună,</p><p>…</p>"></textarea>
+                            <div class="form-text">La final se adaugă automat linkul de dezabonare.</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" {% if not smtp_configured %}disabled{% endif %}>
+                            Trimite la toți activii
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-body-tertiary py-2 d-flex justify-content-between align-items-center">
+                    <strong>Abonați ({{ subscribers | length }})</strong>
+                </div>
+                <div class="table-responsive" style="max-height: 28rem;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>E-mail</th>
+                                <th>Stare</th>
+                                <th>Înregistrat</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in subscribers %}
+                            <tr>
+                                <td class="small">{{ s.email }}</td>
+                                <td>
+                                    {% if s.active %}
+                                    <span class="badge text-bg-success">Activ</span>
+                                    {% else %}
+                                    <span class="badge text-bg-secondary">Dezabonat</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small text-body-secondary">
+                                    {% if s.created_at %}{{ s.created_at.strftime('%Y-%m-%d') }}{% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-body-secondary py-4">Niciun abonat încă.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
