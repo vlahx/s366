@@ -1,0 +1,112 @@
+{# Banner cookies — afișat până la accept (localStorage + cookie). #}
+<div id="s366-cookie-banner" class="s366-cookie-banner d-none" role="dialog" aria-modal="false" aria-labelledby="s366-cookie-title" aria-describedby="s366-cookie-desc">
+  <div class="s366-cookie-inner border-top shadow-lg bg-body rounded-top-4 px-3 px-md-4 py-3 mx-auto" style="max-width: 960px;">
+    <div class="d-flex flex-column flex-md-row align-items-start gap-3">
+      <div class="d-flex align-items-start gap-2 flex-grow-1 min-w-0">
+        <span class="fs-3 text-primary flex-shrink-0" aria-hidden="true"><i class="bi bi-shield-lock"></i></span>
+        <div class="min-w-0">
+          <h2 id="s366-cookie-title" class="h6 text-body-emphasis mb-1">Cookies &amp; date personale</h2>
+          <p id="s366-cookie-desc" class="small text-body-secondary mb-2 mb-md-0">
+            Folosim cookie-uri și tehnologii similare pentru funcționarea site-ului, sesiunea contului și (unde e cazul) analiză.
+            Continuând, ești de acord cu utilizarea lor conform
+            <a href="/terms" class="fw-semibold">Termenilor</a> și
+            <a href="/privacy" class="fw-semibold">Politicii de confidențialitate</a>.
+          </p>
+        </div>
+      </div>
+      <div class="d-flex flex-column align-items-stretch gap-2 w-100" style="max-width: 22rem;">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="1" id="s366-cookie-terms" autocomplete="off">
+          <label class="form-check-label small" for="s366-cookie-terms">
+            Confirm că am citit <a href="/terms" target="_blank" rel="noopener">Termenii</a>
+            și <a href="/privacy" target="_blank" rel="noopener">Confidențialitatea</a>.
+          </label>
+        </div>
+        <button type="button" class="btn btn-primary rounded-pill fw-semibold" id="s366-cookie-accept" disabled>
+          Accept și continui
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+  .s366-cookie-banner {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1080;
+    padding: 0 0.5rem 0.75rem;
+    pointer-events: none;
+  }
+  .s366-cookie-banner .s366-cookie-inner {
+    pointer-events: auto;
+    border: 1px solid var(--bs-border-color-translucent);
+  }
+  html.s366-cookie-pending body {
+    padding-bottom: 10rem;
+  }
+  @media (min-width: 768px) {
+    html.s366-cookie-pending body {
+      padding-bottom: 7rem;
+    }
+  }
+</style>
+<script>
+(function () {
+  var STORAGE_KEY = 's366_consent_v1';
+  var COOKIE_NAME = 's366_consent';
+  var COOKIE_MAX_AGE = 400 * 24 * 60 * 60;
+
+  function hasConsent() {
+    try {
+      if (localStorage.getItem(STORAGE_KEY)) return true;
+    } catch (e) {}
+    return document.cookie.split(';').some(function (c) {
+      return c.trim().indexOf(COOKIE_NAME + '=') === 0;
+    });
+  }
+
+  function setConsent() {
+    var payload = JSON.stringify({ v: 1, at: new Date().toISOString() });
+    try {
+      localStorage.setItem(STORAGE_KEY, payload);
+    } catch (e) {}
+    var secure = (location.protocol === 'https:') ? '; Secure' : '';
+    document.cookie = COOKIE_NAME + '=1; Path=/; Max-Age=' + COOKIE_MAX_AGE + '; SameSite=Lax' + secure;
+  }
+
+  function hideBanner() {
+    var el = document.getElementById('s366-cookie-banner');
+    if (el) el.classList.add('d-none');
+    document.documentElement.classList.remove('s366-cookie-pending');
+  }
+
+  function showBanner() {
+    var el = document.getElementById('s366-cookie-banner');
+    if (!el) return;
+    el.classList.remove('d-none');
+    document.documentElement.classList.add('s366-cookie-pending');
+  }
+
+  if (hasConsent()) {
+    hideBanner();
+    return;
+  }
+
+  showBanner();
+
+  var chk = document.getElementById('s366-cookie-terms');
+  var btn = document.getElementById('s366-cookie-accept');
+  if (chk && btn) {
+    chk.addEventListener('change', function () {
+      btn.disabled = !chk.checked;
+    });
+    btn.addEventListener('click', function () {
+      if (!chk.checked) return;
+      setConsent();
+      hideBanner();
+    });
+  }
+})();
+</script>
