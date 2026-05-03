@@ -1,0 +1,196 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 border-bottom pb-3 gap-2">
+        <div>
+            <h1 class="fw-bold text-white mb-1">Date facturare</h1>
+            <p class="text-muted mb-0 small">Folosite la plăți (hosting, domenii, facturi). Aceleași date ca în cont — le poți modifica aici.</p>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" href="/auth/profile">← Înapoi la profil</a>
+    </div>
+
+    {% if billing_next %}
+    <div class="alert alert-info border mb-4" role="alert">
+        <strong>Comandă în curs.</strong> După salvare, cu date complete, ești redirecționat automat mai departe.
+    </div>
+    {% endif %}
+
+    {% if not billing.ok %}
+    <div class="alert alert-warning border mb-4" role="alert">
+        <strong>Lipsesc câmpuri obligatorii.</strong>
+        <ul class="mb-0 mt-2 small">
+            {% for key, label in billing.missing_user %}
+            <li>{{ label }}</li>
+            {% endfor %}
+            {% for key, label in billing.missing_company %}
+            <li>{{ label }} (firmă)</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form action="/auth/billing/save" method="POST" id="billingForm">
+        <input type="hidden" name="billing_next" value="{{ billing_next|default('', true) }}" />
+
+        <div class="card text-white border-secondary shadow mb-4" id="facturare">
+            <div class="card-header border-secondary bg-transparent">
+                <h5 class="mb-0 text-warning italic">Facturare (PF / PJ)</h5>
+                <p class="small text-muted mb-0 mt-1"><small class="text-danger">*</small> = obligatoriu pentru plată.</p>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <span class="form-label text-muted small d-block mb-2">Facturare ca</span>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="invoice_customer_type" id="inv_pf" value="PF"
+                            {% if (user.invoice_customer_type or 'PF') == 'PF' %}checked{% endif %}>
+                        <label class="form-check-label" for="inv_pf">Persoană fizică (PF)</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="invoice_customer_type" id="inv_pj" value="PJ"
+                            {% if user.invoice_customer_type == 'PJ' %}checked{% endif %}>
+                        <label class="form-check-label" for="inv_pj">Persoană juridică (PJ)</label>
+                    </div>
+                </div>
+
+                <div id="billing-pf-fields" class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Nume complet pe factură <small class="text-danger">*</small></label>
+                        <input type="text" name="invoice_full_name" class="form-control border-secondary"
+                            value="{{ user.invoice_full_name|default('', true) }}" autocomplete="name"
+                            placeholder="ex. Ion Popescu">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label text-muted small">Stradă, număr <small class="text-danger">*</small></label>
+                        <input type="text" name="invoice_street" class="form-control border-secondary"
+                            value="{{ user.invoice_street|default('', true) }}" autocomplete="street-address"
+                            placeholder="ex. Str. Victoriei nr. 10">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Cod poștal <small class="text-danger">*</small></label>
+                        <input type="text" name="invoice_postal_code" class="form-control border-secondary"
+                            value="{{ user.invoice_postal_code|default('', true) }}" autocomplete="postal-code"
+                            placeholder="ex. 010101">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Localitate <small class="text-danger">*</small></label>
+                        <input type="text" name="invoice_city" class="form-control border-secondary"
+                            value="{{ user.invoice_city|default('', true) }}" autocomplete="address-level2"
+                            placeholder="ex. București">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Județ <small class="text-danger">*</small></label>
+                        <input type="text" name="invoice_county" class="form-control border-secondary"
+                            value="{{ user.invoice_county|default('', true) }}"
+                            placeholder="ex. Ilfov">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Țară <small class="text-danger">*</small></label>
+                        <input type="text" name="invoice_country" class="form-control border-secondary"
+                            value="{{ user.invoice_country|default('', true) }}" autocomplete="country"
+                            placeholder="ex. RO">
+                    </div>
+                </div>
+
+                <div id="billing-pj-fields" class="mt-3 border-top border-secondary pt-3 d-none">
+                    {% if not user.company_id %}
+                    <p class="text-warning small mb-0">Pentru PJ ai nevoie de o firmă legată de cont.
+                        <a href="/auth/create_company" class="text-info">Înregistrează firma</a> sau cere unui admin să te aloce.</p>
+                    {% else %}
+                    <p class="small text-muted mb-3">Firmă: <strong class="text-white">{{ company.name if company else '—' }}</strong>
+                        (CUI: <span class="font-monospace">{{ company.cui if company else '—' }}</span>)</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">Denumire legală pe factură <small class="text-muted">(opțional)</small></label>
+                            <input type="text" name="company_invoice_legal_name" class="form-control border-secondary"
+                                value="{{ company.invoice_legal_name|default('', true) if company else '' }}"
+                                placeholder="Lasă gol dacă e aceeași cu numele firmei">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">Nr. Registrul Comerțului <small class="text-danger">*</small></label>
+                            <input type="text" name="company_reg_com" class="form-control border-secondary"
+                                value="{{ company.reg_com|default('', true) if company else '' }}"
+                                placeholder="ex. J40/1234/2020">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small">Stradă sediu, număr <small class="text-danger">*</small></label>
+                            <input type="text" name="company_invoice_street" class="form-control border-secondary"
+                                value="{{ company.invoice_street|default('', true) if company else '' }}"
+                                placeholder="ex. Bd. Timișoara nr. 26A">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted small">Cod poștal <small class="text-danger">*</small></label>
+                            <input type="text" name="company_invoice_postal_code" class="form-control border-secondary"
+                                value="{{ company.invoice_postal_code|default('', true) if company else '' }}"
+                                placeholder="060000">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted small">Localitate <small class="text-danger">*</small></label>
+                            <input type="text" name="company_invoice_city" class="form-control border-secondary"
+                                value="{{ company.invoice_city|default('', true) if company else '' }}"
+                                placeholder="ex. București">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted small">Județ <small class="text-danger">*</small></label>
+                            <input type="text" name="company_invoice_county" class="form-control border-secondary"
+                                value="{{ company.invoice_county|default('', true) if company else '' }}"
+                                placeholder="ex. București">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">Țară <small class="text-danger">*</small></label>
+                            <input type="text" name="company_invoice_country" class="form-control border-secondary"
+                                value="{{ company.invoice_country|default('', true) if company else '' }}"
+                                placeholder="ex. RO">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="company_is_vat_payer" id="vat_payer"
+                                    {% if not company or company.is_vat_payer is none or company.is_vat_payer %}checked{% endif %}>
+                                <label class="form-check-label" for="vat_payer">Plătitor de TVA</label>
+                            </div>
+                        </div>
+                        <div class="col-12 small text-muted">Dacă nu completezi adresa structurată, se poate folosi și câmpul „Adresă” din fișa firmei — recomandăm completarea aici.</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="row g-3 mt-3 pt-3 border-top border-secondary">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Telefon facturare <small class="text-danger">*</small></label>
+                        <input type="text" name="invoice_phone" class="form-control border-secondary"
+                            value="{{ user.invoice_phone|default('', true) }}" autocomplete="tel"
+                            placeholder="ex. +40 721 234 567">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-end">
+            <button type="submit" class="btn btn-primary px-5 py-2 fw-bold text-uppercase shadow-lg">
+                Salvează date facturare
+            </button>
+        </div>
+    </form>
+</div>
+<script>
+(function () {
+  function syncBillingVisibility() {
+    var pj = document.getElementById('inv_pj');
+    var pfBlock = document.getElementById('billing-pf-fields');
+    var pjBlock = document.getElementById('billing-pj-fields');
+    if (!pj || !pfBlock || !pjBlock) return;
+    if (pj.checked) {
+      pfBlock.classList.add('d-none');
+      pjBlock.classList.remove('d-none');
+    } else {
+      pfBlock.classList.remove('d-none');
+      pjBlock.classList.add('d-none');
+    }
+  }
+  document.querySelectorAll('input[name="invoice_customer_type"]').forEach(function (r) {
+    r.addEventListener('change', syncBillingVisibility);
+  });
+  syncBillingVisibility();
+})();
+</script>
+{% endblock %}

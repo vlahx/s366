@@ -1,15 +1,24 @@
 # app/routes/hosting.py
+from __future__ import annotations
+
+import json
 import logging
 from pathlib import Path
+from urllib.parse import quote
 
 import stripe
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from fastapi.templating import Jinja2Templates
 
 from app.utils.blog_og import default_card_image_path
-from app.utils.check_availability import check_domain_availability
+from app.utils.check_availability import (
+    check_domain_availability,
+    domain_catalog_gross_cents_from_details,
+    normalize_domain,
+)
+from app.utils.hosting_pricing_display import build_hosting_pricing_context
 from app.utils.hosting_checkout import (
     create_hosting_checkout_session,
     public_base_url,
@@ -20,6 +29,8 @@ from app.utils.hosting_stripe import (
     mark_webhook_processed,
     webhook_should_process,
 )
+from app.models.sqlite_model import fetch_one
+from app.utils.billing_profile import billing_readiness
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +61,9 @@ async def _hosting_home_page(request: Request):
             "seo_og_url": seo_url,
             "hosting_meta_description": HOSTING_META_DESCRIPTION,
             "seo_og_image_abs": f"{origin}{default_card_image_path()}",
+            "hosting_pricing_json": json.dumps(
+                await build_hosting_pricing_context(), ensure_ascii=False
+            ),
         },
     )
 
@@ -79,18 +93,59 @@ class DomainAvailabilityRequest(BaseModel):
 class CheckoutSessionRequest(BaseModel):
     domain: str
     package_tier: str
+    hosting_billing_interval: str = "month"
+    # True = utilizatorul aduce domeniul; fără linie „înregistrare domeniu” în Stripe.
+    bring_own_domain: bool = False
 
 
 async def _hosting_provision_page(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="hosting/provision.html",
-        context={"request": request},
+        context={
+            "request": request,
+            "hosting_pricing_json": json.dumps(
+                await build_hosting_pricing_context(), ensure_ascii=False
+            ),
+        },
     )
 
 
 @router.get("/provision", response_class=HTMLResponse)
 async def hosting_provision(request: Request):
+    raw_uid = request.session.get("user_id")
+    qs = request.url.query
+    self_path = f"/hosting/provision?{qs}" if qs else "/hosting/provision"
+    if not raw_uid:
+        return RedirectResponse(
+            url=f"/auth/login?next={quote(self_path)}",
+            status_code=303,
+        )
+    try:
+        user_id = int(raw_uid)
+    except (TypeError, ValueError):
+        return RedirectResponse(
+            url=f"/auth/login?next={quote(self_path)}",
+            status_code=303,
+        )
+    user_row = await fetch_one("SELECT * FROM users WHERE id = ?", (user_id,))
+    if not user_row:
+        return RedirectResponse(
+            url=f"/auth/login?next={quote(self_path)}",
+            status_code=303,
+        )
+    user_d = dict(user_row)
+    company = None
+    if user_d.get("company_id"):
+        company = await fetch_one(
+            "SELECT * FROM companies WHERE company_id = ?",
+            (user_d["company_id"],),
+        )
+    if not billing_readiness(user_d, dict(company) if company else None)["ok"]:
+        return RedirectResponse(
+            url=f"/auth/billing?next={quote(self_path)}",
+            status_code=303,
+        )
     return await _hosting_provision_page(request)
 
 
@@ -134,11 +189,57 @@ async def hosting_create_checkout_session(request: Request, body: CheckoutSessio
                 user_id = int(raw_uid)
             except (TypeError, ValueError):
                 user_id = None
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Autentificare necesară. Intră în cont, apoi încearcă din nou plata.",
+            )
+        user_row = await fetch_one("SELECT * FROM users WHERE id = ?", (user_id,))
+        if not user_row:
+            raise HTTPException(status_code=401, detail="Sesiune invalidă.")
+        user_d = dict(user_row)
+        company_row = None
+        if user_d.get("company_id"):
+            company_row = await fetch_one(
+                "SELECT * FROM companies WHERE company_id = ?",
+                (user_d["company_id"],),
+            )
+        if not billing_readiness(user_d, dict(company_row) if company_row else None)[
+            "ok"
+        ]:
+            raise HTTPException(
+                status_code=400,
+                detail="Completează datele de facturare (PF sau PJ) la /auth/billing înainte de plată.",
+            )
+
+        dom = normalize_domain(body.domain)
+        if not dom or "." not in dom:
+            raise HTTPException(status_code=400, detail="Domeniu invalid.")
+
+        reg_cents: int | None = None
+        if not body.bring_own_domain:
+            avail = await check_domain_availability(body.domain)
+            if not avail.available:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Domeniul nu e disponibil pentru înregistrare. Revino la /hosting și verifică din nou.",
+                )
+            dom = avail.domain
+            reg_cents = domain_catalog_gross_cents_from_details(avail.details)
+
+        raw_iv = (body.hosting_billing_interval or "month").strip().lower()
+        if raw_iv not in ("month", "year"):
+            raise HTTPException(
+                status_code=400,
+                detail="Perioadă de facturare invalidă. Alege lunar sau anual.",
+            )
         session = await create_hosting_checkout_session(
-            domain=body.domain,
+            domain=dom,
             package_tier=body.package_tier,
             user_id=user_id,
             request_base_url=base,
+            hosting_billing_interval=raw_iv,
+            domain_registration_eur_cents=reg_cents,
         )
         url = session.url
         if not url:

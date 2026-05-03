@@ -1,18 +1,29 @@
 {% extends "layout/base.html" %}
 {% block title %}Finalizare comandă hosting — S366 AI Hosting{% endblock %}
 {% block content %}
-<div class="container py-4 py-lg-5" style="max-width: 640px;">
+<script id="hosting-pricing-embed" type="application/json">{{ hosting_pricing_json | safe }}</script>
+<div class="container py-4 py-lg-5" style="max-width: 720px;">
     <h1 class="h3 fw-bold mb-3">Comandă hosting</h1>
-    <p class="text-body-secondary small mb-4">Verifică domeniul și pachetul, apoi mergi la plată securizată Stripe.</p>
+    <p class="text-body-secondary small mb-4">Rezumat comandă: domeniu, pachet, perioada de facturare pentru hosting și (dacă e cazul) înregistrarea domeniului. Perioada (lunar / anual) o alegi pe pagina de pachete; dacă vrei să o schimbi, întoarce-te la <a href="/hosting">Hosting</a> înainte de plată. La plată, sumele sunt recalculate pe server din catalog.</p>
 
     <div class="card border shadow-sm">
         <div class="card-body">
-            <dl class="row mb-0 small">
+            <dl class="row mb-3 small">
                 <dt class="col-sm-4 text-body-secondary">Domeniu</dt>
                 <dd class="col-sm-8 font-monospace" id="pv-domain">—</dd>
                 <dt class="col-sm-4 text-body-secondary">Pachet</dt>
                 <dd class="col-sm-8 fw-semibold" id="pv-package">—</dd>
+                <dt class="col-sm-4 text-body-secondary">Facturare hosting</dt>
+                <dd class="col-sm-8" id="pv-billing">—</dd>
+                <dt class="col-sm-4 text-body-secondary">Mod</dt>
+                <dd class="col-sm-8" id="pv-mode">—</dd>
             </dl>
+            <div id="pv-breakdown" class="border rounded p-3 bg-body-tertiary small mb-3 d-none" aria-live="polite">
+                <div class="fw-semibold mb-2">Prețuri estimate</div>
+                <div id="pv-breakdown-lines"></div>
+                <div id="pv-breakdown-total" class="mt-2 pt-2 border-top"></div>
+                <p id="pv-breakdown-footer" class="small text-body-secondary mt-2 mb-0"></p>
+            </div>
             <hr>
             <button type="button" class="btn btn-primary w-100" id="payBtn">
                 <i class="bi bi-credit-card me-2"></i>Plată cu cardul (Stripe)
@@ -26,9 +37,153 @@
 (function () {
     const params = new URLSearchParams(window.location.search);
     const domain = (params.get('domain') || '').trim();
-    const pkg = (params.get('package') || '').trim();
+    const pkg = (params.get('package') || '').trim().toLowerCase();
+    const byod = params.get('byod') === '1' || params.get('byod') === 'true';
+    const billRaw = (params.get('billing') || 'month').trim().toLowerCase();
+    const billingInterval = billRaw === 'year' ? 'year' : 'month';
+    const domainGrossParam = params.get('domain_reg_gross_cents');
+    let domainGrossCents = null;
+    if (domainGrossParam != null && domainGrossParam !== '') {
+        const n = parseInt(domainGrossParam, 10);
+        if (!Number.isNaN(n) && n > 0) domainGrossCents = n;
+    }
+
     document.getElementById('pv-domain').textContent = domain || '—';
-    document.getElementById('pv-package').textContent = pkg || '—';
+
+    function hostPricingConfig() {
+        try {
+            const el = document.getElementById('hosting-pricing-embed');
+            if (!el || !el.textContent) {
+                return { vat_rate: 0.19, vat_display: 'excluded', packages: [], prices_stored_as_net: true, domain_catalog_is_gross: true, currency: 'EUR', footer_note: '' };
+            }
+            return JSON.parse(el.textContent);
+        } catch (e) {
+            return { vat_rate: 0.19, vat_display: 'excluded', packages: [], prices_stored_as_net: true, domain_catalog_is_gross: true, currency: 'EUR', footer_note: '' };
+        }
+    }
+
+    function formatEurCents(cents) {
+        if (cents == null || Number.isNaN(Number(cents))) return '—';
+        const n = Math.round(Number(cents));
+        return (n / 100).toLocaleString('ro-RO', { style: 'currency', currency: 'EUR' });
+    }
+
+    function netToTtc(netCents, rate) {
+        const r = Number(rate) || 0;
+        const vat = Math.round(netCents * r);
+        return { net: netCents, vat: vat, ttc: netCents + vat };
+    }
+
+    function ttcToNet(ttcCents, rate) {
+        const r = Number(rate) || 0;
+        if (r <= 0) return { net: ttcCents, vat: 0, ttc: ttcCents };
+        const net = Math.round(ttcCents / (1 + r));
+        return { net: net, vat: ttcCents - net, ttc: ttcCents };
+    }
+
+    function hostingNetCents(pkgRow, interval) {
+        if (!pkgRow) return 0;
+        if (interval === 'year') {
+            const y = pkgRow.eur_cents_yearly;
+            if (y != null && y > 0) return y;
+            const m = pkgRow.eur_cents_monthly || 0;
+            return m * 11;
+        }
+        return pkgRow.eur_cents_monthly || 0;
+    }
+
+    function formatSplitBlock(sp, p, suffix) {
+        const mode = p.vat_display || 'excluded';
+        const pct = Math.round((Number(p.vat_rate) || 0) * 100);
+        const suf = suffix ? ' ' + suffix : '';
+        if (mode === 'included') {
+            return '<span class="fw-semibold">' + formatEurCents(sp.ttc) + suf + '</span> <span class="text-body-secondary small">(cu TVA)</span>';
+        }
+        if (mode === 'both') {
+            return '<span class="fw-semibold">' + formatEurCents(sp.net) + '</span> + TVA ' + formatEurCents(sp.vat) + ' = <span class="fw-semibold">' + formatEurCents(sp.ttc) + suf + '</span>';
+        }
+        return (
+            '<span class="text-body-secondary small d-block">' + formatEurCents(sp.net) + ' fără TVA' + suf + '</span>' +
+            '<span class="text-body-secondary small d-block">TVA ' + pct + '%: ' + formatEurCents(sp.vat) + '</span>' +
+            '<span class="d-block fw-semibold">' + formatEurCents(sp.ttc) + ' cu TVA' + suf + '</span>'
+        );
+    }
+
+    const p = hostPricingConfig();
+    const pkgRow = (p.packages || []).find(function (x) { return x.id === pkg; });
+    const pkgLabel = pkgRow ? pkgRow.label : (pkg || '—');
+    document.getElementById('pv-package').textContent = pkgLabel;
+    document.getElementById('pv-billing').textContent = billingInterval === 'year'
+        ? 'Anual — 11 plătite / 12 primite; o plată pe an'
+        : 'Lunar (în fiecare lună)';
+
+    const modeEl = document.getElementById('pv-mode');
+    if (byod) {
+        modeEl.textContent = 'Ai deja domeniu — doar hosting la noi';
+    } else {
+        modeEl.textContent = 'Domeniu nou — hosting + înregistrare (dacă există preț în catalog)';
+    }
+
+    const bd = document.getElementById('pv-breakdown');
+    const bdl = document.getElementById('pv-breakdown-lines');
+    const bdt = document.getElementById('pv-breakdown-total');
+    const bdf = document.getElementById('pv-breakdown-footer');
+
+    if (!pkgRow) {
+        bd.classList.add('d-none');
+    } else {
+        const rate = p.vat_rate != null ? p.vat_rate : 0.19;
+        const hostCents = hostingNetCents(pkgRow, billingInterval);
+        const hostSp = p.prices_stored_as_net !== false ? netToTtc(hostCents, rate) : ttcToNet(hostCents, rate);
+        const periodSlug = billingInterval === 'year' ? '/an' : '/lună';
+        const periodAdj = billingInterval === 'year' ? 'anual' : 'lunar';
+        const lines = [];
+
+        if (byod) {
+            lines.push(
+                '<div class="mb-2"><span class="text-body-secondary">Hosting — ' + pkgLabel + ' (' + periodAdj + ')</span><br />' +
+                '<div class="fs-6">' + formatSplitBlock(hostSp, p, periodSlug) + '</div></div>'
+            );
+            lines.push('<p class="small text-body-secondary mb-0">Fără linie de înregistrare domeniu în coș — păstrezi registrarul actual.</p>');
+            bdl.innerHTML = lines.join('');
+            bdt.innerHTML =
+                '<div class="text-body-secondary">Total cu TVA — hosting (' + (billingInterval === 'year' ? 'perioada anuală' : 'prima lună') + ')</div>' +
+                '<div class="fs-5 fw-bold mt-1">' + formatEurCents(hostSp.ttc) + '</div>';
+            bdf.textContent = p.footer_note || '';
+            bd.classList.remove('d-none');
+        } else {
+            let domainSp = null;
+            if (domainGrossCents != null) {
+                domainSp = p.domain_catalog_is_gross !== false ? ttcToNet(domainGrossCents, rate) : netToTtc(domainGrossCents, rate);
+                lines.push(
+                    '<div class="mb-3"><span class="text-body-secondary">Domeniu — înregistrare estimativă (1 an)</span><br />' +
+                    '<div class="fs-6">' + formatSplitBlock(domainSp, p, '/an') + '</div></div>'
+                );
+            } else if (domain) {
+                lines.push('<div class="mb-3 text-body-secondary small">Domeniu — preț anual nu e în URL; la plată îl luăm din catalog (dacă e disponibil).</div>');
+            }
+            lines.push(
+                '<div class="mb-2"><span class="text-body-secondary">Hosting — ' + pkgLabel + ' (' + periodAdj + ')</span><br />' +
+                '<div class="fs-6">' + formatSplitBlock(hostSp, p, periodSlug) + '</div></div>'
+            );
+            bdl.innerHTML = lines.join('');
+            const hostBit = billingInterval === 'year' ? '1 an hosting' : 'prima lună hosting';
+            if (domainSp != null) {
+                bdt.innerHTML =
+                    '<div class="text-body-secondary">Total cu TVA la prima plată <span class="small">(1 an domeniu + ' + hostBit + ')</span></div>' +
+                    '<div class="fs-5 fw-bold mt-1">' + formatEurCents(domainSp.ttc + hostSp.ttc) + '</div>' +
+                    '<div class="small text-body-secondary mt-1">Apoi: domeniu anual; hosting ' +
+                    (billingInterval === 'year' ? 'anual.' : 'lunar.') + ' Sumele finale sunt în Stripe.</div>';
+            } else {
+                bdt.innerHTML =
+                    '<div class="text-body-secondary">Total cu TVA — ' + (billingInterval === 'year' ? 'primul an hosting' : 'primă lună hosting') +
+                    (domainGrossCents == null && domain ? ' (+ domeniu dacă e în catalog la plată)' : '') + '</div>' +
+                    '<div class="fs-5 fw-bold mt-1">' + formatEurCents(hostSp.ttc) + '</div>';
+            }
+            bdf.textContent = p.footer_note || '';
+            bd.classList.remove('d-none');
+        }
+    }
 
     const payBtn = document.getElementById('payBtn');
     const hint = document.getElementById('payHint');
@@ -45,11 +200,17 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ domain: domain, package_tier: pkg })
+                body: JSON.stringify({
+                    domain: domain,
+                    package_tier: pkg,
+                    hosting_billing_interval: billingInterval,
+                    bring_own_domain: byod
+                })
             });
             const data = await res.json().catch(function () { return {}; });
             if (!res.ok) {
-                hint.textContent = data.detail || ('Eroare ' + res.status);
+                const det = data.detail;
+                hint.textContent = typeof det === 'string' ? det : (Array.isArray(det) ? JSON.stringify(det) : ('Eroare ' + res.status));
                 payBtn.disabled = false;
                 return;
             }
