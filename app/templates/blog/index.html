@@ -3,11 +3,8 @@
 {% block meta_description %}{{ meta_description }}{% endblock %}
 
 {% block extra_head %}
+{# Imagine OG listă blog: seo_og_image_abs + dimensiuni în base.html #}
 <link rel="canonical" href="{{ canonical_blog }}" />
-{% if og_image_width and og_image_height %}
-<meta property="og:image:width" content="{{ og_image_width }}" />
-<meta property="og:image:height" content="{{ og_image_height }}" />
-{% endif %}
 {% endblock %}
 
 {% block extra_css %}
@@ -66,6 +63,38 @@
       {% for c in categories %}
       <a href="/blog/category/{{ c.slug }}" class="btn btn-sm rounded-pill {% if active_category == c.slug %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ c.name }}</a>
       {% endfor %}
+    </div>
+
+    {% if request.query_params.get('newsletter') == 'ok' %}
+    <div class="alert alert-success mt-4 mb-0 mx-auto text-start" style="max-width: 32rem;" role="status">
+      Ești abonat la newsletter-ul blogului. Îți vom trimite noutăți când apar articole relevante.
+    </div>
+    {% elif request.query_params.get('newsletter') == 'invalid' %}
+    <div class="alert alert-warning mt-4 mb-0 mx-auto text-start" style="max-width: 32rem;" role="alert">
+      Adresa de e-mail nu pare validă. Încearcă din nou.
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mt-4 mx-auto text-start" style="max-width: 32rem;">
+      <div class="card-body p-3 p-md-4">
+        <h2 class="h6 text-body-emphasis mb-2">Newsletter blog</h2>
+        
+        <form method="post" action="/blog/newsletter/subscribe" class="row g-2 align-items-end">
+          <div class="col min-w-0">
+            <label class="visually-hidden" for="newsletter-email">E-mail</label>
+            <input type="email" class="form-control rounded-pill" id="newsletter-email" name="email"
+                   required maxlength="254" autocomplete="email" placeholder="adresa@exemplu.ro">
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-primary rounded-pill px-3">Abonează-mă</button>
+          </div>
+          <div class="visually-hidden" aria-hidden="true">
+            <label for="newsletter-hp">Nu completa</label>
+            <input type="text" name="url" id="newsletter-hp" tabindex="-1" autocomplete="off" value="">
+          </div>
+        </form>
+        <sub class="small text-body-secondary mb-3">Primești un e-mail când publicăm ceva nou (fără spam; te poți dezabona oricând din linkul din mesaj).</sub>
+      </div>
     </div>
   </header>
 

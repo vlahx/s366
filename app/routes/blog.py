@@ -2,13 +2,19 @@
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
-from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Form, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.utils.blog_db import (
+    blog_newsletter_subscribe,
+    blog_newsletter_unsubscribe,
+    blog_post_approved_comments,
+    blog_post_rating_summary,
+    blog_post_submit_rating,
+    blog_rating_ip_hash,
     count_published_posts,
     get_published_post_by_slug,
     increment_blog_post_view_count,
@@ -23,6 +29,9 @@ _templates_dir = Path(__file__).resolve().parents[1] / "templates"
 templates = Jinja2Templates(directory=str(_templates_dir))
 
 BLOG_INDEX_PAGE_SIZE = 6
+BLOG_LISTING_OG_STATIC_PATH = "/static/images/og/blog-list.png"
+BLOG_LISTING_OG_WIDTH = 1376
+BLOG_LISTING_OG_HEIGHT = 768
 
 
 def _base(request: Request) -> str:
@@ -32,6 +41,29 @@ def _base(request: Request) -> str:
 def _norm_search(q: str | None) -> str | None:
     s = (q or "").strip()
     return s if s else None
+
+
+def _client_ip(request: Request) -> str:
+    xff = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return ""
+
+
+def _safe_blog_redirect_base(referer: str | None) -> str:
+    if not referer:
+        return "/blog/"
+    try:
+        p = urlparse(referer)
+        path = p.path or "/blog/"
+        if not path.startswith("/blog"):
+            return "/blog/"
+        q = f"?{p.query}" if p.query else ""
+        return f"{path}{q}"
+    except Exception:
+        return "/blog/"
 
 
 def _blog_list_query_string(*, page: int, search: str | None) -> str:
@@ -143,11 +175,12 @@ async def _render_blog_index(
             "blog_search_q": search,
             "blog_query_suffix": _blog_list_query_string,
             "meta_description": idx_og.description,
-            "og_image_width": idx_og.image_width,
-            "og_image_height": idx_og.image_height,
+            "og_image_width": BLOG_LISTING_OG_WIDTH,
+            "og_image_height": BLOG_LISTING_OG_HEIGHT,
             "seo_og_url": canonical_blog,
             "canonical_blog": canonical_blog,
-            "seo_og_image_abs": idx_og.image_abs,
+            "seo_og_image_abs": f"{origin}{BLOG_LISTING_OG_STATIC_PATH}",
+            "seo_og_image_alt": "S366 AI Blog — articole despre AI pentru firme",
         },
     )
 
@@ -171,6 +204,50 @@ async def blog_category(
     return await _render_blog_index(
         request, cat_slug.strip().lower(), search=_norm_search(q), page=page
     )
+
+
+@router.post("/newsletter/subscribe")
+async def blog_newsletter_subscribe_route(
+    request: Request,
+    email: str = Form(""),
+    url: str = Form(""),  # honeypot — lăsat gol de oameni
+):
+    if (url or "").strip():
+        return RedirectResponse(url="/blog/", status_code=303)
+    result = await blog_newsletter_subscribe(email)
+    q = "newsletter=ok" if result == "ok" else "newsletter=invalid"
+    base = _safe_blog_redirect_base(request.headers.get("referer"))
+    sep = "&" if "?" in base else "?"
+    return RedirectResponse(url=f"{base}{sep}{q}", status_code=303)
+
+
+@router.get("/newsletter/unsubscribe", response_class=HTMLResponse)
+async def blog_newsletter_unsubscribe_route(request: Request, token: str = ""):
+    ok = await blog_newsletter_unsubscribe(token)
+    return templates.TemplateResponse(
+        request=request,
+        name="blog/newsletter_unsubscribe.html",
+        context={"request": request, "ok": ok},
+    )
+
+
+@router.post("/feedback")
+async def blog_post_feedback_route(
+    request: Request,
+    post_slug: str = Form(...),
+    stars: int = Form(...),
+    comment: str = Form(""),
+    url: str = Form(""),  # honeypot
+):
+    if (url or "").strip():
+        slug = (post_slug or "").strip().lower()
+        return RedirectResponse(url=f"/blog/{slug}/", status_code=303)
+    ip = _client_ip(request)
+    ih = blog_rating_ip_hash(ip, post_slug)
+    result = await blog_post_submit_rating(post_slug, stars, comment, ih, _client_ip(request))
+    slug = (post_slug or "").strip().lower()
+    tail = "rating=ok" if result == "ok" else "rating=err"
+    return RedirectResponse(url=f"/blog/{slug}/?{tail}", status_code=303)
 
 
 async def _blog_post_page(request: Request, post_slug: str):
@@ -201,6 +278,8 @@ async def _blog_post_page(request: Request, post_slug: str):
     )
     canonical = f"{origin}/blog/{post.slug}/"
     pub = published_utc(post.published_at, post.created_at)
+    rating_summary = await blog_post_rating_summary(post.slug)
+    approved_comments = await blog_post_approved_comments(post.slug)
     return templates.TemplateResponse(
         request=request,
         name="blog/post.html",
@@ -208,6 +287,8 @@ async def _blog_post_page(request: Request, post_slug: str):
             "request": request,
             "post": post,
             "article_view_count": article_view_count,
+            "rating_summary": rating_summary,
+            "approved_comments": approved_comments,
             "meta_description": og.description,
             "og_image_width": og.image_width,
             "og_image_height": og.image_height,
@@ -217,6 +298,7 @@ async def _blog_post_page(request: Request, post_slug: str):
             "share_url": canonical,
             "seo_og_url": canonical,
             "seo_og_image_abs": og.image_abs,
+            "seo_og_image_alt": post.title,
         },
     )
 

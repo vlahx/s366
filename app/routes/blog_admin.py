@@ -1,17 +1,27 @@
 # Admin blog — doar superadmin (Depends pe router)
 from __future__ import annotations
 
+import asyncio
+import csv
+import io
 import logging
 import sqlite3
+from dataclasses import asdict
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from slugify import slugify
+from starlette.concurrency import run_in_threadpool
 
 from app.utils.blog_db import (
+    admin_blog_approve_comment,
+    admin_blog_list_pending_comments,
+    admin_blog_newsletter_subscribers,
+    admin_blog_newsletter_active_for_send,
+    admin_blog_reject_comment,
     admin_create_category,
     admin_delete_post,
     admin_get_post_by_slug,
@@ -19,6 +29,13 @@ from app.utils.blog_db import (
     admin_upsert_post,
     list_categories,
 )
+from app.utils.blog_newsletter_automation import schedule_blog_post_newsletter_broadcast
+from app.utils.blog_newsletter_mail import (
+    build_unsubscribe_url,
+    newsletter_mail_configured,
+    send_newsletter_email,
+)
+from app.utils.ip_isp_hint import is_likely_digi_rcs
 from app.utils.blog_storage import (
     delete_blog_files_for_post,
     delete_unreferenced_blog_uploads_after_edit,
@@ -169,6 +186,7 @@ async def blog_admin_save(request: Request):
 
     draft = form.get("draft") == "on"
     clear_hero = form.get("clear_hero") == "on"
+    newsletter_on_publish = form.get("newsletter_on_publish") == "on"
     published_raw = form.get("published_at")
 
     final_slug = slug_in or slugify(title, lowercase=True) or "articol"
@@ -248,7 +266,41 @@ async def blog_admin_save(request: Request):
             content_html,
         )
 
-    _flash(request, "Articol salvat.", "success")
+    post_after = await admin_get_post_by_slug(final_slug)
+    transition = not draft and (existing is None or existing.draft)
+    retry_newsletter = bool(
+        existing
+        and not existing.draft
+        and not draft
+        and post_after
+        and post_after.newsletter_sent_at is None
+    )
+    should_newsletter = (
+        newsletter_on_publish
+        and newsletter_mail_configured()
+        and post_after
+        and not post_after.draft
+        and post_after.newsletter_sent_at is None
+        and (transition or retry_newsletter)
+    )
+    if should_newsletter:
+        asyncio.create_task(schedule_blog_post_newsletter_broadcast(final_slug))
+        _flash(
+            request,
+            "Articol salvat. Newsletter-ul se trimite în fundal, pe grupe mici de abonați.",
+            "success",
+        )
+    else:
+        if newsletter_on_publish and not newsletter_mail_configured():
+            _flash(
+                request,
+                "Articol salvat. Newsletter bifat, dar SMTP newsletter (NEWSLETTER_*) nu e configurat — nu s-a trimis.",
+                "warning",
+            )
+        elif newsletter_on_publish and post_after and post_after.newsletter_sent_at is not None:
+            _flash(request, "Articol salvat. Newsletter deja trimis pentru acest articol.", "success")
+        else:
+            _flash(request, "Articol salvat.", "success")
     return RedirectResponse(url=f"/admin/blog/editare/{final_slug}", status_code=303)
 
 
@@ -276,3 +328,133 @@ async def blog_admin_upload_image(file: UploadFile = File(...)):
     except Exception as e:
         log.exception("tinymce upload")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@router.get("/moderare-comentarii")
+async def blog_admin_moderation_comments(request: Request):
+    pending = await admin_blog_list_pending_comments()
+    pending_display = [
+        {**asdict(r), "is_digi": is_likely_digi_rcs(r.submitter_ip)}
+        for r in pending
+    ]
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/blog_moderation.html",
+        context={
+            "request": request,
+            "pending": pending_display,
+            "title": "Moderare comentarii blog — S366 AI",
+        },
+    )
+
+
+@router.post("/moderare-comentarii/aproba/{rating_id}")
+async def blog_admin_moderation_approve(request: Request, rating_id: int):
+    if await admin_blog_approve_comment(rating_id):
+        _flash(request, "Comentariu aprobat pentru afișare publică.", "success")
+    else:
+        _flash(request, "Înregistrarea nu mai era în așteptare.", "warning")
+    return RedirectResponse(url="/admin/blog/moderare-comentarii", status_code=303)
+
+
+@router.post("/moderare-comentarii/respinge/{rating_id}")
+async def blog_admin_moderation_reject(request: Request, rating_id: int):
+    if await admin_blog_reject_comment(rating_id):
+        _flash(request, "Comentariu respins (nu va apărea public).", "success")
+    else:
+        _flash(request, "Înregistrarea nu mai era în așteptare.", "warning")
+    return RedirectResponse(url="/admin/blog/moderare-comentarii", status_code=303)
+
+
+@router.get("/newsletter")
+async def blog_admin_newsletter(request: Request):
+    subscribers = await admin_blog_newsletter_subscribers()
+    smtp_ok = newsletter_mail_configured()
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/blog_newsletter.html",
+        context={
+            "request": request,
+            "subscribers": subscribers,
+            "smtp_configured": smtp_ok,
+            "title": "Newsletter blog — S366 AI",
+        },
+    )
+
+
+@router.get("/newsletter/export.csv")
+async def blog_admin_newsletter_export_csv():
+    rows = await admin_blog_newsletter_subscribers()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["email", "active", "created_at", "unsub_token"])
+    for r in rows:
+        w.writerow(
+            [
+                r.email,
+                r.active,
+                r.created_at.isoformat() if r.created_at else "",
+                r.unsub_token,
+            ]
+        )
+    return Response(
+        content=buf.getvalue().encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="blog-newsletter.csv"',
+        },
+    )
+
+
+def _send_newsletter_batch(subject: str, html_body: str, pairs: list[tuple[str, str]]) -> tuple[int, int]:
+    ok, fail = 0, 0
+    for email, token in pairs:
+        try:
+            footer = (
+                f'<p style="font-size:12px;color:#666;"><a href="'
+                f'{build_unsubscribe_url(token)}">Dezabonare newsletter</a></p>'
+            )
+            send_newsletter_email(
+                to_email=email,
+                subject=subject,
+                html_body=html_body + footer,
+                unsub_token=token,
+            )
+            ok += 1
+        except Exception:
+            log.exception("newsletter send to %s", email)
+            fail += 1
+    return ok, fail
+
+
+@router.post("/newsletter/trimite")
+async def blog_admin_newsletter_send(request: Request):
+    form = await request.form()
+    subject = (form.get("subject") or "").strip()
+    html_body = (form.get("html_body") or "").strip()
+    if not subject or not html_body:
+        _flash(request, "Completează subiectul și conținutul HTML.", "danger")
+        return RedirectResponse(url="/admin/blog/newsletter", status_code=303)
+    if not newsletter_mail_configured():
+        _flash(
+            request,
+            "SMTP newsletter neconfigurat. Setează NEWSLETTER_SMTP_HOST, NEWSLETTER_FROM_EMAIL etc.",
+            "warning",
+        )
+        return RedirectResponse(url="/admin/blog/newsletter", status_code=303)
+    pairs = await admin_blog_newsletter_active_for_send()
+    if not pairs:
+        _flash(request, "Nu există abonați activi.", "warning")
+        return RedirectResponse(url="/admin/blog/newsletter", status_code=303)
+    ok, fail = await run_in_threadpool(
+        _send_newsletter_batch, subject, html_body, pairs
+    )
+    if fail == 0:
+        _flash(request, f"Newsletter trimis către {ok} adrese.", "success")
+    else:
+        _flash(
+            request,
+            f"Trimise cu succes: {ok}, eșuate: {fail}. Verifică logurile.",
+            "warning",
+        )
+    return RedirectResponse(url="/admin/blog/newsletter", status_code=303)
