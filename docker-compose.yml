@@ -22,6 +22,8 @@ services:
               capabilities: [ gpu ]
     runtime: nvidia
     environment:
+      # Aceeași cale ca volumul companies_data → evită scrieri în /app/data vs /companies_data
+      - COMPANIES_DATA_DIR=/companies_data
       - TZ=Europe/Bucharest
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all

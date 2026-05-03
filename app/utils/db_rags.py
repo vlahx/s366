@@ -2,13 +2,9 @@ import os
 import sys
 import numpy as np
 import torch
-import aiosqlite  
-from pathlib import Path
+import aiosqlite
 from sentence_transformers import SentenceTransformer, models
-from app.models.sqlite_company_model import get_db
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-COMPANIES_ROOT = BASE_DIR / "data/companies_data"
+from app.models.sqlite_company_model import get_db, get_document_path
 
 # 1. Detectăm device-ul o singură dată
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -33,21 +29,7 @@ print(f"✅ [S366 AI] Creierul de 1024 (fp16) e activ pe: {model.device}")
 print(f"DEBUG: Modelul rulează acum pe: {model.device}")
 
 
-def get_document_path(cui: str, filename: str = None):
-    """
-    Îți dă calea absolută către folderul de documente al firmei 
-    sau către un fișier specific.
-    """
-    # Construim folderul: companies_data/{cui}/docs/
-    company_docs_dir = COMPANIES_ROOT / str(cui) / "docs"
-    
-    # Ne asigurăm că folderul există (ca să nu crape la scriere mai târziu)
-    company_docs_dir.mkdir(parents=True, exist_ok=True)
-    
-    if filename:
-        return company_docs_dir / filename
-    
-    return company_docs_dir
+# get_document_path: sqlite_company_model (COMPANIES_DATA_DIR unic)
 
 # ---------------------------------------------------------
 # 2. Funcția de Embedding (Comasată aici)

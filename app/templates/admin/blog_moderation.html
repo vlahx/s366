@@ -1,0 +1,74 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Moderare comentarii blog — S366 AI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-body-emphasis fw-bold">Moderare comentarii</h1>
+            <p class="text-body-secondary mb-0 small">Impresii cu text în așteptare. Stelele fără text nu apar aici.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/admin/blog/posts" class="btn btn-outline-secondary btn-sm">← Articole</a>
+        </div>
+    </div>
+
+    <p class="small text-body-secondary mb-3">
+        Eticheta <span class="badge text-bg-info">DIGI</span> = IP în intervalele din <code>DIGI_IP_CIDRS</code> (ex. <code>81.196.0.0/16,86.120.0.0/13</code> — actualizezi lista după nevoie).
+    </p>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Articol</th>
+                        <th>Stele</th>
+                        <th>Comentariu</th>
+                        <th>IP</th>
+                        <th>Data</th>
+                        <th class="text-end">Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in pending %}
+                    <tr>
+                        <td>
+                            <a href="/blog/{{ row.post_slug }}/" target="_blank" rel="noopener" class="fw-medium text-decoration-none">
+                                {{ row.post_title or row.post_slug }}
+                            </a>
+                            <div><code class="small">{{ row.post_slug }}</code></div>
+                        </td>
+                        <td>{{ row.stars }}</td>
+                        <td style="max-width: 22rem;"><span class="small">{{ row.comment | e }}</span></td>
+                        <td class="small">
+                            {% if row.submitter_ip %}{{ row.submitter_ip }}{% else %}—{% endif %}
+                            {% if row.is_digi %}
+                            <span class="badge text-bg-info ms-1">DIGI</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-body-secondary">
+                            {% if row.created_at %}{{ row.created_at.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <form method="post" action="/admin/blog/moderare-comentarii/aproba/{{ row.id }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-success">Aprobă</button>
+                            </form>
+                            <form method="post" action="/admin/blog/moderare-comentarii/respinge/{{ row.id }}" class="d-inline"
+                                  onsubmit="return confirm('Respingi acest comentariu?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Respinge</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-body-secondary text-center py-4">Nicio impresie în așteptare.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

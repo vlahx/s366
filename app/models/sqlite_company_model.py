@@ -5,23 +5,67 @@ import sys
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-COMPANIES_ROOT = BASE_DIR / "data/companies_data"
+
+
+def companies_data_root() -> Path:
+    """
+    O singură rădăcină pentru `metadata.db`, `docs/` (RAG), etc.
+
+    În Docker, setează COMPANIES_DATA_DIR la volumul montat (ex. /companies_data),
+    altfel fișierele ajung sub /app/data/companies_data și nu în același loc cu mount-ul.
+    """
+    env = (os.getenv("COMPANIES_DATA_DIR") or "").strip()
+    if env:
+        return Path(env)
+    return BASE_DIR / "data" / "companies_data"
+
+
+# Rezolvat la import; toate modulele care importă COMPANIES_ROOT folosesc aceeași cale.
+COMPANIES_ROOT: Path = companies_data_root()
+
+
+def _company_root(cui: str) -> Path:
+    c = str(cui).strip()
+    if not c:
+        raise ValueError("CUI lipsă pentru calea companiei")
+    return COMPANIES_ROOT / c
+
 
 def get_document_path(cui: str, filename: str = None):
     """
     Îți dă calea absolută către folderul de documente al firmei 
     sau către un fișier specific.
     """
-    # Construim folderul: companies_data/{cui}/docs/
-    company_docs_dir = COMPANIES_ROOT / str(cui) / "docs"
-    
-    # Ne asigurăm că folderul există (ca să nu crape la scriere mai târziu)
+    company_docs_dir = _company_root(cui) / "docs"
     company_docs_dir.mkdir(parents=True, exist_ok=True)
-    
+
     if filename:
         return company_docs_dir / filename
-    
+
     return company_docs_dir
+
+
+def get_invoices_path(cui: str, filename: str | None = None) -> Path:
+    """
+    Facturi generate (PDF/XML etc.). Apelat la generarea facturii — creează lazy
+    `{COMPANIES_ROOT}/{cui}/invoices/`.
+    """
+    invoices_dir = _company_root(cui) / "invoices"
+    invoices_dir.mkdir(parents=True, exist_ok=True)
+    if filename:
+        return invoices_dir / filename
+    return invoices_dir
+
+
+def ensure_company_rag_layout(cui: str) -> Path:
+    """
+    La init companie (metadata.db): rădăcină + docs pentru RAG.
+    Nu creează `invoices/` — acela e doar la emiterea facturii.
+    """
+    root = _company_root(cui)
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "docs").mkdir(exist_ok=True)
+    return root
 
 
 async def _ensure_documents_columns(db):
@@ -49,7 +93,7 @@ async def get_db(cui):
     # Fiind "CREATE TABLE IF NOT EXISTS", nu strică nimic dacă deja există.
     await init_company_db(cui)
     
-    specific_db_path = COMPANIES_ROOT / str(cui) / "metadata.db"
+    specific_db_path = _company_root(str(cui).strip()) / "metadata.db"
     
     # Dacă după init tot nu avem path (eroare gravă de permisiuni, etc)
     if not specific_db_path.exists():
@@ -70,14 +114,12 @@ async def get_db(cui):
 
   
 async def init_company_db(cui):
-    """Inițializează folderul și tabelele metadata."""
-    company_dir = os.path.join(COMPANIES_ROOT, str(cui))
-    os.makedirs(company_dir, exist_ok=True)
-    
-    db_path = os.path.join(company_dir, "metadata.db")
+    """Inițializează folderul companiei, docs/ (RAG) și tabelele metadata.db."""
+    root = ensure_company_rag_layout(str(cui).strip())
+    db_path = root / "metadata.db"
     
     try:
-        async with aiosqlite.connect(db_path) as db:
+        async with aiosqlite.connect(str(db_path)) as db:
             # 1. Tabelul de Prompts
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS "prompts" (

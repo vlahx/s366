@@ -20,6 +20,7 @@ from app.routes.payments import router as payments_router
 from app.routes.seo import router as seo_router
 from app.routes.blog import _norm_search, _render_blog_index, router as blog_router
 from app.routes.blog_admin import router as blog_admin_router
+from app.middleware.footer_page_views import FooterPageViewMiddleware
 
 from app.models.sqlite_model import init_db
 from app.utils.scheduler import start_global_scheduler
@@ -122,10 +123,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # Middleware-uri — Caddy trimite de obicei X-Forwarded-Proto=https către upstream HTTP.
-# add_middleware: primul în listă = cel mai „interior”; ultimul = primul care vede request-ul.
-# Dorim: HeadToGet (exterior) → Session → ForwardedProto → rute.
+# add_middleware: primul adăugat = cel mai „interior” (lângă rute); ultimul = exterior.
+# Flux request: HeadToGet → FooterPageView → Session → ForwardedProto → rute.
+# (HeadToGet transformă HEAD în GET înainte ca restul stack-ului să vadă metoda.)
 app.add_middleware(ForwardedProtoMiddleware)
 app.add_middleware(SessionMiddleware, secret_key="@Leia1990")
+app.add_middleware(FooterPageViewMiddleware)
 app.add_middleware(HeadToGetMiddleware)
 
 # ✅ Static & Templates (definite ACUM, înainte de handlers)
@@ -164,10 +167,12 @@ app.include_router(payments_router, prefix="/payments", tags=["Payments"])
 
 @app.get("/blog", include_in_schema=False)
 async def blog_no_trailing_slash(
-    request: Request, q: str | None = Query(None, max_length=200)
+    request: Request,
+    q: str | None = Query(None, max_length=200),
+    page: int = Query(1, ge=1, le=10_000),
 ):
     """Aceeași pagină ca /blog/ — fără redirect gol pentru crawleri / curl fără -L."""
-    return await _render_blog_index(request, None, search=_norm_search(q))
+    return await _render_blog_index(request, None, search=_norm_search(q), page=page)
 
 
 @app.get("/chat", include_in_schema=False)

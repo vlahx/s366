@@ -9,10 +9,6 @@
 {% if post.author_firstname %}
 <meta property="article:author" content="{{ post.author_firstname | e }}" />
 {% endif %}
-{% if og_image_width and og_image_height %}
-<meta property="og:image:width" content="{{ og_image_width }}" />
-<meta property="og:image:height" content="{{ og_image_height }}" />
-{% endif %}
 {% endblock %}
 
 {% block extra_css %}
@@ -40,6 +36,8 @@
     border-radius: 0 0.5rem 0.5rem 0;
   }
   .share-row a { font-size: 0.9rem; }
+  .blog-rating-stars .btn-check:checked + .btn { background-color: var(--bs-warning); border-color: var(--bs-warning); color: #000; }
+  .blog-rating-stars label.btn { font-size: 1.25rem; line-height: 1; padding: 0.35rem 0.5rem; }
 </style>
 {% endblock %}
 
@@ -53,6 +51,10 @@
         {% if post.category_name %}
         <span class="mx-1">·</span>
         <a href="/blog/category/{{ post.category_slug }}" class="text-decoration-none" itemprop="articleSection">{{ post.category_name }}</a>
+        {% endif %}
+        {% if article_view_count %}
+        <span class="mx-1">·</span>
+        <span class="text-body-secondary" title="Număr de încărcări ale paginii (nu vizitatori unici)">{{ article_view_count }} vizualizări</span>
         {% endif %}
       </div>
       <h1 class="fw-bold text-body-emphasis display-6" itemprop="headline">{{ post.title }}</h1>
@@ -77,6 +79,60 @@
     <div class="content text-body-secondary lh-lg fs-6" itemprop="articleBody">
       {{ post.content_html | safe }}
     </div>
+
+    <section class="border rounded-3 p-3 p-md-4 mt-5 bg-body-tertiary bg-opacity-25" aria-labelledby="blog-rating-heading">
+      <h2 id="blog-rating-heading" class="h6 text-body-emphasis mb-2">Cum ți s-a părut articolul?</h2>
+      {% if rating_summary and rating_summary.count %}
+      <p class="small text-body-secondary mb-3">
+        Medie <strong>{{ rating_summary.avg | round(1) }}</strong> / 5 din <strong>{{ rating_summary.count }}</strong> evaluări.
+      </p>
+      {% else %}
+      <p class="small text-body-secondary mb-3">Notează cu 1–5 stele. Poți adăuga o impresie scurtă: apare pe site doar după ce o echipă o aprobă.</p>
+      {% endif %}
+
+      {% if approved_comments %}
+      <div class="mb-4">
+        <h3 class="h6 text-body-emphasis mb-2">Impresii cititori</h3>
+        <ul class="list-unstyled mb-0">
+          {% for c in approved_comments %}
+          <li class="border-bottom pb-3 mb-3">
+            <div class="small text-warning mb-1" aria-hidden="true">{% for _ in range(c.stars) %}★{% endfor %}{% for _ in range(5 - c.stars) %}☆{% endfor %}</div>
+            <p class="mb-0 small text-body-secondary">{{ c.comment }}</p>
+            {% if c.created_at %}
+            <p class="mb-0 mt-1 text-body-tertiary" style="font-size: 0.75rem;">{{ c.created_at.strftime('%d %b %Y') }}</p>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if request.query_params.get('rating') == 'ok' %}
+      <div class="alert alert-success py-2 small mb-3" role="status">Mulțumim pentru evaluare!</div>
+      {% elif request.query_params.get('rating') == 'err' %}
+      <div class="alert alert-warning py-2 small mb-3" role="alert">Nu am putut înregistra evaluarea. Încearcă din nou.</div>
+      {% endif %}
+
+      <form method="post" action="/blog/feedback" class="blog-rating-stars">
+        <input type="hidden" name="post_slug" value="{{ post.slug }}">
+        <div class="mb-2" role="radiogroup" aria-label="Stele">
+          {% for s in range(1, 6) %}
+          <input type="radio" class="btn-check" name="stars" id="rating-star-{{ s }}" value="{{ s }}" {% if s == 1 %}required{% endif %}>
+          <label class="btn btn-outline-warning btn-sm" for="rating-star-{{ s }}" title="{{ s }} stele">★</label>
+          {% endfor %}
+        </div>
+        <div class="mb-2">
+          <label for="rating-comment" class="form-label small text-body-secondary mb-1">Impresie scurtă (opțional, max. 400 caractere)</label>
+          <textarea class="form-control form-control-sm" id="rating-comment" name="comment" rows="2" maxlength="400"
+                    placeholder="Ce ți-a plăcut sau ce ai îmbunătăți?"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm rounded-pill">Trimite evaluarea</button>
+        <div class="visually-hidden" aria-hidden="true">
+          <label for="rating-hp">Website</label>
+          <input type="text" name="url" id="rating-hp" tabindex="-1" autocomplete="off" value="">
+        </div>
+      </form>
+    </section>
 
     <footer class="border-top mt-5 pt-4">
       <p class="small text-body-secondary mb-2">Distribuie</p>

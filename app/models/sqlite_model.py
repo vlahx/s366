@@ -273,6 +273,7 @@ async def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 author_firstname TEXT,
+                newsletter_sent_at TIMESTAMP,
                 FOREIGN KEY (category_id) REFERENCES blog_categories(id) ON DELETE SET NULL
             )
         """)
@@ -282,11 +283,77 @@ async def init_db():
         await db.execute(
             "CREATE INDEX IF NOT EXISTS idx_blog_posts_published ON blog_posts(published_at)"
         )
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS page_views (
+                page_key TEXT PRIMARY KEY,
+                view_count INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS blog_newsletter (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL COLLATE NOCASE,
+                active INTEGER NOT NULL DEFAULT 1,
+                unsub_token TEXT NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(email)
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS blog_post_ratings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_slug TEXT NOT NULL,
+                stars INTEGER NOT NULL CHECK (stars >= 1 AND stars <= 5),
+                comment TEXT,
+                ip_hash TEXT NOT NULL,
+                submitter_ip TEXT,
+                public_comment INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(post_slug, ip_hash)
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_blog_post_ratings_slug ON blog_post_ratings(post_slug)"
+        )
+        async with db.execute("PRAGMA table_info(blog_post_ratings)") as cur:
+            _bpr_cols = {row[1] for row in await cur.fetchall()}
+        if "submitter_ip" not in _bpr_cols:
+            await db.execute(
+                "ALTER TABLE blog_post_ratings ADD COLUMN submitter_ip TEXT"
+            )
+        if "public_comment" not in _bpr_cols:
+            await db.execute(
+                "ALTER TABLE blog_post_ratings ADD COLUMN public_comment INTEGER NOT NULL DEFAULT 0"
+            )
+            await db.execute(
+                """
+                UPDATE blog_post_ratings SET public_comment = CASE
+                    WHEN comment IS NOT NULL AND TRIM(comment) != '' THEN 2
+                    ELSE 0
+                END
+                """
+            )
         async with db.execute("PRAGMA table_info(blog_posts)") as cur:
             _blog_cols = {row[1] for row in await cur.fetchall()}
         if "author_firstname" not in _blog_cols:
             await db.execute(
                 "ALTER TABLE blog_posts ADD COLUMN author_firstname TEXT"
+            )
+        if "view_count" not in _blog_cols:
+            await db.execute(
+                "ALTER TABLE blog_posts ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0"
+            )
+        if "newsletter_sent_at" not in _blog_cols:
+            await db.execute(
+                "ALTER TABLE blog_posts ADD COLUMN newsletter_sent_at TIMESTAMP"
+            )
+            await db.execute(
+                """
+                UPDATE blog_posts
+                SET newsletter_sent_at = datetime('now')
+                WHERE draft = 0 AND newsletter_sent_at IS NULL
+                """
             )
 
         async with db.execute("SELECT COUNT(*) FROM blog_posts") as cur:

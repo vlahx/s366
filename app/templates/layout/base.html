@@ -63,6 +63,16 @@
     <meta property="og:image" content="{{ _og_img | e }}" />
     {# Meta acceptă același URL ca og:image când e HTTPS; fără if — unele medii Jinja/crawler au dat false negativ la startswith. #}
     <meta property="og:image:secure_url" content="{{ _og_img | e }}" />
+    <meta property="og:locale" content="ro_RO" />
+    {% set _og_img_alt = ((seo_og_image_alt if (seo_og_image_alt is defined and seo_og_image_alt) else _og_title) | trim) %}
+    <meta property="og:image:alt" content="{{ _og_img_alt | e }}" />
+    {% if og_image_width is defined and og_image_height is defined and og_image_width and og_image_height %}
+    <meta property="og:image:width" content="{{ og_image_width }}" />
+    <meta property="og:image:height" content="{{ og_image_height }}" />
+    {% elif _og_img == _default_og_img %}
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    {% endif %}
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="{{ _og_url | e }}">
@@ -177,6 +187,15 @@
     </main>
 
     {% if not request.url.path.startswith('/chat') %}
+    {% if article_view_count is defined %}
+    {% set footer_page_views_display = article_view_count %}
+    {% elif listing_view_count is defined %}
+    {% set footer_page_views_display = listing_view_count %}
+    {% elif footer_page_view_count is defined %}
+    {% set footer_page_views_display = footer_page_view_count %}
+    {% else %}
+    {% set footer_page_views_display = request.state.footer_view_count %}
+    {% endif %}
     {% include 'layout/main-footer.html' %}
     {% endif %}
 
@@ -232,6 +251,7 @@
 
     {% block scripts %}{% endblock %}
 
+    {% include 'layout/cookie-consent.html' %}
 
 </body>
 

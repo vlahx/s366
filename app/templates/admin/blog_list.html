@@ -14,6 +14,12 @@
             <a href="/admin/blog/categorii" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-folder me-1"></i>Categorii
             </a>
+            <a href="/admin/blog/moderare-comentarii" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-chat-square-text me-1"></i>Moderare comentarii
+            </a>
+            <a href="/admin/blog/newsletter" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-envelope me-1"></i>Newsletter
+            </a>
             <a href="/admin/blog/nou" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-lg me-1"></i>Articol nou
             </a>
@@ -28,6 +34,7 @@
                         <th>Titlu</th>
                         <th>Slug</th>
                         <th>Categorie</th>
+                        <th class="text-end">Vizualizări</th>
                         <th>Stare</th>
                         <th class="text-end">Acțiuni</th>
                     </tr>
@@ -38,6 +45,7 @@
                         <td class="fw-medium">{{ p.title }}</td>
                         <td><code class="small">{{ p.slug }}</code></td>
                         <td>{{ p.category_name or '—' }}</td>
+                        <td class="text-end text-body-secondary">{{ p.view_count }}</td>
                         <td>
                             {% if p.draft %}
                             <span class="badge text-bg-secondary">Ciornă</span>
@@ -55,7 +63,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-body-secondary text-center py-4">Niciun articol încă.</td>
+                        <td colspan="6" class="text-body-secondary text-center py-4">Niciun articol încă.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

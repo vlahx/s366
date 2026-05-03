@@ -28,11 +28,14 @@
 
             <div class="col-md-4 text-center text-md-end">
                 <div class="d-inline-flex align-items-center flex-wrap justify-content-center justify-content-md-end gap-1 text-muted small">
-                    <span class="text-nowrap"><i class="bi bi-heart-pulse me-1"></i>Infrastructură monitorizată · edge în RO</span>
-                    <span class="text-success fw-semibold text-nowrap">
-                        <i class="bi bi-circle-fill" style="font-size: 0.45rem; vertical-align: 0.12em;"></i>
-                        toate sistemele operaționale
+                    {% if footer_page_views_display is not none %}
+                    <span class="text-nowrap"
+                        title="Încărcări ale acestei pagini în aplicație (nu utilizatori unici).">
+                        <i class="bi bi-eye me-1"></i>{{ footer_page_views_display }} vizualizări pagină
                     </span>
+                    {% else %}
+                    <span class="text-nowrap text-muted opacity-75">—</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
