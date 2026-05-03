@@ -282,11 +282,21 @@ async def init_db():
         await db.execute(
             "CREATE INDEX IF NOT EXISTS idx_blog_posts_published ON blog_posts(published_at)"
         )
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS page_views (
+                page_key TEXT PRIMARY KEY,
+                view_count INTEGER NOT NULL DEFAULT 0
+            )
+        """)
         async with db.execute("PRAGMA table_info(blog_posts)") as cur:
             _blog_cols = {row[1] for row in await cur.fetchall()}
         if "author_firstname" not in _blog_cols:
             await db.execute(
                 "ALTER TABLE blog_posts ADD COLUMN author_firstname TEXT"
+            )
+        if "view_count" not in _blog_cols:
+            await db.execute(
+                "ALTER TABLE blog_posts ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0"
             )
 
         async with db.execute("SELECT COUNT(*) FROM blog_posts") as cur:

@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.utils.decorators import superadmin_required
 from app.models.sqlite_model import fetch_all, execute_query, fetch_one
-from app.models.sqlite_company_model import init_company_db, COMPANIES_ROOT
+from app.models.sqlite_company_model import init_company_db
 from app.utils.system import get_system_stats # Importăm mecanica
 from app.utils.session import sync_user_session
 
@@ -146,18 +146,14 @@ async def approve_company_via_telegram(request: Request, c_id: int, token: str):
         if not success:
             raise Exception("Eroare la crearea metadata.db pe NVMe")
 
-        # 4. Creăm folderul de documente RAG (docs)
-        company_docs_path = COMPANIES_ROOT / str(cui) / "docs"
-    
-        # os.makedirs sau Path.mkdir - ambele funcționează
-        os.makedirs(str(company_docs_path), exist_ok=True)
+        # 4. docs/ e creat în init_company_db; invoices/ apare la prima generare de factură
 
         return HTMLResponse(content=f"""
             <body style="background: #0d1117; color: #58a6ff; text-align: center; font-family: sans-serif; padding: 50px;">
                 <div style="border: 1px solid #30363d; padding: 20px; border-radius: 10px; display: inline-block;">
                     <h1 style="color: #238636;">✅ {name} Activată!</h1>
                     <p style="color: #8b949e;">CUI: {cui} | Infrastructură NVMe pregătită.</p>
-                    <p style="font-size: 0.8rem; color: #484f58;">Status: metadata.db creat | /docs creat</p>
+                    <p style="font-size: 0.8rem; color: #484f58;">Status: metadata.db creat | /docs (RAG)</p>
                 </div>
             </body>
         """)

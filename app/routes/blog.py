@@ -6,7 +6,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
-from app.utils.blog_db import get_published_post_by_slug, list_categories, list_published_posts
+from app.utils.blog_db import (
+    get_published_post_by_slug,
+    increment_blog_post_view_count,
+    increment_listing_page_views,
+    list_categories,
+    list_published_posts,
+)
 from app.utils.blog_og import build_post_og, published_utc, site_origin
 
 router = APIRouter()
@@ -67,6 +73,10 @@ async def _render_blog_index(
         if not category_slug
         else f"{origin}/blog/category/{category_slug}"
     )
+    list_page_key = (
+        f"blog:category:{category_slug}" if category_slug else "blog:index"
+    )
+    listing_view_count = await increment_listing_page_views(list_page_key)
     return templates.TemplateResponse(
         request=request,
         name="blog/index.html",
@@ -77,6 +87,7 @@ async def _render_blog_index(
             "active_category": category_slug,
             "filtered_category_name": filtered_category_name,
             "search_query": search or "",
+            "listing_view_count": listing_view_count,
             "meta_description": idx_og.description,
             "og_image_width": idx_og.image_width,
             "og_image_height": idx_og.image_height,
@@ -117,6 +128,7 @@ async def _blog_post_page(request: Request, post_slug: str):
             },
             status_code=404,
         )
+    article_view_count = await increment_blog_post_view_count(post.slug)
     og = build_post_og(
         request_base=base,
         title=post.title,
@@ -134,6 +146,7 @@ async def _blog_post_page(request: Request, post_slug: str):
         context={
             "request": request,
             "post": post,
+            "article_view_count": article_view_count,
             "meta_description": og.description,
             "og_image_width": og.image_width,
             "og_image_height": og.image_height,

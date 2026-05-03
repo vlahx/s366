@@ -23,6 +23,11 @@ raspunsuri la problemele firmei tale.{%endblock %}
                     <i class="bi bi-plus-lg"></i> Nou
                 </button>
             </div>
+            {% if chat_page_view_count %}
+            <p class="small text-body-secondary mb-0" title="Încărcări ale acestei pagini (nu utilizatori unici)">
+                {{ chat_page_view_count }} vizualizări chat
+            </p>
+            {% endif %}
         </div>
         <div id="session-list" class="list-group list-group-flush"></div>
     </div>

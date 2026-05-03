@@ -177,6 +177,15 @@
     </main>
 
     {% if not request.url.path.startswith('/chat') %}
+    {% if article_view_count is defined %}
+    {% set footer_page_views_display = article_view_count %}
+    {% elif listing_view_count is defined %}
+    {% set footer_page_views_display = listing_view_count %}
+    {% elif footer_page_view_count is defined %}
+    {% set footer_page_views_display = footer_page_view_count %}
+    {% else %}
+    {% set footer_page_views_display = request.state.footer_view_count %}
+    {% endif %}
     {% include 'layout/main-footer.html' %}
     {% endif %}
 

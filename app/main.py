@@ -20,6 +20,7 @@ from app.routes.payments import router as payments_router
 from app.routes.seo import router as seo_router
 from app.routes.blog import _norm_search, _render_blog_index, router as blog_router
 from app.routes.blog_admin import router as blog_admin_router
+from app.middleware.footer_page_views import FooterPageViewMiddleware
 
 from app.models.sqlite_model import init_db
 from app.utils.scheduler import start_global_scheduler
@@ -126,6 +127,7 @@ app = FastAPI(lifespan=lifespan)
 # Dorim: HeadToGet (exterior) → Session → ForwardedProto → rute.
 app.add_middleware(ForwardedProtoMiddleware)
 app.add_middleware(SessionMiddleware, secret_key="@Leia1990")
+app.add_middleware(FooterPageViewMiddleware)
 app.add_middleware(HeadToGetMiddleware)
 
 # ✅ Static & Templates (definite ACUM, înainte de handlers)

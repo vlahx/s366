@@ -38,9 +38,14 @@
     <h1 class="display-6 fw-bold text-body-emphasis mb-2">
       {% if filtered_category_name %}{{ filtered_category_name }}{% else %}Blog{% endif %}
     </h1>
-    <p class="text-body-secondary lead mb-3 mx-auto" style="max-width: 36rem;">
+    <p class="text-body-secondary lead mb-2 mx-auto" style="max-width: 36rem;">
       Noutăți, ghiduri și perspective despre AI și automatizare pentru firme.
     </p>
+    {% if listing_view_count %}
+    <p class="small text-body-secondary mb-3 mx-auto" style="max-width: 36rem;">
+      {{ listing_view_count }} vizualizări această pagină
+    </p>
+    {% endif %}
     <form class="row g-2 justify-content-center mb-4 mx-auto" style="max-width: 32rem;" method="get"
           action="{% if active_category %}/blog/category/{{ active_category }}{% else %}/blog/{% endif %}">
       <div class="col min-w-0">
@@ -90,6 +95,10 @@
           {% if p.category_name %}
           <span class="mx-1">·</span>
           <a href="/blog/category/{{ p.category_slug }}" class="text-decoration-none">{{ p.category_name }}</a>
+          {% endif %}
+          {% if p.view_count %}
+          <span class="mx-1">·</span>
+          <span>{{ p.view_count }} viz.</span>
           {% endif %}
         </div>
         <h2 class="h4 fw-bold mt-1 mb-2"><a href="/blog/{{ p.slug }}/" class="text-decoration-none text-body-emphasis">{{ p.title }}</a></h2>

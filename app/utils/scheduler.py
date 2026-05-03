@@ -2,11 +2,10 @@ import asyncio
 import os
 from datetime import datetime
 from app.utils.scraping.scraping_all import start_the_beast
-from app.models.sqlite_company_model import get_company_settings
+from app.models.sqlite_company_model import get_company_settings, companies_data_root
 
 async def start_global_scheduler():
-    # CALEA CORECTĂ (la rădăcina containerului, conform mapării Docker)
-    companies_path = "/companies_data" 
+    companies_path = str(companies_data_root()) 
     
     print(f"📡 [SCHEDULER] Motorul a pornit. Scanăm: {companies_path}")
     

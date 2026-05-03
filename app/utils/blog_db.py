@@ -42,6 +42,7 @@ class BlogPostRow:
     published_at: datetime | None
     created_at: datetime | None
     author_firstname: str | None
+    view_count: int = 0
 
 
 def _row_author_firstname(r) -> str | None:
@@ -52,6 +53,18 @@ def _row_author_firstname(r) -> str | None:
         return None
     s = str(raw).strip()
     return s or None
+
+
+def _row_view_count(r) -> int:
+    if "view_count" not in r.keys():
+        return 0
+    raw = r["view_count"]
+    if raw is None:
+        return 0
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return 0
 
 
 def _row_post(r) -> BlogPostRow:
@@ -78,6 +91,7 @@ def _row_post(r) -> BlogPostRow:
         published_at=_dt(r["published_at"]),
         created_at=_dt(r["created_at"]),
         author_firstname=_row_author_firstname(r),
+        view_count=_row_view_count(r),
     )
 
 
@@ -155,7 +169,7 @@ async def list_published_posts(
         SELECT p.id, p.slug, p.category_id, c.slug AS category_slug, c.name AS category_name,
                p.title, p.excerpt, p.content_html, p.hero_image_url,
                p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at,
-               p.author_firstname
+               p.author_firstname, p.view_count
         FROM blog_posts p
         LEFT JOIN blog_categories c ON c.id = p.category_id
         WHERE p.draft = 0
@@ -193,7 +207,7 @@ async def get_published_post_by_slug(slug: str) -> BlogPostRow | None:
         SELECT p.id, p.slug, p.category_id, c.slug AS category_slug, c.name AS category_name,
                p.title, p.excerpt, p.content_html, p.hero_image_url,
                p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at,
-               p.author_firstname
+               p.author_firstname, p.view_count
         FROM blog_posts p
         LEFT JOIN blog_categories c ON c.id = p.category_id
         WHERE p.slug = ? AND p.draft = 0
@@ -201,6 +215,47 @@ async def get_published_post_by_slug(slug: str) -> BlogPostRow | None:
         (slug,),
     )
     return _row_post(r) if r else None
+
+
+async def increment_blog_post_view_count(slug: str) -> int:
+    """Incrementează vizualizările unui articol publicat; returnează valoarea după increment."""
+    slug = (slug or "").strip().lower()
+    if not slug:
+        return 0
+    await execute_query(
+        """
+        UPDATE blog_posts
+        SET view_count = COALESCE(view_count, 0) + 1
+        WHERE slug = ? AND draft = 0
+        """,
+        (slug,),
+    )
+    r = await fetch_one(
+        "SELECT view_count FROM blog_posts WHERE slug = ? AND draft = 0",
+        (slug,),
+    )
+    return _row_view_count(r) if r else 0
+
+
+async def increment_listing_page_views(page_key: str) -> int:
+    """
+    Contor pentru pagini listă (ex. blog:index, blog:category:ghiduri).
+    """
+    key = (page_key or "").strip()
+    if not key or len(key) > 200:
+        return 0
+    await execute_query(
+        """
+        INSERT INTO page_views (page_key, view_count) VALUES (?, 1)
+        ON CONFLICT(page_key) DO UPDATE SET view_count = view_count + 1
+        """,
+        (key,),
+    )
+    r = await fetch_one(
+        "SELECT view_count FROM page_views WHERE page_key = ?",
+        (key,),
+    )
+    return int(r["view_count"]) if r and r["view_count"] is not None else 0
 
 
 async def list_published_slugs_for_sitemap() -> list[str]:
@@ -220,7 +275,7 @@ async def admin_list_all_posts() -> list[BlogPostRow]:
         SELECT p.id, p.slug, p.category_id, c.slug AS category_slug, c.name AS category_name,
                p.title, p.excerpt, p.content_html, p.hero_image_url,
                p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at,
-               p.author_firstname
+               p.author_firstname, p.view_count
         FROM blog_posts p
         LEFT JOIN blog_categories c ON c.id = p.category_id
         ORDER BY COALESCE(p.updated_at, p.created_at) DESC, p.id DESC
@@ -238,7 +293,7 @@ async def admin_get_post_by_slug(slug: str) -> BlogPostRow | None:
         SELECT p.id, p.slug, p.category_id, c.slug AS category_slug, c.name AS category_name,
                p.title, p.excerpt, p.content_html, p.hero_image_url,
                p.og_image_width, p.og_image_height, p.draft, p.published_at, p.created_at,
-               p.author_firstname
+               p.author_firstname, p.view_count
         FROM blog_posts p
         LEFT JOIN blog_categories c ON c.id = p.category_id
         WHERE p.slug = ?

@@ -54,6 +54,10 @@
         <span class="mx-1">·</span>
         <a href="/blog/category/{{ post.category_slug }}" class="text-decoration-none" itemprop="articleSection">{{ post.category_name }}</a>
         {% endif %}
+        {% if article_view_count %}
+        <span class="mx-1">·</span>
+        <span class="text-body-secondary" title="Număr de încărcări ale paginii (nu vizitatori unici)">{{ article_view_count }} vizualizări</span>
+        {% endif %}
       </div>
       <h1 class="fw-bold text-body-emphasis display-6" itemprop="headline">{{ post.title }}</h1>
     </header>

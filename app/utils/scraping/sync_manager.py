@@ -2,10 +2,9 @@ import sqlite3
 from pathlib import Path
 from bs4 import BeautifulSoup
 from app.utils.scraping.wp_scraping import get_latest_wp_posts
-# Presupunem că avem un utilitar pentru AI
-# from app.utils.ai_engine import generate_summary 
+from app.models.sqlite_company_model import COMPANIES_ROOT
 
-COMPANIES_DATA_PATH = Path("/app/data/companies_data")
+COMPANIES_DATA_PATH = COMPANIES_ROOT
 
 async def sync_company_news(company_cui: str, target_url: str):
     db_path = COMPANIES_DATA_PATH / company_cui / "metadata.db"

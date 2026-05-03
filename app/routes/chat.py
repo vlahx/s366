@@ -10,6 +10,7 @@ from app.utils.db_helpers import get_db_path
 from app.utils.blog_og import default_card_image_path
 from app.utils.hosting_checkout import public_base_url
 from app.utils.sqlite_handler import SQLiteHandler
+from app.utils.blog_db import increment_listing_page_views
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -19,6 +20,7 @@ async def chat_home_page(request: Request):
     """Folosit pentru /chat/ și /chat (fără slash) în main."""
     origin = public_base_url(str(request.base_url).rstrip("/"))
     canonical = f"{origin}/chat/"
+    chat_page_view_count = await increment_listing_page_views("chat:index")
     return templates.TemplateResponse(
         request=request,
         name="chat/chat.html",
@@ -27,6 +29,7 @@ async def chat_home_page(request: Request):
             "public_canonical": canonical,
             "seo_og_url": canonical,
             "seo_og_image_abs": f"{origin}{default_card_image_path()}",
+            "chat_page_view_count": chat_page_view_count,
         },
     )
 
