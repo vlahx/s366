@@ -1,0 +1,15 @@
+{% extends "layout/base.html" %}
+{% block title %}Newsletter — S366 AI Blog{% endblock %}
+{% block meta_description %}Dezabonare newsletter blog.{% endblock %}
+
+{% block content %}
+<div class="container py-5 px-3" style="max-width: 36rem;">
+  <h1 class="h4 mb-3">Newsletter blog</h1>
+  {% if ok %}
+  <p class="text-body-secondary">Te-ai dezabonat. Nu vei mai primi e-mailuri de la acest newsletter.</p>
+  {% else %}
+  <p class="text-body-secondary">Linkul nu este valid sau abonarea era deja inactivă.</p>
+  {% endif %}
+  <a href="/blog/" class="btn btn-outline-primary rounded-pill mt-2">Înapoi la blog</a>
+</div>
+{% endblock %}
