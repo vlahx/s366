@@ -84,15 +84,11 @@ def build_sitemap_xml(origin: str, entries: Sequence[SitemapEntry]) -> str:
 
 def build_robots_txt(origin: str) -> str:
     origin = origin.rstrip("/")
-    # Meta / Facebook: Sharing Debugger afișează adesea „robots.txt block” și la 403 WAF sau răspuns gol.
-    # Grupuri separate per UA — unele parsere tratează slab mai mulți User-agent: în același bloc.
+    # Meta crawlers — un singur grup cu mai multe User-agent: (RFC robots / practică uzuală).
     # Vezi: https://developers.facebook.com/docs/sharing/webmasters/web-crawlers
+    # „robots.txt block” în Sharing Debugger apare uneori și la 403/răspuns gol, nu doar la reguli.
     return f"""User-agent: facebookexternalhit
-Allow: /
-
 User-agent: Facebot
-Allow: /
-
 User-agent: meta-externalagent
 Allow: /
 

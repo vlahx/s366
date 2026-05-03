@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.utils.blog_db import (
@@ -227,6 +227,9 @@ async def blog_post_trailing_slash(request: Request, post_slug: str):
 
 
 @router.get("/{post_slug}", response_class=HTMLResponse, name="blog_post_legacy")
-async def blog_post_redirect_to_slash(post_slug: str):
-    """Canonic cu slash final — vechile linkuri fără / primesc 308."""
-    return RedirectResponse(url=f"/blog/{post_slug}/", status_code=308)
+async def blog_post_no_trailing_slash(request: Request, post_slug: str):
+    """
+    Aceeași pagină ca /blog/{slug}/ — fără 308.
+    Crawleri (ex. facebookexternalhit) adesea nu urmează redirectul și rămân fără HTML/OG.
+    """
+    return await _blog_post_page(request, post_slug)

@@ -8,7 +8,10 @@ from app.utils.page_views import footer_page_view_key
 
 
 class FooterPageViewMiddleware(BaseHTTPMiddleware):
-    """Incrementează page_views pentru rutele care nu au contor dedicat (blog/chat)."""
+    """
+    Incrementează page_views pentru rutele care nu au contor dedicat (blog/chat).
+    Nu citește request.session, CSRF sau auth — nu poate produce 403 din „sesiune lipsă”.
+    """
 
     async def dispatch(self, request: Request, call_next):
         request.state.footer_view_count = None

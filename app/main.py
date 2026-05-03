@@ -123,8 +123,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # Middleware-uri — Caddy trimite de obicei X-Forwarded-Proto=https către upstream HTTP.
-# add_middleware: primul în listă = cel mai „interior”; ultimul = primul care vede request-ul.
-# Dorim: HeadToGet (exterior) → Session → ForwardedProto → rute.
+# add_middleware: primul adăugat = cel mai „interior” (lângă rute); ultimul = exterior.
+# Flux request: HeadToGet → FooterPageView → Session → ForwardedProto → rute.
+# (HeadToGet transformă HEAD în GET înainte ca restul stack-ului să vadă metoda.)
 app.add_middleware(ForwardedProtoMiddleware)
 app.add_middleware(SessionMiddleware, secret_key="@Leia1990")
 app.add_middleware(FooterPageViewMiddleware)
