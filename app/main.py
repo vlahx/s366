@@ -166,10 +166,12 @@ app.include_router(payments_router, prefix="/payments", tags=["Payments"])
 
 @app.get("/blog", include_in_schema=False)
 async def blog_no_trailing_slash(
-    request: Request, q: str | None = Query(None, max_length=200)
+    request: Request,
+    q: str | None = Query(None, max_length=200),
+    page: int = Query(1, ge=1, le=10_000),
 ):
     """Aceeași pagină ca /blog/ — fără redirect gol pentru crawleri / curl fără -L."""
-    return await _render_blog_index(request, None, search=_norm_search(q))
+    return await _render_blog_index(request, None, search=_norm_search(q), page=page)
 
 
 @app.get("/chat", include_in_schema=False)

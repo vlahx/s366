@@ -158,13 +158,55 @@ def _sql_like_pattern(term: str) -> str:
     return f"%{t}%"
 
 
+def _published_posts_filters(
+    category_slug: str | None,
+    search: str | None,
+) -> tuple[list[str], list]:
+    conditions: list[str] = []
+    params: list = []
+    if category_slug:
+        conditions.append("c.slug = ?")
+        params.append(category_slug.strip().lower())
+    like_pat = _sql_like_pattern(search) if search else ""
+    if like_pat:
+        conditions.append(
+            "(p.title LIKE ? ESCAPE '\\' OR IFNULL(p.excerpt, '') LIKE ? ESCAPE '\\')"
+        )
+        params.extend([like_pat, like_pat])
+    return conditions, params
+
+
+async def count_published_posts(
+    *,
+    category_slug: str | None = None,
+    search: str | None = None,
+) -> int:
+    base_sql = """
+        SELECT COUNT(*) AS n
+        FROM blog_posts p
+        LEFT JOIN blog_categories c ON c.id = p.category_id
+        WHERE p.draft = 0
+    """
+    conditions, params = _published_posts_filters(category_slug, search)
+    if conditions:
+        sql = base_sql + " AND " + " AND ".join(conditions)
+    else:
+        sql = base_sql
+    r = await fetch_one(sql, tuple(params))
+    if not r or r["n"] is None:
+        return 0
+    return max(0, int(r["n"]))
+
+
 async def list_published_posts(
     *,
     category_slug: str | None = None,
     search: str | None = None,
     limit: int = 100,
+    offset: int = 0,
 ) -> list[BlogPostRow]:
     limit = max(1, min(500, int(limit)))
+    offset = max(0, int(offset))
     base_sql = """
         SELECT p.id, p.slug, p.category_id, c.slug AS category_slug, c.name AS category_name,
                p.title, p.excerpt, p.content_html, p.hero_image_url,
@@ -174,26 +216,14 @@ async def list_published_posts(
         LEFT JOIN blog_categories c ON c.id = p.category_id
         WHERE p.draft = 0
     """
-    conditions: list[str] = []
-    params: list = []
+    conditions, params = _published_posts_filters(category_slug, search)
 
-    if category_slug:
-        conditions.append("c.slug = ?")
-        params.append(category_slug.strip().lower())
-
-    like_pat = _sql_like_pattern(search) if search else ""
-    if like_pat:
-        conditions.append(
-            "(p.title LIKE ? ESCAPE '\\' OR IFNULL(p.excerpt, '') LIKE ? ESCAPE '\\')"
-        )
-        params.extend([like_pat, like_pat])
-
-    tail = " ORDER BY COALESCE(p.published_at, p.created_at) DESC LIMIT ?"
+    tail = " ORDER BY COALESCE(p.published_at, p.created_at) DESC LIMIT ? OFFSET ?"
     if conditions:
         sql = base_sql + " AND " + " AND ".join(conditions) + tail
     else:
         sql = base_sql + tail
-    params.append(limit)
+    params.extend([limit, offset])
     rows = await fetch_all(sql, tuple(params))
     return [_row_post(r) for r in rows]
 

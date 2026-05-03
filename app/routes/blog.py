@@ -1,12 +1,15 @@
 # Blog public — articole și categorii
 from __future__ import annotations
 
+from pathlib import Path
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
 
 from app.utils.blog_db import (
+    count_published_posts,
     get_published_post_by_slug,
     increment_blog_post_view_count,
     increment_listing_page_views,
@@ -19,6 +22,8 @@ router = APIRouter()
 _templates_dir = Path(__file__).resolve().parents[1] / "templates"
 templates = Jinja2Templates(directory=str(_templates_dir))
 
+BLOG_INDEX_PAGE_SIZE = 6
+
 
 def _base(request: Request) -> str:
     return str(request.base_url).rstrip("/")
@@ -29,11 +34,21 @@ def _norm_search(q: str | None) -> str | None:
     return s if s else None
 
 
+def _blog_list_query_string(*, page: int, search: str | None) -> str:
+    qd: dict[str, str] = {}
+    if page > 1:
+        qd["page"] = str(page)
+    if search:
+        qd["q"] = search
+    return f"?{urlencode(qd)}" if qd else ""
+
+
 async def _render_blog_index(
     request: Request,
     category_slug: str | None,
     *,
     search: str | None = None,
+    page: int = 1,
 ):
     base = _base(request)
     origin = site_origin(base)
@@ -46,7 +61,20 @@ async def _render_blog_index(
                 break
         if filtered_category_name is None:
             raise HTTPException(status_code=404, detail="Categorie inexistentă")
-    posts = await list_published_posts(category_slug=category_slug, search=search, limit=100)
+
+    total_posts = await count_published_posts(category_slug=category_slug, search=search)
+    total_pages = max(1, (total_posts + BLOG_INDEX_PAGE_SIZE - 1) // BLOG_INDEX_PAGE_SIZE)
+    page = max(1, page)
+    if page > total_pages:
+        page = total_pages
+    offset = (page - 1) * BLOG_INDEX_PAGE_SIZE
+
+    posts = await list_published_posts(
+        category_slug=category_slug,
+        search=search,
+        limit=BLOG_INDEX_PAGE_SIZE,
+        offset=offset,
+    )
     posts_view = []
     for p in posts:
         og = build_post_og(
@@ -68,15 +96,33 @@ async def _render_blog_index(
         og_image_width=None,
         og_image_height=None,
     )
-    canonical_blog = (
+    list_path = (
         f"{origin}/blog/"
         if not category_slug
-        else f"{origin}/blog/category/{category_slug}"
+        else f"{origin}/blog/category/{category_slug}/"
+    )
+    canonical_blog = list_path.rstrip("/") + "/" + _blog_list_query_string(page=page, search=search)
+    blog_list_href_base = (
+        "/blog/" if not category_slug else f"/blog/category/{category_slug}/"
     )
     list_page_key = (
         f"blog:category:{category_slug}" if category_slug else "blog:index"
     )
     listing_view_count = await increment_listing_page_views(list_page_key)
+
+    page_nums: list[int] = []
+    if total_pages <= 7:
+        page_nums = list(range(1, total_pages + 1))
+    else:
+        want = {1, total_pages, page, page - 1, page + 1, page - 2, page + 2}
+        ordered = sorted(p for p in want if 1 <= p <= total_pages)
+        prev = 0
+        for p in ordered:
+            if prev and p > prev + 1:
+                page_nums.append(0)
+            page_nums.append(p)
+            prev = p
+
     return templates.TemplateResponse(
         request=request,
         name="blog/index.html",
@@ -88,6 +134,14 @@ async def _render_blog_index(
             "filtered_category_name": filtered_category_name,
             "search_query": search or "",
             "listing_view_count": listing_view_count,
+            "blog_page": page,
+            "blog_total_pages": total_pages,
+            "blog_total_posts": total_posts,
+            "blog_page_size": BLOG_INDEX_PAGE_SIZE,
+            "blog_page_nums": page_nums,
+            "blog_list_href_base": blog_list_href_base,
+            "blog_search_q": search,
+            "blog_query_suffix": _blog_list_query_string,
             "meta_description": idx_og.description,
             "og_image_width": idx_og.image_width,
             "og_image_height": idx_og.image_height,
@@ -99,8 +153,12 @@ async def _render_blog_index(
 
 
 @router.get("/", response_class=HTMLResponse, name="blog_index")
-async def blog_index(request: Request, q: str | None = Query(None, max_length=200)):
-    return await _render_blog_index(request, None, search=_norm_search(q))
+async def blog_index(
+    request: Request,
+    q: str | None = Query(None, max_length=200),
+    page: int = Query(1, ge=1, le=10_000),
+):
+    return await _render_blog_index(request, None, search=_norm_search(q), page=page)
 
 
 @router.get("/category/{cat_slug}", response_class=HTMLResponse, name="blog_category")
@@ -108,8 +166,11 @@ async def blog_category(
     request: Request,
     cat_slug: str,
     q: str | None = Query(None, max_length=200),
+    page: int = Query(1, ge=1, le=10_000),
 ):
-    return await _render_blog_index(request, cat_slug.strip().lower(), search=_norm_search(q))
+    return await _render_blog_index(
+        request, cat_slug.strip().lower(), search=_norm_search(q), page=page
+    )
 
 
 async def _blog_post_page(request: Request, post_slug: str):

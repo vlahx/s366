@@ -107,6 +107,50 @@
       </div>
     </article>
     {% endfor %}
+
+    {% if blog_total_posts and posts_view %}
+    <p class="text-center text-body-secondary small mt-2 mb-0">
+      {% set _start = (blog_page - 1) * blog_page_size + 1 %}
+      {% set _end = _start + (posts_view | length) - 1 %}
+      Articole {{ _start }}–{{ _end }} din {{ blog_total_posts }}
+    </p>
+    {% endif %}
+
+    {% if blog_total_pages > 1 %}
+    <nav class="mt-4" aria-label="Paginare articole blog">
+      <ul class="pagination pagination-lg justify-content-center flex-wrap mb-0">
+        <li class="page-item {% if blog_page <= 1 %}disabled{% endif %}">
+          {% if blog_page > 1 %}
+          <a class="page-link" href="{{ blog_list_href_base }}{{ blog_query_suffix(page=blog_page - 1, search=blog_search_q) }}"
+             rel="prev">Înapoi</a>
+          {% else %}
+          <span class="page-link">Înapoi</span>
+          {% endif %}
+        </li>
+        {% for n in blog_page_nums %}
+        {% if n == 0 %}
+        <li class="page-item disabled d-none d-sm-block"><span class="page-link">…</span></li>
+        {% else %}
+        <li class="page-item {% if n == blog_page %}active{% endif %}" {% if n == blog_page %}aria-current="page"{% endif %}>
+          {% if n == blog_page %}
+          <span class="page-link">{{ n }}</span>
+          {% else %}
+          <a class="page-link" href="{{ blog_list_href_base }}{{ blog_query_suffix(page=n, search=blog_search_q) }}">{{ n }}</a>
+          {% endif %}
+        </li>
+        {% endif %}
+        {% endfor %}
+        <li class="page-item {% if blog_page >= blog_total_pages %}disabled{% endif %}">
+          {% if blog_page < blog_total_pages %}
+          <a class="page-link" href="{{ blog_list_href_base }}{{ blog_query_suffix(page=blog_page + 1, search=blog_search_q) }}"
+             rel="next">Înainte</a>
+          {% else %}
+          <span class="page-link">Înainte</span>
+          {% endif %}
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
