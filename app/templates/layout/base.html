@@ -186,6 +186,8 @@
         {% endif %}
     </main>
 
+    {% block outside_main %}{% endblock %}
+
     {% if not request.url.path.startswith('/chat') %}
     {% if article_view_count is defined %}
     {% set footer_page_views_display = article_view_count %}

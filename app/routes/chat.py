@@ -159,5 +159,70 @@ async def update_session(uuid: str, request: Request):
         return {"status": "success"}
     except Exception as e:
         print(f"[CRITICAL] Eroare API Update Session: {str(e)}")
-        return {"error": str(e)}, 500    
-    
+        return {"error": str(e)}, 500
+
+
+def _memory_db_or_404(request: Request) -> tuple[str, SQLiteHandler]:
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Autentificare necesară pentru memoria L0.")
+    db_path = get_db_path(user_id, request.session.get("company_id"))
+    if not db_path:
+        raise HTTPException(status_code=400, detail="Nu există stocare chat pentru acest cont.")
+    return db_path, SQLiteHandler(db_path)
+
+
+@router.get("/api/memory")
+async def list_memory_l0(request: Request):
+    _, handler = _memory_db_or_404(request)
+    try:
+        return await handler.list_memory_l0(limit=200)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/api/memory")
+async def create_memory_l0(request: Request):
+    _, handler = _memory_db_or_404(request)
+    data = await request.json()
+    title = (data.get("title") or "").strip()
+    content = (data.get("content") or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Câmpul content este obligatoriu.")
+    try:
+        new_id = await handler.insert_memory_l0(
+            title=title or content[:80],
+            content=content,
+            source_conversation_uuid=None,
+        )
+        return {"status": "ok", "id": new_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.patch("/api/memory/{row_id}")
+async def update_memory_l0(request: Request, row_id: int):
+    _, handler = _memory_db_or_404(request)
+    data = await request.json()
+    title = (data.get("title") or "").strip()
+    content = (data.get("content") or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Câmpul content este obligatoriu.")
+    try:
+        n = await handler.update_memory_l0(row_id, title=title or content[:80], content=content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    if n == 0:
+        raise HTTPException(status_code=404, detail="Înregistrarea nu există.")
+    return {"status": "ok"}
+
+
+@router.delete("/api/memory/{row_id}")
+async def delete_memory_l0(request: Request, row_id: int):
+    _, handler = _memory_db_or_404(request)
+    n = await handler.delete_memory_l0(row_id)
+    if n == 0:
+        raise HTTPException(status_code=404, detail="Înregistrarea nu există.")
+    return {"status": "ok"}

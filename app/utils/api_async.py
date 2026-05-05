@@ -44,7 +44,20 @@ class LLMServiceAsync:
         system_prompt = payload.get('context', {}).get('system_prompt', '')
         rag_data = payload.get('context', {}).get('rag_data', '')
 
-        settings = await get_company_settings(company_cui) or {} 
+        settings = await get_company_settings(company_cui) or {}
+
+        db_path_tools = get_db_path(user_id=user_id, company_id=company_id)
+        tool_context = {
+            "db_path": db_path_tools if db_path_tools else None,
+            "conversation_uuid": conv_uuid,
+        }
+        tools_for_request = self.tools_description
+        if not user_id or not tool_context.get("db_path"):
+            tools_for_request = [
+                t
+                for t in self.tools_description
+                if (t.get("function") or {}).get("name") != "save_user_memory"
+            ]
 
         # rag_temperature în DB e folosită și la RAG; pentru chat evităm valori foarte mici (ex. 0.1) care destabilizează qwen3.5 în Ollama.
         if "llm_temperature" in settings:
@@ -84,7 +97,7 @@ class LLMServiceAsync:
                 async for chunk in self.llm_api_async.chat_stream(
                     model_name=self.model_name,
                     messages=full_messages,
-                    tools=self.tools_description,
+                    tools=tools_for_request,
                     options=llm_options
                 ):
                     message = chunk.get('message', {})
@@ -139,7 +152,7 @@ class LLMServiceAsync:
 
                 for tool_call in final_tool_calls:
                     # Rulăm funcția din tools.py
-                    result = await execute_tool(tool_call)
+                    result = await execute_tool(tool_call, tool_context)
                     
                     # Adăugăm rezultatul în context pentru următoarea iterație
                     full_messages.append({

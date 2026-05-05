@@ -13,6 +13,7 @@ import {
     persistGuestTurnIfNeeded,
     GUEST_NEW_THREAD_MSG,
 } from './guest_storage.js';
+import { initChatUserSettingsModal, renderMemoryL0List } from './memory_l0.js';
 
 // 2. STARE GLOBALĂ
 const STORAGE_KEY = 's366_active_conv';
@@ -77,6 +78,9 @@ window.addEventListener('DOMContentLoaded', () => {
         (wrapper?.dataset.loggedIn || '') === '1';
 
     initMobileSidebar();
+    if (isLoggedIn) {
+        initChatUserSettingsModal();
+    }
 
     // --- A. GESTIUNE SESIUNI ---
     const handleSwitch = (uuid) => {
@@ -203,6 +207,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     renderSessions(activeConvId, handleSwitch);
                 }, 800);
+                if (isLoggedIn) {
+                    renderMemoryL0List().catch(() => {});
+                }
             }
         });
     }

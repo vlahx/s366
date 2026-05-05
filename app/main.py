@@ -2,6 +2,13 @@ import sys
 import os
 import logging
 import asyncio
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Înainte de rute: .env din rădăcina proiectului (nu depinde de cwd la Docker/uvicorn)
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import RedirectResponse, FileResponse
 from starlette.middleware.sessions import SessionMiddleware

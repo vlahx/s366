@@ -60,14 +60,39 @@ nav.navbar.sticky-top {
     bottom: 0;
     z-index: 1040;
     transform: translateX(-100%);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
 }
 
 #sidebar-left.show {
     transform: translateX(0);
 }
 
-/* Doar off-canvas mobil: fără .show, nu bloca click-uri pe chat / navbar */
+/*
+ * Mobil (sm/md): înălțime explicită — altfel flex + height:0 pe .sidebar-zone--content
+ * nu primește spațiu (fără scroll, footer tăiat de overflow:hidden).
+ */
 @media (max-width: 991.98px) {
+    html.is-chat-app #sidebar-left {
+        top: 56px;
+        bottom: auto;
+        height: calc(100dvh - 56px);
+        max-height: calc(100dvh - 56px);
+        min-height: 0;
+        /* safe area (notch / home indicator) */
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        box-sizing: border-box;
+    }
+
+    html.is-chat-app .sidebar-zone--content {
+        /* Pe WebKit mobil height:0 pe flex child poate rămâne 0; lăsăm flex să umple */
+        height: auto;
+        flex: 1 1 0;
+        min-height: 0;
+    }
+
     #sidebar-left:not(.show) {
         pointer-events: none;
     }
@@ -84,15 +109,32 @@ nav.navbar.sticky-top {
         position: relative;
         transform: translateX(0) !important;
         width: 280px;
-        /*position: fixed; */
-        overflow-y: scroll;
-        top: 0;
-        bottom: 0;
+        top: auto;
+        left: auto;
+        bottom: auto;
+        align-self: stretch;
+        min-height: 0;
+    }
+
+    /* Înălțime din #wrapper ca procentele / flex să limiteze zona de scroll */
+    html.is-chat-app #sidebar-left {
+        height: 100%;
+        max-height: 100%;
     }
 
     #sidebar-hamburger {
         display: none !important;
     }
+}
+
+/*
+ * Stivuire: footer-ul chat e frate cu #wrapper în <main>. Dacă footer are z-index mai mare decât
+ * contextul wrapper-ului, se desenează PESTE tot wrapper-ul — inclusiv peste sidebar-ul fixed (sm/md).
+ * Wrapper deasupra footer; navbar (1060) și modalele (în afara main) rămân deasupra.
+ */
+html.is-chat-app #wrapper {
+    align-items: stretch;
+    z-index: 1;
 }
 
 #chat-container {
@@ -106,11 +148,12 @@ nav.navbar.sticky-top {
     /* Fără Bootstrap h-100: evită ciclu height % pe mobil când sidebar e fixed */
 }
 
-/* Footer chat: ultimul copil al <main>, dedesubtul #wrapper (nu după main — evită suprapunere cu input) */
+/* Footer chat: sub stratul #wrapper ca să nu acopere sidebar-ul off-canvas */
 html.is-chat-app main.flex-grow-1 > footer {
     flex-shrink: 0;
     width: 100%;
-    z-index: 1;
+    position: relative;
+    z-index: 0;
 }
 
 
@@ -414,4 +457,60 @@ pre {
 .code-actions button:hover {
     background: rgba(255, 255, 255, 0.2);
     color: #fff;
+}
+
+/* Sidebar: 3 zone — header + footer fixe (sticky), doar lista pe scroll */
+.sidebar-zone--header {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sidebar-bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.sidebar-zone--content {
+    /* height: 0 + flex-grow: lanțul flex altfel ia min-height din conținut și nu apare scroll */
+    flex: 1 1 0;
+    min-height: 0;
+    height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.sidebar-zone--footer {
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--sidebar-bg);
+    border-top: 1px solid var(--border);
+}
+
+#session-list {
+    min-height: 0;
+}
+
+/* Memorie L0 în modalul „Setări cont” */
+.memory-l0-modal-list {
+    max-height: min(50vh, 420px);
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.memory-l0-card .mem-body {
+    font-size: 0.8125rem;
+}
+
+/*
+ * Modal setări: în afara <main> (vezi block outside_main). Z-index peste navbar (1060),
+ * sidebar (1040), voice-panel (1050) și cookie banner (1080).
+ */
+html.is-chat-app .modal-backdrop {
+    z-index: 1085 !important;
+}
+
+html.is-chat-app .modal {
+    z-index: 1090 !important;
 }

@@ -6,8 +6,7 @@ import json
 import httpx
 import re
 import asyncio
-from fastapi import Request
-from typing import List
+import contextvars
 import numpy as np # Mai bine np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
@@ -15,8 +14,15 @@ from bs4 import BeautifulSoup
 from ddgs import DDGS
 import logging
 
+from app.utils.sqlite_handler import SQLiteHandler
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Context injectat de backend la execute_tool (db user, conversație) — nu vine din LLM.
+_tool_runtime_ctx: contextvars.ContextVar[dict | None] = contextvars.ContextVar(
+    "_tool_runtime_ctx", default=None
+)
 
 # --- UTILS ---
 
@@ -134,11 +140,62 @@ async def calculate(expression: str):
         return {"result": result}
     except Exception as e:
         return {"error": f"Calcul invalid: {str(e)}"}
-    
 
-async def execute_tool(tool_call):
+
+async def save_user_memory(
+    *,
+    title: str,
+    content: str,
+    db_path: str | None = None,
+    conversation_uuid: str | None = None,
+):
     """
-    Execută funcția cerută de vLLM/Qwen folosind dicționarul available_tools.
+    Persistă o notă L0 în SQLite-ul userului. Apelat doar din backend (tool),
+    cu db_path / conversation_uuid din contextul cererii, nu din argumentele LLM.
+    """
+    if not db_path:
+        return {
+            "status": "error",
+            "message": "Memoria L0 e disponibilă doar pentru utilizatori autentificați.",
+        }
+    t = (title or "").strip()
+    c = (content or "").strip()
+    if not c:
+        return {"status": "error", "message": "Parametrul content nu poate fi gol."}
+    if not t:
+        t = c[:80] + ("…" if len(c) > 80 else "")
+    try:
+        handler = SQLiteHandler(db_path)
+        new_id = await handler.insert_memory_l0(
+            title=t,
+            content=c,
+            source_conversation_uuid=conversation_uuid,
+        )
+        return {
+            "status": "saved",
+            "id": new_id,
+            "message": "Informația a fost salvată în memoria L0. Utilizatorul o poate vedea și edita din Setări cont (chat) → Memorie salvată.",
+        }
+    except Exception as e:
+        logger.error("save_user_memory: %s", e)
+        return {"status": "error", "message": str(e)}
+
+
+async def save_user_memory_tool(title: str, content: str):
+    """Wrapper pentru LLM: citește db_path / conversation_uuid din contextul cererii."""
+    ctx = _tool_runtime_ctx.get() or {}
+    return await save_user_memory(
+        title=title,
+        content=content,
+        db_path=ctx.get("db_path"),
+        conversation_uuid=ctx.get("conversation_uuid"),
+    )
+
+
+async def execute_tool(tool_call, tool_context=None):
+    """
+    Execută uneltele declarate în TOOLS_DESCRIPTION / available_tools.
+    Pentru unelte care au nevoie de context de sesiune, `tool_context` e setat pe durata apelului.
     """
     # 1. Extragere nume
     name = tool_call.get('function', {}).get('name')
@@ -160,22 +217,27 @@ async def execute_tool(tool_call):
 
     logger.info(f"🚀 [vLLM Tool] Executăm: {name} | Args: {args}")
 
-    # 3. Execuție din dicționarul tău existent
-    if name in available_tools:
-        try:
-            # Rulăm funcția asincronă (get_current_weather, calculate, etc.)
-            result = await available_tools[name](**args)
-            return result
-        except TypeError as te:
-            # Apare dacă vLLM trimite argumente care nu există în semnătura funcției Python
-            logger.error(f"Argumente invalide pentru {name}: {te}")
-            return {"error": f"Argument mismatch: {str(te)}"}
-        except Exception as e:
-            logger.error(f"Eroare internă la {name}: {e}")
-            return {"error": str(e)}
-    
-    logger.warning(f"⚠️ Unealta {name} nu este definită în available_tools.")
-    return {"error": f"Tool {name} not found in S366 AI registry"}
+    ctx_token = None
+    if tool_context is not None:
+        ctx_token = _tool_runtime_ctx.set(tool_context)
+
+    try:
+        if name in available_tools:
+            try:
+                result = await available_tools[name](**args)
+                return result
+            except TypeError as te:
+                logger.error(f"Argumente invalide pentru {name}: {te}")
+                return {"error": f"Argument mismatch: {str(te)}"}
+            except Exception as e:
+                logger.error(f"Eroare internă la {name}: {e}")
+                return {"error": str(e)}
+
+        logger.warning(f"⚠️ Unealta {name} nu este definită în available_tools.")
+        return {"error": f"Tool {name} not found in S366 AI registry"}
+    finally:
+        if ctx_token is not None:
+            _tool_runtime_ctx.reset(ctx_token)
     
 
 TOOLS_DESCRIPTION = [
@@ -229,7 +291,33 @@ TOOLS_DESCRIPTION = [
                         "required": ["expression"],
                     },
                 },
-            }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "save_user_memory",
+                    "description": (
+                        "Salvează o informație sau idee pe care utilizatorul ți-o cere EXPLICIT să o reții "
+                        "(ex: „salvează asta”, „notează că…”, „ține minte…”). Nu apela fără cerere clară. "
+                        "Titlu scurt (etichetă), content = textul complet de reținut. Utilizatorul le gestionează din "
+                        "Setări cont (chat) → Memorie salvată."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "title": {
+                                "type": "string",
+                                "description": "Etichetă scurtă (ex: „Data nașterii”, „Stack proiect X”).",
+                            },
+                            "content": {
+                                "type": "string",
+                                "description": "Textul exact de salvat (fapte, formulări, idei).",
+                            },
+                        },
+                        "required": ["title", "content"],
+                    },
+                },
+            },
         ]
 # --- TOOL MAPPING ---
 
@@ -237,5 +325,6 @@ available_tools = {
     "get_current_datetime": get_current_datetime,
     "get_current_weather": get_current_weather,
     "search_web": search_web,
-    "calculate": calculate
+    "calculate": calculate,
+    "save_user_memory": save_user_memory_tool,
 }

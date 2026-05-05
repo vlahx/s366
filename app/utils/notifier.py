@@ -8,9 +8,6 @@ import hashlib
 # Încarcă variabilele din fișierul .env aflat în rădăcina proiectului
 load_dotenv()
 
-# Opțional: pune un print de control (șterge-l după ce confirmi)
-print(f"DEBUG: Tokenul este {os.getenv('TELEGRAM_BOT_TOKEN')[:10]}...")
-
 def send_email_notification(to_email, subject, body):
     """Trimite un mail simplu prin SMTP."""
     msg = MIMEText(body)

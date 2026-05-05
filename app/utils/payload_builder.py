@@ -13,6 +13,16 @@ import json
 from app.models.sqlite_company_model import get_company_settings
 from app.utils.text_cleaner import assistant_bubble_to_llm_text
 
+# Sufix lipit mereu DUPĂ conținutul din general_prompt.txt (nu înlocuiește fișierul de pe disc).
+_GENERAL_PROMPT_TOOLS_SUFFIX = """
+### Function calling (unelte disponibile)
+- get_current_datetime — dată/oră (București).
+- get_current_weather — vremea pentru un oraș (`city`).
+- search_web — căutare web (`query`).
+- calculate — expresie matematică simplă (`expression`).
+- save_user_memory — salvează în memoria L0 a userului (`title`, `content`); **doar** dacă cere explicit (ex. „salvează asta”, „ține minte…”). Poate edita șterge din Setări cont (chat) → Memorie salvată.
+"""
+
 async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, user_role=None, user_lastname=None, user_firstname=None,
                       company_id=None, company_cui=None, company_name=None, client_messages=None):
 
@@ -109,7 +119,8 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
     # --- Prompturi generale și specifice companiei ---
     base_path = "/companies_data/general/prompts"
     file_name = "general_prompt.txt"
-    general_prompt_path = os.path.join(base_path, file_name)
+    env_override = os.environ.get("GENERAL_PROMPT_PATH")
+    general_prompt_path = env_override if env_override and os.path.isfile(env_override) else os.path.join(base_path, file_name)
 
     try:
         with open(general_prompt_path, "r", encoding="utf-8") as f:
@@ -130,6 +141,8 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
         print(f"EROARE la citirea general_prompt.txt: {e}", file=sys.stderr)
         general_prompt = "Ești un asistent util." # Un fallback minim ca să nu plece gol
 
+    general_prompt = general_prompt.rstrip() + _GENERAL_PROMPT_TOOLS_SUFFIX
+
     # Prompturile companiei
     # 1. Extragerea datelor cu Try/Except (Păstrăm siguranța)
     try:
@@ -149,6 +162,52 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
 
     # 3. Combinarea finală
     system_prompt_combined = f"{general_prompt}{business_context}"
+
+    # --- Memorie L0 (aceeași SQLite ca mesajele) — doar utilizatori autentificați ---
+    memory_instructions = """
+### MEMORIE L0 (persistantă)
+În blocul următor găsești informații pe care utilizatorul le-a salvat explicit sau le-a lăsat vizibile în Setări.
+- Folosește-le ca sursă de adevăr când sunt relevante pentru întrebarea curentă.
+- Dacă utilizatorul îți cere clar să salvezi / să reții / să notezi o informație sau idee, apelează tool-ul **save_user_memory** cu un titlu scurt și câmpul **content** cu textul complet de păstrat. Confirmă-i scurt că a fost salvată.
+- Nu salva nimic din proprie inițiativă fără cerere explicită.
+"""
+    memory_block = ""
+    if user_id and db_path and os.path.exists(db_path):
+        try:
+            db_handler = SQLiteHandler(db_path)
+            items = await db_handler.list_memory_l0(limit=40)
+
+            def _one_line(s: str, max_len: int) -> str:
+                x = " ".join((s or "").split())
+                if len(x) <= max_len:
+                    return x
+                return x[: max_len - 1] + "…"
+
+            if items:
+                lines = []
+                for it in items:
+                    tid = it.get("id")
+                    tit = _one_line(str(it.get("title") or ""), 120)
+                    body = _one_line(str(it.get("content") or ""), 400)
+                    if tit and body:
+                        lines.append(f"- [id={tid}] {tit}: {body}")
+                    elif body:
+                        lines.append(f"- [id={tid}] {body}")
+                memory_block = (
+                    memory_instructions
+                    + "\n### DATE SALVATE (L0)\n"
+                    + "\n".join(lines)
+                    + "\n"
+                )
+            else:
+                memory_block = (
+                    memory_instructions
+                    + "\n### DATE SALVATE (L0)\n(nicio înregistrare încă)\n"
+                )
+        except Exception as e:
+            print(f"EROARE la citirea memory_l0: {e}", file=sys.stderr)
+
+    system_prompt_combined = f"{system_prompt_combined}{memory_block}"
 
     # --- RAG relevant ---
     try:

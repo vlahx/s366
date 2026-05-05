@@ -35,6 +35,16 @@ class SQLiteHandler:
                     FOREIGN KEY (conversation_uuid) REFERENCES chat_sessions (conversation_uuid) ON DELETE CASCADE
                 );
             """)
+            await self.db.execute("""
+                CREATE TABLE IF NOT EXISTS memory_l0 (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    source_conversation_uuid TEXT
+                );
+            """)
 
             # Instalare TRIGGER pentru titlu automat
             # Se execută doar dacă titlul este cel default ('Discuție nouă')
@@ -111,6 +121,64 @@ class SQLiteHandler:
         if ai_response_raw and ai_response_raw.strip():
             html_response = clean_markdown_to_html(ai_response_raw)
             await self.insert_message(ts, "assistant", html_response, conversation_uuid, title=title)
+
+    async def list_memory_l0(self, *, limit: int = 100) -> list[dict]:
+        await self._connect()
+        lim = max(1, min(int(limit), 500))
+        async with self.db.execute(
+            """
+            SELECT id, title, content, created_at, updated_at, source_conversation_uuid
+            FROM memory_l0 ORDER BY updated_at DESC LIMIT ?
+            """,
+            (lim,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def insert_memory_l0(
+        self,
+        title: str,
+        content: str,
+        source_conversation_uuid: str | None = None,
+    ) -> int:
+        await self._connect()
+        ts = datetime.datetime.now().isoformat()
+        t = (title or "").strip() or "Notă"
+        c = (content or "").strip()
+        if not c:
+            raise ValueError("memory_l0 content is empty")
+        cur = await self.db.execute(
+            """
+            INSERT INTO memory_l0 (title, content, created_at, updated_at, source_conversation_uuid)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (t[:500], c[:20000], ts, ts, source_conversation_uuid),
+        )
+        await self.db.commit()
+        return int(cur.lastrowid)
+
+    async def update_memory_l0(self, row_id: int, title: str, content: str) -> int:
+        await self._connect()
+        ts = datetime.datetime.now().isoformat()
+        t = (title or "").strip() or "Notă"
+        c = (content or "").strip()
+        if not c:
+            raise ValueError("memory_l0 content is empty")
+        cur = await self.db.execute(
+            """
+            UPDATE memory_l0 SET title = ?, content = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (t[:500], c[:20000], ts, int(row_id)),
+        )
+        await self.db.commit()
+        return cur.rowcount
+
+    async def delete_memory_l0(self, row_id: int) -> int:
+        await self._connect()
+        cur = await self.db.execute("DELETE FROM memory_l0 WHERE id = ?", (int(row_id),))
+        await self.db.commit()
+        return cur.rowcount
 
     async def close(self):
         if self.db:
