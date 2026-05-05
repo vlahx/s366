@@ -104,8 +104,11 @@ async def stripe_service_webhook(request: Request):
     except stripe.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Semnătură Stripe invalidă")
 
-    event_id = event.get("id")
-    event_type = event.get("type")
+    # stripe.Webhook.construct_event poate întoarce stripe.Event (StripeObject), nu dict.
+    event = event.to_dict() if hasattr(event, "to_dict") else event
+
+    event_id = event.get("id") if isinstance(event, dict) else None
+    event_type = event.get("type") if isinstance(event, dict) else None
     if not event_id or not event_type:
         raise HTTPException(status_code=400, detail="Eveniment Stripe incomplet")
 
