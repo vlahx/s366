@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>S366 — tester API chat (local)</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; background: #121418; color: #e8eaed; }
+    body { max-width: 720px; margin: 0 auto; padding: 1.25rem; }
+    label { display: block; font-size: 0.85rem; margin: 0.75rem 0 0.35rem; color: #9aa0a6; }
+    input[type="text"], input[type="password"], textarea {
+      width: 100%; box-sizing: border-box; padding: 0.55rem 0.65rem;
+      border-radius: 8px; border: 1px solid #3c4043; background: #1e2228; color: #e8eaed;
+      font-size: 0.95rem;
+    }
+    textarea { min-height: 88px; resize: vertical; }
+    button {
+      margin-top: 1rem; padding: 0.65rem 1.2rem; border-radius: 8px; border: none;
+      background: #1a73e8; color: white; font-weight: 600; cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #out {
+      margin-top: 1.25rem; padding: 1rem; border-radius: 10px; background: #1e2228;
+      border: 1px solid #3c4043; white-space: pre-wrap; word-break: break-word;
+      min-height: 120px; font-size: 0.95rem; line-height: 1.45;
+    }
+    .hint { font-size: 0.8rem; color: #9aa0a6; margin-top: 0.25rem; }
+    h1 { font-size: 1.15rem; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Tester API S366 (Flask local)</h1>
+  <p class="hint">Requesturile merg prin <code>/proxy/chat</code> către endpoint-ul tău — fără CORS în browser.</p>
+
+  <label for="endpoint">Endpoint de bază (fără slash final)</label>
+  <input type="text" id="endpoint" value="{{ default_endpoint }}" autocomplete="off" />
+
+  <label for="api_key">API key (companie)</label>
+  <input type="password" id="api_key" placeholder="uuid din companies.api_key" autocomplete="off" />
+
+  <label for="message">Mesaj</label>
+  <textarea id="message" placeholder="Ex: De la ce firmă ești?"></textarea>
+
+  <button type="button" id="send">Trimite</button>
+  <div id="out" aria-live="polite"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let partial = '';
+
+    $('send').addEventListener('click', async () => {
+      const endpoint = $('endpoint').value.trim();
+      const api_key = $('api_key').value.trim();
+      const message = $('message').value.trim();
+      const out = $('out');
+      const btn = $('send');
+
+      if (!api_key || !message) {
+        out.textContent = 'Completează API key și mesajul.';
+        return;
+      }
+      btn.disabled = true;
+      out.textContent = '';
+      partial = '';
+
+      try {
+        const res = await fetch('/proxy/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint, api_key, message }),
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          out.textContent = 'Eroare ' + res.status + ': ' + t;
+          btn.disabled = false;
+          return;
+        }
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let acc = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          partial += dec.decode(value, { stream: true });
+          const lines = partial.split('\n');
+          partial = lines.pop() || '';
+
+          for (const line of lines) {
+            const s = line.trim();
+            if (!s) continue;
+            try {
+              const j = JSON.parse(s);
+              if (j.content) acc += j.content;
+              if (j.error) acc += '\n[Eroare] ' + j.error;
+              if (j.user_transcription) acc += '\n[Transcriere] ' + j.user_transcription;
+            } catch {
+              acc += s;
+            }
+          }
+          out.textContent = acc;
+        }
+        if (partial.trim()) {
+          try {
+            const j = JSON.parse(partial.trim());
+            if (j.content) acc += j.content;
+            if (j.error) acc += '\n[Eroare] ' + j.error;
+          } catch { /* ignore */ }
+          out.textContent = acc;
+        }
+      } catch (e) {
+        out.textContent = 'Eroare rețea: ' + e;
+      }
+      btn.disabled = false;
+    });
+  </script>
+</body>
+</html>

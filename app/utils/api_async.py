@@ -1,4 +1,3 @@
-from pyexpat.errors import messages
 import httpx
 import sys
 import logging
@@ -20,6 +19,7 @@ from app.utils.tts import generate_speech_async
 from app.utils.text_cleaner import sanitize_llm_text
 from app.utils.stt import transcribe_audio_async
 from app.utils.text_cleaner import clean_markdown_to_html
+from app.models.sqlite_model import fetch_one, execute_insert
 
 # Configurăm logging-ul să vedem ce se întâmplă în container
 logging.basicConfig(level=logging.INFO)
@@ -235,43 +235,65 @@ class LLMServiceAsync:
                 yield json.dumps({"audio_payload": audio_b64}) + "\n"
     
 class APIServiceAsync:
-    """Servicii de bază de date - VARIANTĂ ASINCRONĂ"""
+    """Servicii pentru integrări externe: validare `api_key` (tabel companies, SQLite) + user API."""
 
     async def validate_api_key(self, api_key: str):
-        if not api_key: return None
-        pool = await get_db_pool()
-        async with pool.acquire() as conn:
-            async with conn.cursor(dictionary=True) as cursor:
-                await cursor.execute("""
-                    SELECT company_id, name AS company_name, cui, folder_path
-                    FROM companies WHERE api_key = %s
-                """, (api_key,))
-                return await cursor.fetchone()
+        if not api_key or not str(api_key).strip():
+            return None
+        row = await fetch_one(
+            """
+            SELECT company_id, name AS company_name, cui, folder_path, slug, status
+            FROM companies
+            WHERE api_key = ?
+            LIMIT 1
+            """,
+            (str(api_key).strip(),),
+        )
+        if not row:
+            return None
+        return dict(row)
 
-    async def get_or_create_external_user(self, company: dict, phone_number: str, fingerprint: str = None):
-        pool = await get_db_pool()
-        async with pool.acquire() as conn:
-            async with conn.cursor(dictionary=True) as cursor:
-                # 1. Căutăm
-                await cursor.execute("""
-                    SELECT u.*, c.company_id, c.name, c.cui, c.folder_path
-                    FROM users u JOIN companies c ON u.company_id = c.company_id
-                    WHERE u.email = %s AND u.company_id = %s
-                """, (phone_number, company["company_id"]))
-                user = await cursor.fetchone()
-                if user: return user
+    async def get_or_create_external_user(
+        self, company: dict, phone_number: str, fingerprint: str | None = None
+    ):
+        """
+        Utilizator legat de firmă pentru clienți fără login web (ex. stație Production).
+        `phone_number` e folosit ca valoare unică în `users.email` (convenție veche din cod).
+        """
+        cid = company.get("company_id")
+        if cid is None or not str(phone_number or "").strip():
+            return None
+        phone_number = str(phone_number).strip()
 
-                # 2. Creăm
-                try:
-                    await cursor.execute("""
-                        INSERT INTO users (role, company_id, email, fingerprint, created_at)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, ("external", company["company_id"], phone_number, fingerprint, datetime.datetime.now()))
-                    await conn.commit()
-                    user_id = cursor.lastrowid
-                    
-                    await cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
-                    return await cursor.fetchone()
-                except Exception as e:
-                    logger.error(f"Race condition la create user: {e}")
-                    return None
+        row = await fetch_one(
+            """
+            SELECT * FROM users
+            WHERE email = ? AND company_id = ?
+            LIMIT 1
+            """,
+            (phone_number, cid),
+        )
+        if row:
+            return row
+
+        try:
+            uid = await execute_insert(
+                """
+                INSERT INTO users (role, company_id, email, fingerprint, provider, is_visible)
+                VALUES (?, ?, ?, ?, 'api_external', 0)
+                """,
+                ("external", cid, phone_number, fingerprint),
+            )
+        except Exception as e:
+            logger.error("Eroare la creare user extern: %s", e)
+            row = await fetch_one(
+                """
+                SELECT * FROM users
+                WHERE email = ? AND company_id = ?
+                LIMIT 1
+                """,
+                (phone_number, cid),
+            )
+            return row
+
+        return await fetch_one("SELECT * FROM users WHERE id = ?", (uid,))
