@@ -172,12 +172,35 @@ async def init_company_db(cui):
                 )
             """)
 
+            # 5b. News feed (știri) — separat de RAG documents/chunks
+            # Stocăm summary + embedding pentru căutare rapidă; content_text complet doar pentru afișare/on-demand.
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS news_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source TEXT NOT NULL DEFAULT 'wordpress',
+                    url TEXT NOT NULL,
+                    title TEXT NOT NULL DEFAULT '',
+                    published_at TEXT,
+                    content_text TEXT NOT NULL DEFAULT '',
+                    summary_text TEXT NOT NULL DEFAULT '',
+                    embedding BLOB,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    UNIQUE(url)
+                )
+            """)
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_news_items_published_at ON news_items(published_at)"
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_news_items_created_at ON news_items(created_at)"
+            )
+
             # 5. Inserăm valorile implicite (ACTUALIZAT)
             default_settings = [
                 ('rag_temperature', '0.1'),
                 ('rag_top_k', '5'),
                 ('rag_threshold', '0.45'),
-                ('system_prompt', 'Ești un asistent tehnic util. Răspunde precis bazându-te pe contextul oferit.'),
+                ('rag_num_ctx', '16384'),
                 # Noile setări pentru automatizare
                 ('wp_scrape_enabled', 'off'),      # Default dezactivat
                 ('wp_scrape_url', ''),             # Gol până la configurare

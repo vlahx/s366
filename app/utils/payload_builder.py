@@ -12,9 +12,21 @@ import json
 
 from app.models.sqlite_company_model import get_company_settings
 from app.utils.text_cleaner import assistant_bubble_to_llm_text
+from app.models.sqlite_model import fetch_one
+
+# Sufix lipit mereu DUPĂ conținutul din general_prompt.txt (nu înlocuiește fișierul de pe disc).
+_GENERAL_PROMPT_TOOLS_SUFFIX = """
+### Function calling (unelte disponibile)
+- get_current_datetime — dată/oră (București).
+- get_current_weather — vremea pentru un oraș (`city`).
+- search_web — căutare web (`query`).
+- scrape_url — descarcă o pagină web și extrage text curățat (`url`, opțional `selector`).
+- calculate — expresie matematică simplă (`expression`).
+- save_user_memory — salvează în memoria L0 a userului (`title`, `content`); **doar** dacă cere explicit (ex. „salvează asta”, „ține minte…”). Poate edita șterge din Setări cont (chat) → Memorie salvată.
+"""
 
 async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, user_role=None, user_lastname=None, user_firstname=None,
-                      company_id=None, company_cui=None, company_name=None, client_messages=None):
+                      company_id=None, company_cui=None, company_name=None, client_messages=None, image_base64_list=None):
 
 
     user_id = user_id 
@@ -24,6 +36,20 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
     company_id = company_id
     company_cui = company_cui 
     company_name = company_name 
+
+    # Dacă numele companiei nu e în sesiune/context, îl luăm din DB central (companies).
+    # Ajută la personalizare și la completarea placeholder-urilor din general_prompt.txt.
+    if (not company_name) and company_id:
+        try:
+            row = await fetch_one(
+                "SELECT name FROM companies WHERE company_id = ?",
+                (int(company_id),),
+            )
+            if row and row["name"]:
+                company_name = row["name"]
+        except Exception:
+            # silent fallback: păstrăm company_name None și folosim default-ul "Companie"
+            pass
     
 
     #if not company_cui:
@@ -95,11 +121,19 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
                 continue
             conversation_history.append({"role": role, "content": content})
 
-    # Adaugă mesajul curent al userului
-    conversation_history.append({"role": "user", "content": user_message})
+    # Adaugă mesajul curent al userului (text + opțional imagini pentru Ollama vision)
+    user_text = (user_message or "").strip()
+    user_msg = {"role": "user", "content": user_text}
+    if image_base64_list:
+        imgs = [x for x in image_base64_list if x and isinstance(x, str)]
+        if imgs:
+            user_msg["images"] = imgs
+            if not user_text:
+                user_msg["content"] = "Analizează imaginea atașată și răspunde pe scurt."
+    conversation_history.append(user_msg)
 ##########################configu ma-sii
     cui = company_cui
-    settings=await get_company_settings(cui)
+    settings = await get_company_settings(cui) or {}
     rag_temperature = settings.get("rag_temperature", "")
     rag_top_k = settings.get("rag_top_k", "") #folosit in rag deja
     rag_threshold = settings.get("rag_threshold", "") # folosit in rag deja
@@ -109,7 +143,8 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
     # --- Prompturi generale și specifice companiei ---
     base_path = "/companies_data/general/prompts"
     file_name = "general_prompt.txt"
-    general_prompt_path = os.path.join(base_path, file_name)
+    env_override = os.environ.get("GENERAL_PROMPT_PATH")
+    general_prompt_path = env_override if env_override and os.path.isfile(env_override) else os.path.join(base_path, file_name)
 
     try:
         with open(general_prompt_path, "r", encoding="utf-8") as f:
@@ -129,6 +164,8 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
         # Aici va intra dacă fișierul nu există fizic la acea cale
         print(f"EROARE la citirea general_prompt.txt: {e}", file=sys.stderr)
         general_prompt = "Ești un asistent util." # Un fallback minim ca să nu plece gol
+
+    general_prompt = general_prompt.rstrip() + _GENERAL_PROMPT_TOOLS_SUFFIX
 
     # Prompturile companiei
     # 1. Extragerea datelor cu Try/Except (Păstrăm siguranța)
@@ -150,10 +187,59 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
     # 3. Combinarea finală
     system_prompt_combined = f"{general_prompt}{business_context}"
 
+    # --- Memorie L0 (aceeași SQLite ca mesajele) — doar utilizatori autentificați ---
+    memory_instructions = """
+### MEMORIE L0 (persistantă)
+În blocul următor găsești informații pe care utilizatorul le-a salvat explicit sau le-a lăsat vizibile în Setări.
+- Folosește-le ca sursă de adevăr când sunt relevante pentru întrebarea curentă.
+- Dacă utilizatorul îți cere clar să salvezi / să reții / să notezi o informație sau idee, apelează tool-ul **save_user_memory** cu un titlu scurt și câmpul **content** cu textul complet de păstrat. Confirmă-i scurt că a fost salvată.
+- Nu salva nimic din proprie inițiativă fără cerere explicită.
+"""
+    memory_block = ""
+    if user_id and db_path and os.path.exists(db_path):
+        try:
+            db_handler = SQLiteHandler(db_path)
+            items = await db_handler.list_memory_l0(limit=40)
+
+            def _one_line(s: str, max_len: int) -> str:
+                x = " ".join((s or "").split())
+                if len(x) <= max_len:
+                    return x
+                return x[: max_len - 1] + "…"
+
+            if items:
+                lines = []
+                for it in items:
+                    tid = it.get("id")
+                    tit = _one_line(str(it.get("title") or ""), 120)
+                    body = _one_line(str(it.get("content") or ""), 400)
+                    if tit and body:
+                        lines.append(f"- [id={tid}] {tit}: {body}")
+                    elif body:
+                        lines.append(f"- [id={tid}] {body}")
+                memory_block = (
+                    memory_instructions
+                    + "\n### DATE SALVATE (L0)\n"
+                    + "\n".join(lines)
+                    + "\n"
+                )
+            else:
+                memory_block = (
+                    memory_instructions
+                    + "\n### DATE SALVATE (L0)\n(nicio înregistrare încă)\n"
+                )
+        except Exception as e:
+            print(f"EROARE la citirea memory_l0: {e}", file=sys.stderr)
+
+    system_prompt_combined = f"{system_prompt_combined}{memory_block}"
+
+    # Interogare RAG: folosim textul efectiv trimis userului (inclusiv fallback vision fără text)
+    rag_query = user_msg.get("content") if isinstance(user_msg.get("content"), str) else ""
+
     # --- RAG relevant ---
     try:
         rag_text = await get_rag_data(
-        query_text=user_message, 
+        query_text=rag_query,
         cui=company_cui, 
         top_k=int(settings.get("rag_top_k", 5)), 
         threshold=float(settings.get("rag_threshold", 0.6))
@@ -191,8 +277,18 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
             "system_prompt": system_prompt_combined,
             "rag_data": rag_text
         },
-        "user_input": user_message
+        "user_input": rag_query
     }
-    # Diagnostic: decomentează temporar ca să vezi tot payloadul trimis spre LLM (log greu, poate conține date sensibile).
-    # print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)
+    # Diagnostic: evită log-uri uriașe când există imagini base64
+    try:
+        _msgs = payload.get("conversation", {}).get("messages", [])
+        _last = _msgs[-1] if _msgs else {}
+        if _last.get("images"):
+            _nimg = len(_last["images"])
+            _sizes = [len(x) for x in _last["images"]]
+            print(f"[DEBUG] Payload (rezumat): ultim user are {_nimg} imagini, lungimi b64: {_sizes}", file=sys.stderr)
+        else:
+            print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)
+    except Exception:
+        print(f"[DEBUG] Payload trimis catre Ollama (eroare rezumat): keys={payload.keys()}", file=sys.stderr)
     return payload

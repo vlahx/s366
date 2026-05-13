@@ -1,5 +1,5 @@
 from typing import Optional
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Form
 from fastapi.responses import StreamingResponse, HTMLResponse, RedirectResponse
@@ -64,23 +64,41 @@ async def login_page(request: Request, next: Optional[str] = None):
         context=_login_template_context(request),
     )
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
+GOOGLE_CLIENT_ID = (os.getenv("GOOGLE_CLIENT_ID") or "").strip()
+GOOGLE_CLIENT_SECRET = (os.getenv("GOOGLE_CLIENT_SECRET") or "").strip()
+GOOGLE_REDIRECT_URI = (os.getenv("GOOGLE_REDIRECT_URI") or "").strip()
+
 
 @router.get("/google")
 async def login_google():
-    # Redirect către Google pentru consimțământ
-    google_auth_url = (
-        f"https://accounts.google.com/o/oauth2/v2/auth?"
-        f"response_type=code&client_id={GOOGLE_CLIENT_ID}&"
-        f"redirect_uri={GOOGLE_REDIRECT_URI}&scope=openid%20profile%20email"
-    )
+    if not GOOGLE_CLIENT_ID or not GOOGLE_REDIRECT_URI:
+        logging.error("Google OAuth: lipsesc GOOGLE_CLIENT_ID sau GOOGLE_REDIRECT_URI în mediu (.env).")
+        return RedirectResponse(url="/auth/login?error=google_config")
+    params = {
+        "response_type": "code",
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "scope": "openid profile email",
+    }
+    google_auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(params)
     return RedirectResponse(url=google_auth_url)
 
+
 @router.get("/google/callback")
-async def google_callback(request: Request, code: str):
-    # 1. Schimbăm codul pe token
+async def google_callback(
+    request: Request,
+    code: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    if error:
+        logging.warning("Google OAuth denied/error param: %s", error)
+        return RedirectResponse(url="/auth/login?error=google_denied")
+    if not code:
+        return RedirectResponse(url="/auth/login?error=google_no_code")
+    if not GOOGLE_CLIENT_SECRET:
+        logging.error("Google OAuth: lipsește GOOGLE_CLIENT_SECRET în mediu (.env).")
+        return RedirectResponse(url="/auth/login?error=google_config")
+
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
             "https://oauth2.googleapis.com/token",
@@ -92,12 +110,38 @@ async def google_callback(request: Request, code: str):
                 "redirect_uri": GOOGLE_REDIRECT_URI,
             },
         )
-        token_data = token_response.json()
-        
-        # 2. Obținem datele utilizatorului
+        try:
+            token_data = token_response.json()
+        except json.JSONDecodeError:
+            raw = (token_response.text or "")[:800]
+            logging.warning(
+                "Google token răspuns non-JSON: status=%s raw=%r",
+                token_response.status_code,
+                raw,
+            )
+            return RedirectResponse(url="/auth/login?error=google_token")
+
+        if not isinstance(token_data, dict):
+            logging.warning(
+                "Google token body neașteptat (nu e obiect JSON): status=%s type=%s",
+                token_response.status_code,
+                type(token_data).__name__,
+            )
+            return RedirectResponse(url="/auth/login?error=google_token")
+
+        access_token = token_data.get("access_token")
+        if token_response.status_code != 200 or not access_token:
+            logging.warning(
+                "Google token exchange failed: status=%s error=%s body_keys=%s",
+                token_response.status_code,
+                token_data.get("error"),
+                list(token_data.keys()) if isinstance(token_data, dict) else None,
+            )
+            return RedirectResponse(url="/auth/login?error=google_token")
+
         user_info = await client.get(
             "https://www.googleapis.com/oauth2/v1/userinfo",
-            headers={"Authorization": f"Bearer {token_data['access_token']}"}
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         user_data = user_info.json()
 

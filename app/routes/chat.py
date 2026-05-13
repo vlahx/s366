@@ -15,6 +15,33 @@ from app.utils.blog_db import increment_listing_page_views
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
+# Vision: limite pentru imagini base64 în JSON (anti-abuz / stabilitate Ollama)
+_MAX_CHAT_IMAGES = 4
+_MAX_TOTAL_B64_CHARS = 12_000_000  # ~9 MB decoded dacă e padding standard
+
+
+def _sanitize_images_b64(raw) -> list:
+    """Normalizează lista de imagini: acceptă listă sau un singur string; scoate prefixul data:...;base64,"""
+    if not raw:
+        return []
+    items = [raw] if isinstance(raw, str) else list(raw)
+    out = []
+    total = 0
+    for x in items[:_MAX_CHAT_IMAGES]:
+        if not x or not isinstance(x, str):
+            continue
+        s = x.strip()
+        if "," in s and s.startswith("data:"):
+            s = s.split(",", 1)[-1]
+        s = s.replace("\n", "").replace("\r", "")
+        if not s or len(s) > 10_500_000:
+            continue
+        total += len(s)
+        if total > _MAX_TOTAL_B64_CHARS:
+            break
+        out.append(s)
+    return out
+
 
 async def chat_home_page(request: Request):
     """Folosit pentru /chat/ și /chat (fără slash) în main."""
@@ -46,6 +73,7 @@ async def handle_chat(request: Request):
     data = await request.json()
     user_message = data.get("message")
     audio_b64 = data.get("audio_b64")
+    images_b64 = _sanitize_images_b64(data.get("images_b64"))
     conv_uuid = data.get("conversation_uuid") or str(uuid.uuid4())
     client_history = data.get("conversation_history")
 
@@ -68,6 +96,7 @@ async def handle_chat(request: Request):
         company_cui=company_cui,
         conversation_uuid=conv_uuid,
         client_messages=client_history,
+        image_base64_list=images_b64 if images_b64 else None,
     )
 
     if audio_b64:
@@ -159,5 +188,70 @@ async def update_session(uuid: str, request: Request):
         return {"status": "success"}
     except Exception as e:
         print(f"[CRITICAL] Eroare API Update Session: {str(e)}")
-        return {"error": str(e)}, 500    
-    
+        return {"error": str(e)}, 500
+
+
+def _memory_db_or_404(request: Request) -> tuple[str, SQLiteHandler]:
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Autentificare necesară pentru memoria L0.")
+    db_path = get_db_path(user_id, request.session.get("company_id"))
+    if not db_path:
+        raise HTTPException(status_code=400, detail="Nu există stocare chat pentru acest cont.")
+    return db_path, SQLiteHandler(db_path)
+
+
+@router.get("/api/memory")
+async def list_memory_l0(request: Request):
+    _, handler = _memory_db_or_404(request)
+    try:
+        return await handler.list_memory_l0(limit=200)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/api/memory")
+async def create_memory_l0(request: Request):
+    _, handler = _memory_db_or_404(request)
+    data = await request.json()
+    title = (data.get("title") or "").strip()
+    content = (data.get("content") or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Câmpul content este obligatoriu.")
+    try:
+        new_id = await handler.insert_memory_l0(
+            title=title or content[:80],
+            content=content,
+            source_conversation_uuid=None,
+        )
+        return {"status": "ok", "id": new_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.patch("/api/memory/{row_id}")
+async def update_memory_l0(request: Request, row_id: int):
+    _, handler = _memory_db_or_404(request)
+    data = await request.json()
+    title = (data.get("title") or "").strip()
+    content = (data.get("content") or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Câmpul content este obligatoriu.")
+    try:
+        n = await handler.update_memory_l0(row_id, title=title or content[:80], content=content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    if n == 0:
+        raise HTTPException(status_code=404, detail="Înregistrarea nu există.")
+    return {"status": "ok"}
+
+
+@router.delete("/api/memory/{row_id}")
+async def delete_memory_l0(request: Request, row_id: int):
+    _, handler = _memory_db_or_404(request)
+    n = await handler.delete_memory_l0(row_id)
+    if n == 0:
+        raise HTTPException(status_code=404, detail="Înregistrarea nu există.")
+    return {"status": "ok"}

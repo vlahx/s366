@@ -8,6 +8,10 @@ venv/
 /data/users_data/
 /data/companies_data/
 
+# Uploaded/static assets (keep out of git)
+app/static/blog/
+app/static/images/
+
 # ML / sentence-transformer weights (GitHub rejects blobs > 100 MiB).
 # Keep config + tokenizer JSON tracked; download weights locally or via CI/cache.
 app/models/mxbai-embed-large/model.safetensors

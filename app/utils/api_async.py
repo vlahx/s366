@@ -1,4 +1,3 @@
-from pyexpat.errors import messages
 import httpx
 import sys
 import logging
@@ -20,6 +19,7 @@ from app.utils.tts import generate_speech_async
 from app.utils.text_cleaner import sanitize_llm_text
 from app.utils.stt import transcribe_audio_async
 from app.utils.text_cleaner import clean_markdown_to_html
+from app.models.sqlite_model import fetch_one, execute_insert
 
 # Configurăm logging-ul să vedem ce se întâmplă în container
 logging.basicConfig(level=logging.INFO)
@@ -40,11 +40,33 @@ class LLMServiceAsync:
         conv_uuid = payload.get('conversation', {}).get('uuid')
         
         history = payload.get('conversation', {}).get('messages', [])
-        user_message = history[-1]['content'] if history and history[-1]['role'] == 'user' else ""
+        last_user = history[-1] if history and history[-1].get('role') == 'user' else None
+        user_message = ""
+        if last_user:
+            c = last_user.get('content', '')
+            user_message = c if isinstance(c, str) else ''
+            if last_user.get('images'):
+                user_message = (user_message or "(imagine)").strip()
+                user_message = f"{user_message} [+{len(last_user['images'])} imagini]"
         system_prompt = payload.get('context', {}).get('system_prompt', '')
         rag_data = payload.get('context', {}).get('rag_data', '')
 
-        settings = await get_company_settings(company_cui) or {} 
+        settings = await get_company_settings(company_cui) or {}
+
+        db_path_tools = get_db_path(user_id=user_id, company_id=company_id)
+        tool_context = {
+            "db_path": db_path_tools if db_path_tools else None,
+            "conversation_uuid": conv_uuid,
+            "company_cui": company_cui,
+            "company_id": company_id,
+        }
+        tools_for_request = self.tools_description
+        if not user_id or not tool_context.get("db_path"):
+            tools_for_request = [
+                t
+                for t in self.tools_description
+                if (t.get("function") or {}).get("name") != "save_user_memory"
+            ]
 
         # rag_temperature în DB e folosită și la RAG; pentru chat evităm valori foarte mici (ex. 0.1) care destabilizează qwen3.5 în Ollama.
         if "llm_temperature" in settings:
@@ -53,7 +75,9 @@ class LLMServiceAsync:
             chat_temp = max(float(settings.get("rag_temperature", 0.55)), 0.45)
         llm_options = {
             "temperature": chat_temp,
-            "num_ctx": int(settings.get("rag_num_ctx", 8192)),
+            # qwen3.5:9b suportă context mai mare; dăm default 16384 ca să evităm truncări
+            # când tool-urile (scrape_url) întorc mult text.
+            "num_ctx": int(settings.get("rag_num_ctx", 16384)),
             "repeat_penalty": float(settings.get("rag_repeat_penalty", 1.15)),
         }
 
@@ -66,7 +90,11 @@ class LLMServiceAsync:
         if rag_data:
             for i in range(len(full_messages) - 1, -1, -1):
                 if full_messages[i]['role'] == 'user':
-                    full_messages[i]['content'] += f"\n\nContext relevant:\n{rag_data}"
+                    msg = full_messages[i]
+                    cur = msg.get('content', '')
+                    suffix = f"\n\nContext relevant:\n{rag_data}"
+                    if isinstance(cur, str):
+                        msg['content'] = cur + suffix
                     break
 
         full_ai_response = ""
@@ -84,7 +112,7 @@ class LLMServiceAsync:
                 async for chunk in self.llm_api_async.chat_stream(
                     model_name=self.model_name,
                     messages=full_messages,
-                    tools=self.tools_description,
+                    tools=tools_for_request,
                     options=llm_options
                 ):
                     message = chunk.get('message', {})
@@ -139,7 +167,7 @@ class LLMServiceAsync:
 
                 for tool_call in final_tool_calls:
                     # Rulăm funcția din tools.py
-                    result = await execute_tool(tool_call)
+                    result = await execute_tool(tool_call, tool_context)
                     
                     # Adăugăm rezultatul în context pentru următoarea iterație
                     full_messages.append({
@@ -207,43 +235,65 @@ class LLMServiceAsync:
                 yield json.dumps({"audio_payload": audio_b64}) + "\n"
     
 class APIServiceAsync:
-    """Servicii de bază de date - VARIANTĂ ASINCRONĂ"""
+    """Servicii pentru integrări externe: validare `api_key` (tabel companies, SQLite) + user API."""
 
     async def validate_api_key(self, api_key: str):
-        if not api_key: return None
-        pool = await get_db_pool()
-        async with pool.acquire() as conn:
-            async with conn.cursor(dictionary=True) as cursor:
-                await cursor.execute("""
-                    SELECT company_id, name AS company_name, cui, folder_path
-                    FROM companies WHERE api_key = %s
-                """, (api_key,))
-                return await cursor.fetchone()
+        if not api_key or not str(api_key).strip():
+            return None
+        row = await fetch_one(
+            """
+            SELECT company_id, name AS company_name, cui, folder_path, slug, status
+            FROM companies
+            WHERE api_key = ?
+            LIMIT 1
+            """,
+            (str(api_key).strip(),),
+        )
+        if not row:
+            return None
+        return dict(row)
 
-    async def get_or_create_external_user(self, company: dict, phone_number: str, fingerprint: str = None):
-        pool = await get_db_pool()
-        async with pool.acquire() as conn:
-            async with conn.cursor(dictionary=True) as cursor:
-                # 1. Căutăm
-                await cursor.execute("""
-                    SELECT u.*, c.company_id, c.name, c.cui, c.folder_path
-                    FROM users u JOIN companies c ON u.company_id = c.company_id
-                    WHERE u.email = %s AND u.company_id = %s
-                """, (phone_number, company["company_id"]))
-                user = await cursor.fetchone()
-                if user: return user
+    async def get_or_create_external_user(
+        self, company: dict, phone_number: str, fingerprint: str | None = None
+    ):
+        """
+        Utilizator legat de firmă pentru clienți fără login web (ex. stație Production).
+        `phone_number` e folosit ca valoare unică în `users.email` (convenție veche din cod).
+        """
+        cid = company.get("company_id")
+        if cid is None or not str(phone_number or "").strip():
+            return None
+        phone_number = str(phone_number).strip()
 
-                # 2. Creăm
-                try:
-                    await cursor.execute("""
-                        INSERT INTO users (role, company_id, email, fingerprint, created_at)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, ("external", company["company_id"], phone_number, fingerprint, datetime.datetime.now()))
-                    await conn.commit()
-                    user_id = cursor.lastrowid
-                    
-                    await cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
-                    return await cursor.fetchone()
-                except Exception as e:
-                    logger.error(f"Race condition la create user: {e}")
-                    return None
+        row = await fetch_one(
+            """
+            SELECT * FROM users
+            WHERE email = ? AND company_id = ?
+            LIMIT 1
+            """,
+            (phone_number, cid),
+        )
+        if row:
+            return row
+
+        try:
+            uid = await execute_insert(
+                """
+                INSERT INTO users (role, company_id, email, fingerprint, provider, is_visible)
+                VALUES (?, ?, ?, ?, 'api_external', 0)
+                """,
+                ("external", cid, phone_number, fingerprint),
+            )
+        except Exception as e:
+            logger.error("Eroare la creare user extern: %s", e)
+            row = await fetch_one(
+                """
+                SELECT * FROM users
+                WHERE email = ? AND company_id = ?
+                LIMIT 1
+                """,
+                (phone_number, cid),
+            )
+            return row
+
+        return await fetch_one("SELECT * FROM users WHERE id = ?", (uid,))

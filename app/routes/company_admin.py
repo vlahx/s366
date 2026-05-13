@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Request, Depends,Form, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import HTMLResponse,RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from app.models.sqlite_model import fetch_one, fetch_all
+from app.models.sqlite_model import fetch_one, fetch_all, execute_query
 from app.utils.decorators import company_admin_required 
 from fastapi.templating import Jinja2Templates
 from app.models.sqlite_company_model import get_db, save_company_settings
@@ -75,12 +75,98 @@ async def company_dashboard(request: Request, tab: str = None):
         context["documents"] = await list_docs(cui)    
     
     elif current_tab == "users":
-        # Exemplu pentru viitor: context["users"] = await list_users(company_id)
-        pass
+        # Membrii companiei curente
+        context["company_users"] = await fetch_all(
+            """
+            SELECT id, firstname, lastname, username, role, is_visible, company_id
+            FROM users
+            WHERE company_id = ?
+            ORDER BY lastname ASC, firstname ASC, id ASC
+            """,
+            (company_id,),
+        )
+
+        # Utilizatori care au ales "vreau să fiu vizibil pentru companii"
+        # și nu sunt încă atașați unei companii.
+        context["visible_users"] = await fetch_all(
+            """
+            SELECT id, firstname, lastname, username, role, is_visible, company_id
+            FROM users
+            WHERE is_visible = 1
+              AND company_id IS NULL
+              AND (role IS NULL OR role = '' OR role = 'users')
+            ORDER BY id DESC
+            """
+        )
     elif current_tab == "settings":
     # 1. Luăm setările din DB (funcția noastră smart care dă și defaults)
         context["settings"] = await get_company_settings(cui)
     return templates.TemplateResponse(request=request, name="company_admin/dashboard.html", context=context)
+
+
+@router.get("/users")
+async def company_users_alias(request: Request):
+    # Link-ul din navbar duce aici; păstrăm dashboard-ul ca sursă unică.
+    return RedirectResponse(url="/company_admin/dashboard/users", status_code=303)
+
+
+@router.post("/users/claim")
+async def claim_visible_user(
+    request: Request,
+    user_id: int = Form(...),
+):
+    role = request.session.get("role")
+    company_id = request.session.get("company_id")
+
+    if role not in ("company_admin", "superadmin") or not company_id:
+        raise HTTPException(status_code=403, detail="Acces interzis.")
+
+    target = await fetch_one(
+        "SELECT id, company_id, is_visible, role FROM users WHERE id = ?",
+        (int(user_id),),
+    )
+    if not target:
+        request.session["flash_messages"] = [
+            {"text": "Utilizator inexistent.", "type": "danger"}
+        ]
+        return RedirectResponse(url="/company_admin/dashboard/users", status_code=303)
+
+    if target["company_id"] is not None:
+        request.session["flash_messages"] = [
+            {"text": "Utilizatorul este deja înrolat într-o companie.", "type": "warning"}
+        ]
+        return RedirectResponse(url="/company_admin/dashboard/users", status_code=303)
+
+    if int(target["is_visible"] or 0) != 1:
+        request.session["flash_messages"] = [
+            {"text": "Utilizatorul nu este disponibil pentru companii.", "type": "warning"}
+        ]
+        return RedirectResponse(url="/company_admin/dashboard/users", status_code=303)
+
+    target_role = (target["role"] or "").strip()
+    # Condiții: user eligibil doar dacă role e NULL/"" sau "users" și e vizibil.
+    if target_role not in ("", "users"):
+        request.session["flash_messages"] = [
+            {"text": "Acest utilizator nu poate fi preluat (rol invalid).", "type": "warning"}
+        ]
+        return RedirectResponse(url="/company_admin/dashboard/users", status_code=303)
+
+    await execute_query(
+        """
+        UPDATE users
+        SET company_id = ?, is_visible = 0
+        WHERE id = ?
+          AND company_id IS NULL
+          AND is_visible = 1
+          AND (role IS NULL OR role = '' OR role = 'users')
+        """,
+        (int(company_id), int(user_id)),
+    )
+
+    request.session["flash_messages"] = [
+        {"text": "Utilizator preluat în companie.", "type": "success"}
+    ]
+    return RedirectResponse(url="/company_admin/dashboard/users", status_code=303)
 
 
 ##########################################################################
@@ -214,7 +300,6 @@ async def get_company_settings(cui):
         'rag_temperature': 0.1,
         'rag_top_k': 5,
         'rag_threshold': 0.45,
-        'system_prompt': 'Ești un asistent tehnic util.',
         'wp_scrape_url': '',
         'wp_scrape_enabled': 'off', # Folosim 'on'/'off' pentru checkbox-urile HTML
         'wp_scrape_hours': '08:00, 18:00' # Default: de două ori pe zi
@@ -255,7 +340,6 @@ async def save_settings(request: Request):
         "rag_temperature": form_data.get("rag_temperature"),
         "rag_top_k": form_data.get("rag_top_k"),
         "rag_threshold": form_data.get("rag_threshold"),
-        "system_prompt": form_data.get("system_prompt"),
         "wp_scrape_url": form_data.get("wp_scrape_url", "").strip(),
         "wp_scrape_enabled": form_data.get("wp_scrape_enabled", "off"),
         "wp_scrape_hours": form_data.get("wp_scrape_hours", "08:00, 18:00")

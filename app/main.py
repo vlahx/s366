@@ -2,8 +2,15 @@ import sys
 import os
 import logging
 import asyncio
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Înainte de rute: .env din rădăcina proiectului (nu depinde de cwd la Docker/uvicorn)
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.responses import RedirectResponse, FileResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -15,11 +22,13 @@ from app.routes.auth import router as auth_router
 from app.routes.admin import router as admin_router
 from app.routes.public import router as public_router
 from app.routes.company_admin import router as company_admin_router
+from app.routes.impersonation import router as impersonation_router
 from app.routes.hosting import _hosting_home_page, router as hosting_router
 from app.routes.payments import router as payments_router
 from app.routes.seo import router as seo_router
 from app.routes.blog import _norm_search, _render_blog_index, router as blog_router
 from app.routes.blog_admin import router as blog_admin_router
+from app.routes.api_external import router as api_external_router
 from app.middleware.footer_page_views import FooterPageViewMiddleware
 
 from app.models.sqlite_model import init_db
@@ -146,6 +155,10 @@ async def custom_403_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(401)
 async def custom_401_handler(request: Request, exc: HTTPException):
+    # API externă: răspuns JSON, fără redirect la login (clienți non-browser).
+    path = request.url.path or ""
+    if path.startswith("/api/") or "application/json" in (request.headers.get("accept") or ""):
+        return JSONResponse(status_code=401, content={"detail": exc.detail})
     request.session["flash_messages"] = [{"text": "Te rugăm să te autentifici.", "type": "warning"}]
     return RedirectResponse(url="/auth/login", status_code=303)
 
@@ -160,10 +173,12 @@ app.include_router(blog_router, prefix="/blog", tags=["Blog"])
 app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(admin_router, prefix="/admin", tags=["Admin"])
+app.include_router(impersonation_router, tags=["Admin"])
 app.include_router(blog_admin_router, prefix="/admin", tags=["Admin Blog"])
 app.include_router(company_admin_router, prefix="/company_admin", tags=["Company Admin"])
 app.include_router(hosting_router, prefix="/hosting", tags=["Hosting"])
 app.include_router(payments_router, prefix="/payments", tags=["Payments"])
+app.include_router(api_external_router, prefix="/api/v1", tags=["API externă"])
 
 @app.get("/blog", include_in_schema=False)
 async def blog_no_trailing_slash(

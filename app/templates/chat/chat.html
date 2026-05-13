@@ -15,8 +15,9 @@ raspunsuri la problemele firmei tale.{%endblock %}
 
 <div id="wrapper" data-logged-in="{{ 'true' if request.session.get('user_id') else 'false' }}">
     <!-- Sidebar stânga (mobil: slide-in) -->
-    <div id="sidebar-left" class="d-lg-block">
-        <div class="p-4 border-bottom" style="border-color: var(--border) !important;">
+    {# Nu folosi d-lg-block: pe desktop pune display:block !important și rupe flex-ul sidebar (lista rămâne cu înălțime 0). #}
+    <div id="sidebar-left">
+        <header id="sidebar-header" class="sidebar-zone sidebar-zone--header p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="mb-0 fw-semibold">Conversații</h6>
                 <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="new-chat-btn">
@@ -28,8 +29,20 @@ raspunsuri la problemele firmei tale.{%endblock %}
                 {{ chat_page_view_count }} vizualizări chat
             </p>
             {% endif %}
+        </header>
+        <div id="sidebar-content" class="sidebar-zone sidebar-zone--content">
+            <div id="session-list" class="list-group list-group-flush"></div>
         </div>
-        <div id="session-list" class="list-group list-group-flush"></div>
+        {% if request.session.get('user_id') %}
+        <footer id="sidebar-footer" class="sidebar-zone sidebar-zone--footer p-3">
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill d-flex align-items-center justify-content-center gap-2"
+                id="chat-user-settings-btn" data-bs-toggle="modal" data-bs-target="#chat-user-settings-modal"
+                title="Setări personale chat">
+                <i class="bi bi-gear"></i>
+                <span>Setări cont</span>
+            </button>
+        </footer>
+        {% endif %}
     </div>
 
     <!-- Chat principal: coloană flex — zona de scroll are flex-basis 0 ca să nu crească odată cu mesajele -->
@@ -44,8 +57,18 @@ raspunsuri la problemele firmei tale.{%endblock %}
                     style="height: 46px; min-width: 60px; transition: all 0.2s ease;">
                     <i class="bi bi-mic-fill fs-5 mx-auto"></i>
                 </button>
+                <input type="file" id="chat-image-input" class="d-none" accept="image/*" multiple
+                    aria-label="Atașează imagini pentru analiză (vision)" />
+                <button type="button"
+                    class="btn btn-outline-secondary rounded-pill px-3 d-flex align-items-center mb-1 shadow-sm"
+                    id="chat-attach-image-btn" title="Imagine (vision)"
+                    style="height: 46px; min-width: 46px; transition: all 0.2s ease;">
+                    <i class="bi bi-image fs-5 mx-auto"></i>
+                </button>
 
-                <div class="input-group input-group-lg flex-grow-1">
+                <div class="input-group input-group-lg flex-grow-1 flex-column">
+                    <div id="chat-vision-previews" class="chat-vision-previews d-none w-100 mb-1"></div>
+                    <div class="d-flex flex-grow-1 w-100 align-items-end gap-2">
                     <textarea id="user-input" class="form-control rounded-4 ps-4 pe-5" placeholder="Mesajul tau..."
                         autocomplete="off" rows="1"
                         style="resize: none; overflow-y: hidden; min-height: 46px; max-height: 150px;"></textarea>
@@ -53,6 +76,7 @@ raspunsuri la problemele firmei tale.{%endblock %}
                     <button type="submit" id="send-btn" class="btn btn-primary rounded-pill px-4 ms-2 mb-1" style="height: 46px;">
                         <i class="bi bi-send-fill"></i>
                     </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -72,6 +96,45 @@ raspunsuri la problemele firmei tale.{%endblock %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block outside_main %}
+{% if request.session.get('user_id') and request.url.path.startswith('/chat') %}
+<div class="modal fade" id="chat-user-settings-modal" tabindex="-1" aria-labelledby="chatUserSettingsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="chatUserSettingsTitle">Setări cont — chat</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Închide"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-body-secondary small mb-4">Aici sunt opțiunile tale personale în chat. Setările firmei (prompturi, RAG etc.) rămân în panoul de administrare companie.</p>
+
+                <section class="chat-settings-section" aria-labelledby="memory-l0-heading">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                        <h6 class="fw-semibold mb-0" id="memory-l0-heading">Memorie salvată (L0)</h6>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="memory-l0-refresh" title="Reîncarcă lista">
+                            <i class="bi bi-arrow-clockwise"></i> Reîncarcă
+                        </button>
+                    </div>
+                    <p class="small text-body-secondary mb-3">Informații păstrate când ceri în chat „salvează asta” / „ține minte”; le poți edita sau șterge aici.</p>
+                    <div id="memory-l0-list" class="memory-l0-modal-list small"></div>
+                    <details class="mt-3 border rounded p-3 bg-body-secondary bg-opacity-25">
+                        <summary class="fw-medium small" style="cursor: pointer;">Adaugă manual o notă</summary>
+                        <div class="mt-3">
+                            <label class="form-label small mb-1" for="memory-l0-new-title">Titlu scurt</label>
+                            <input type="text" id="memory-l0-new-title" class="form-control form-control-sm mb-2" placeholder="Ex.: Stack proiect X" maxlength="500" />
+                            <label class="form-label small mb-1" for="memory-l0-new-content">Conținut</label>
+                            <textarea id="memory-l0-new-content" class="form-control form-control-sm mb-2" rows="6" placeholder="Textul de reținut"></textarea>
+                            <button type="button" class="btn btn-sm btn-primary" id="memory-l0-add-btn">Salvează în memorie</button>
+                        </div>
+                    </details>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {# În afara <main>: marked + prism înainte de app.js; nu în block content ca să rămână în main doar #wrapper + footer #}
