@@ -10,8 +10,28 @@ import { addToBuffer, setStreamingStatus, startTicker, clearBuffer, waitForStrea
 /**
  * Trimite mesajul (text sau audio) către server și procesează stream-ul
  */
+function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+/** HTML pentru bule user: text + opțional imagini (data URLs) */
+function buildUserBubbleHtml(text, imageDataUrls) {
+    const urls = Array.isArray(imageDataUrls) ? imageDataUrls : [];
+    let h = '';
+    for (const url of urls) {
+        if (!url) continue;
+        h += `<div class="chat-vision-thumb mb-1"><img src="${url}" alt="" loading="lazy"/></div>`;
+    }
+    const t = (text || '').trim();
+    if (t) h += `<div>${escapeHtml(t)}</div>`;
+    else if (urls.length) h += '<div class="small opacity-75">Imagine atașată</div>';
+    return h || '<div class="small opacity-75">(mesaj gol)</div>';
+}
+
 export async function handleUnifiedChat(textInput = null, audioBlob = null, activeConvId, options = {}) {
-    const { conversationHistory = [] } = options;
+    const { conversationHistory = [], imagesB64 = null } = options;
     let payload = { conversation_uuid: activeConvId };
     if (conversationHistory && conversationHistory.length > 0) {
         payload.conversation_history = conversationHistory;
@@ -24,9 +44,12 @@ export async function handleUnifiedChat(textInput = null, audioBlob = null, acti
         userBubble = createBubble('user', '... se procesează vocea ...');
         appendTypingIndicator();
     } else {
-        if (!textInput) return;
-        payload.message = textInput;
-        createBubble('user', textInput);
+        const hasImages = Array.isArray(imagesB64) && imagesB64.length > 0;
+        if (!textInput && !hasImages) return;
+        payload.message = (textInput || '').trim();
+        if (hasImages) payload.images_b64 = imagesB64;
+        const userHtml = buildUserBubbleHtml(textInput, hasImages ? imagesB64 : []);
+        createBubble('user', userHtml, true);
         appendTypingIndicator();
     }
 

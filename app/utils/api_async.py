@@ -40,7 +40,14 @@ class LLMServiceAsync:
         conv_uuid = payload.get('conversation', {}).get('uuid')
         
         history = payload.get('conversation', {}).get('messages', [])
-        user_message = history[-1]['content'] if history and history[-1]['role'] == 'user' else ""
+        last_user = history[-1] if history and history[-1].get('role') == 'user' else None
+        user_message = ""
+        if last_user:
+            c = last_user.get('content', '')
+            user_message = c if isinstance(c, str) else ''
+            if last_user.get('images'):
+                user_message = (user_message or "(imagine)").strip()
+                user_message = f"{user_message} [+{len(last_user['images'])} imagini]"
         system_prompt = payload.get('context', {}).get('system_prompt', '')
         rag_data = payload.get('context', {}).get('rag_data', '')
 
@@ -83,7 +90,11 @@ class LLMServiceAsync:
         if rag_data:
             for i in range(len(full_messages) - 1, -1, -1):
                 if full_messages[i]['role'] == 'user':
-                    full_messages[i]['content'] += f"\n\nContext relevant:\n{rag_data}"
+                    msg = full_messages[i]
+                    cur = msg.get('content', '')
+                    suffix = f"\n\nContext relevant:\n{rag_data}"
+                    if isinstance(cur, str):
+                        msg['content'] = cur + suffix
                     break
 
         full_ai_response = ""

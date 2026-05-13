@@ -26,7 +26,7 @@ _GENERAL_PROMPT_TOOLS_SUFFIX = """
 """
 
 async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, user_role=None, user_lastname=None, user_firstname=None,
-                      company_id=None, company_cui=None, company_name=None, client_messages=None):
+                      company_id=None, company_cui=None, company_name=None, client_messages=None, image_base64_list=None):
 
 
     user_id = user_id 
@@ -121,8 +121,16 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
                 continue
             conversation_history.append({"role": role, "content": content})
 
-    # Adaugă mesajul curent al userului
-    conversation_history.append({"role": "user", "content": user_message})
+    # Adaugă mesajul curent al userului (text + opțional imagini pentru Ollama vision)
+    user_text = (user_message or "").strip()
+    user_msg = {"role": "user", "content": user_text}
+    if image_base64_list:
+        imgs = [x for x in image_base64_list if x and isinstance(x, str)]
+        if imgs:
+            user_msg["images"] = imgs
+            if not user_text:
+                user_msg["content"] = "Analizează imaginea atașată și răspunde pe scurt."
+    conversation_history.append(user_msg)
 ##########################configu ma-sii
     cui = company_cui
     settings = await get_company_settings(cui) or {}
@@ -225,10 +233,13 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
 
     system_prompt_combined = f"{system_prompt_combined}{memory_block}"
 
+    # Interogare RAG: folosim textul efectiv trimis userului (inclusiv fallback vision fără text)
+    rag_query = user_msg.get("content") if isinstance(user_msg.get("content"), str) else ""
+
     # --- RAG relevant ---
     try:
         rag_text = await get_rag_data(
-        query_text=user_message, 
+        query_text=rag_query,
         cui=company_cui, 
         top_k=int(settings.get("rag_top_k", 5)), 
         threshold=float(settings.get("rag_threshold", 0.6))
@@ -266,8 +277,18 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
             "system_prompt": system_prompt_combined,
             "rag_data": rag_text
         },
-        "user_input": user_message
+        "user_input": rag_query
     }
-    # Diagnostic: decomentează temporar ca să vezi tot payloadul trimis spre LLM (log greu, poate conține date sensibile).
-    print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)
+    # Diagnostic: evită log-uri uriașe când există imagini base64
+    try:
+        _msgs = payload.get("conversation", {}).get("messages", [])
+        _last = _msgs[-1] if _msgs else {}
+        if _last.get("images"):
+            _nimg = len(_last["images"])
+            _sizes = [len(x) for x in _last["images"]]
+            print(f"[DEBUG] Payload (rezumat): ultim user are {_nimg} imagini, lungimi b64: {_sizes}", file=sys.stderr)
+        else:
+            print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)
+    except Exception:
+        print(f"[DEBUG] Payload trimis catre Ollama (eroare rezumat): keys={payload.keys()}", file=sys.stderr)
     return payload

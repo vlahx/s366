@@ -15,6 +15,33 @@ from app.utils.blog_db import increment_listing_page_views
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
+# Vision: limite pentru imagini base64 în JSON (anti-abuz / stabilitate Ollama)
+_MAX_CHAT_IMAGES = 4
+_MAX_TOTAL_B64_CHARS = 12_000_000  # ~9 MB decoded dacă e padding standard
+
+
+def _sanitize_images_b64(raw) -> list:
+    """Normalizează lista de imagini: acceptă listă sau un singur string; scoate prefixul data:...;base64,"""
+    if not raw:
+        return []
+    items = [raw] if isinstance(raw, str) else list(raw)
+    out = []
+    total = 0
+    for x in items[:_MAX_CHAT_IMAGES]:
+        if not x or not isinstance(x, str):
+            continue
+        s = x.strip()
+        if "," in s and s.startswith("data:"):
+            s = s.split(",", 1)[-1]
+        s = s.replace("\n", "").replace("\r", "")
+        if not s or len(s) > 10_500_000:
+            continue
+        total += len(s)
+        if total > _MAX_TOTAL_B64_CHARS:
+            break
+        out.append(s)
+    return out
+
 
 async def chat_home_page(request: Request):
     """Folosit pentru /chat/ și /chat (fără slash) în main."""
@@ -46,6 +73,7 @@ async def handle_chat(request: Request):
     data = await request.json()
     user_message = data.get("message")
     audio_b64 = data.get("audio_b64")
+    images_b64 = _sanitize_images_b64(data.get("images_b64"))
     conv_uuid = data.get("conversation_uuid") or str(uuid.uuid4())
     client_history = data.get("conversation_history")
 
@@ -68,6 +96,7 @@ async def handle_chat(request: Request):
         company_cui=company_cui,
         conversation_uuid=conv_uuid,
         client_messages=client_history,
+        image_base64_list=images_b64 if images_b64 else None,
     )
 
     if audio_b64:

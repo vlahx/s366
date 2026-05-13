@@ -57,8 +57,18 @@ raspunsuri la problemele firmei tale.{%endblock %}
                     style="height: 46px; min-width: 60px; transition: all 0.2s ease;">
                     <i class="bi bi-mic-fill fs-5 mx-auto"></i>
                 </button>
+                <input type="file" id="chat-image-input" class="d-none" accept="image/*" multiple
+                    aria-label="Atașează imagini pentru analiză (vision)" />
+                <button type="button"
+                    class="btn btn-outline-secondary rounded-pill px-3 d-flex align-items-center mb-1 shadow-sm"
+                    id="chat-attach-image-btn" title="Imagine (vision)"
+                    style="height: 46px; min-width: 46px; transition: all 0.2s ease;">
+                    <i class="bi bi-image fs-5 mx-auto"></i>
+                </button>
 
-                <div class="input-group input-group-lg flex-grow-1">
+                <div class="input-group input-group-lg flex-grow-1 flex-column">
+                    <div id="chat-vision-previews" class="chat-vision-previews d-none w-100 mb-1"></div>
+                    <div class="d-flex flex-grow-1 w-100 align-items-end gap-2">
                     <textarea id="user-input" class="form-control rounded-4 ps-4 pe-5" placeholder="Mesajul tau..."
                         autocomplete="off" rows="1"
                         style="resize: none; overflow-y: hidden; min-height: 46px; max-height: 150px;"></textarea>
@@ -66,6 +76,7 @@ raspunsuri la problemele firmei tale.{%endblock %}
                     <button type="submit" id="send-btn" class="btn btn-primary rounded-pill px-4 ms-2 mb-1" style="height: 46px;">
                         <i class="bi bi-send-fill"></i>
                     </button>
+                    </div>
                 </div>
             </form>
         </div>
