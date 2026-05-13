@@ -12,6 +12,7 @@ import json
 
 from app.models.sqlite_company_model import get_company_settings
 from app.utils.text_cleaner import assistant_bubble_to_llm_text
+from app.models.sqlite_model import fetch_one
 
 # Sufix lipit mereu DUPĂ conținutul din general_prompt.txt (nu înlocuiește fișierul de pe disc).
 _GENERAL_PROMPT_TOOLS_SUFFIX = """
@@ -19,6 +20,7 @@ _GENERAL_PROMPT_TOOLS_SUFFIX = """
 - get_current_datetime — dată/oră (București).
 - get_current_weather — vremea pentru un oraș (`city`).
 - search_web — căutare web (`query`).
+- scrape_url — descarcă o pagină web și extrage text curățat (`url`, opțional `selector`).
 - calculate — expresie matematică simplă (`expression`).
 - save_user_memory — salvează în memoria L0 a userului (`title`, `content`); **doar** dacă cere explicit (ex. „salvează asta”, „ține minte…”). Poate edita șterge din Setări cont (chat) → Memorie salvată.
 """
@@ -34,6 +36,20 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
     company_id = company_id
     company_cui = company_cui 
     company_name = company_name 
+
+    # Dacă numele companiei nu e în sesiune/context, îl luăm din DB central (companies).
+    # Ajută la personalizare și la completarea placeholder-urilor din general_prompt.txt.
+    if (not company_name) and company_id:
+        try:
+            row = await fetch_one(
+                "SELECT name FROM companies WHERE company_id = ?",
+                (int(company_id),),
+            )
+            if row and row["name"]:
+                company_name = row["name"]
+        except Exception:
+            # silent fallback: păstrăm company_name None și folosim default-ul "Companie"
+            pass
     
 
     #if not company_cui:
@@ -109,7 +125,7 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
     conversation_history.append({"role": "user", "content": user_message})
 ##########################configu ma-sii
     cui = company_cui
-    settings=await get_company_settings(cui)
+    settings = await get_company_settings(cui) or {}
     rag_temperature = settings.get("rag_temperature", "")
     rag_top_k = settings.get("rag_top_k", "") #folosit in rag deja
     rag_threshold = settings.get("rag_threshold", "") # folosit in rag deja
@@ -253,5 +269,5 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
         "user_input": user_message
     }
     # Diagnostic: decomentează temporar ca să vezi tot payloadul trimis spre LLM (log greu, poate conține date sensibile).
-    # print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)
+    print(f"[DEBUG] Payload trimis catre Ollama: {payload}", file=sys.stderr)
     return payload

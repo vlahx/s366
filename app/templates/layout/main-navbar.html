@@ -147,3 +147,20 @@
         </div>
     </div>
 </nav>
+
+{% if request.session.get('original_admin_id') %}
+<div class="border-bottom bg-danger text-white">
+    <div class="container-fluid px-3 py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="small">
+            <span class="fw-semibold">Shadowing activ</span>
+            <span class="opacity-75">
+                (Superadmin: #{{ request.session.get('original_admin_id') }} → User curent: #{{ request.session.get('user_id') }}
+                {% if request.session.get('username') %} — @{{ request.session.get('username') }}{% endif %})
+            </span>
+        </div>
+        <a href="/admin/stop-impersonation" class="btn btn-light btn-sm rounded-pill px-3">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Revino la Superadmin
+        </a>
+    </div>
+</div>
+{% endif %}

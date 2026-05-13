@@ -22,6 +22,7 @@ from app.routes.auth import router as auth_router
 from app.routes.admin import router as admin_router
 from app.routes.public import router as public_router
 from app.routes.company_admin import router as company_admin_router
+from app.routes.impersonation import router as impersonation_router
 from app.routes.hosting import _hosting_home_page, router as hosting_router
 from app.routes.payments import router as payments_router
 from app.routes.seo import router as seo_router
@@ -167,6 +168,7 @@ app.include_router(blog_router, prefix="/blog", tags=["Blog"])
 app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(admin_router, prefix="/admin", tags=["Admin"])
+app.include_router(impersonation_router, tags=["Admin"])
 app.include_router(blog_admin_router, prefix="/admin", tags=["Admin Blog"])
 app.include_router(company_admin_router, prefix="/company_admin", tags=["Company Admin"])
 app.include_router(hosting_router, prefix="/hosting", tags=["Hosting"])

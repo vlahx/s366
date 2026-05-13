@@ -34,10 +34,8 @@
                         potrivirea.</div>
                 </div>
 
-                <div class="col-12">
-                    <label class="form-label fw-bold">Instrucțiuni Sistem (Personalitate)</label>
-                    <textarea class="form-control" name="system_prompt" rows="3">{{ settings.system_prompt }}</textarea>
-                </div>
+                {# NOTĂ: prompturile companiei se gestionează din Dashboard → Prompts AI,
+                   nu din Settings. Eliminăm system_prompt ca să nu existe 2 surse de adevăr. #}
             </div>
         </div>
     </div>

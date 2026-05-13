@@ -185,17 +185,6 @@ async def impersonate_user(request: Request, user_id: int):
         return RedirectResponse(url="/company_admin/dashboard")
     return RedirectResponse(url="/")
 
-@router.get("/stop-impersonation")
-async def stop_impersonation(request: Request):
-    # Revenim la contul de Superadmin
-    orig_id = request.session.get("original_admin_id")
-    if not orig_id:
-        return RedirectResponse(url="/")
-    
-    # Reîncărcăm datele de Superadmin (sau facem un simplu query)
-    # Aici presupunem că rolul e superadmin fix
-    request.session["user_id"] = orig_id
-    request.session["role"] = "superadmin"
-    del request.session["original_admin_id"]
-    
-    return RedirectResponse(url="/admin/dashboard")
+# NOTE: Ruta de stop-impersonation a fost mutată într-un router public
+# (`app/routes/impersonation.py`) ca să funcționeze și când ești shadowed
+# (altfel `superadmin_required` blochează accesul).

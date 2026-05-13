@@ -50,6 +50,8 @@ class LLMServiceAsync:
         tool_context = {
             "db_path": db_path_tools if db_path_tools else None,
             "conversation_uuid": conv_uuid,
+            "company_cui": company_cui,
+            "company_id": company_id,
         }
         tools_for_request = self.tools_description
         if not user_id or not tool_context.get("db_path"):
@@ -66,7 +68,9 @@ class LLMServiceAsync:
             chat_temp = max(float(settings.get("rag_temperature", 0.55)), 0.45)
         llm_options = {
             "temperature": chat_temp,
-            "num_ctx": int(settings.get("rag_num_ctx", 8192)),
+            # qwen3.5:9b suportă context mai mare; dăm default 16384 ca să evităm truncări
+            # când tool-urile (scrape_url) întorc mult text.
+            "num_ctx": int(settings.get("rag_num_ctx", 16384)),
             "repeat_penalty": float(settings.get("rag_repeat_penalty", 1.15)),
         }
 
