@@ -131,13 +131,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Middleware-uri — Caddy trimite de obicei X-Forwarded-Proto=https către upstream HTTP.
-# add_middleware: primul adăugat = cel mai „interior” (lângă rute); ultimul = exterior.
-# Flux request: HeadToGet → FooterPageView → Session → ForwardedProto → rute.
-# (HeadToGet transformă HEAD în GET înainte ca restul stack-ului să vadă metoda.)
+# Middleware: HeadToGet → Session → Footer → ForwardedProto → rute
 app.add_middleware(ForwardedProtoMiddleware)
-app.add_middleware(SessionMiddleware, secret_key="@Leia1990")
 app.add_middleware(FooterPageViewMiddleware)
+_session_secret = (os.getenv("APP_SECRET_KEY") or os.getenv("SESSION_SECRET_KEY") or "@Leia1990").strip().strip(
+    '"'
+).strip("'")
+_session_https = (os.getenv("SESSION_HTTPS_ONLY") or os.getenv("HTTPS_ONLY") or "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_session_secret,
+    same_site="lax",
+    https_only=_session_https,
+)
 app.add_middleware(HeadToGetMiddleware)
 
 # ✅ Static & Templates (definite ACUM, înainte de handlers)
@@ -151,13 +161,22 @@ async def custom_404_handler(request: Request, __):
 
 @app.exception_handler(403)
 async def custom_403_handler(request: Request, exc: HTTPException):
+    if _request_prefers_json_api(request):
+        return JSONResponse(status_code=403, content={"detail": exc.detail})
     return templates.TemplateResponse(request=request, name="errors/403.html", context={"detail": exc.detail}, status_code=403)
+
+def _request_prefers_json_api(request: Request) -> bool:
+    """JSON pentru API externă, /admin/api/*, fetch din dashboard etc. — nu redirect HTML."""
+    path = request.url.path or ""
+    if "/api/" in path:
+        return True
+    accept = (request.headers.get("accept") or "").lower()
+    return "application/json" in accept
+
 
 @app.exception_handler(401)
 async def custom_401_handler(request: Request, exc: HTTPException):
-    # API externă: răspuns JSON, fără redirect la login (clienți non-browser).
-    path = request.url.path or ""
-    if path.startswith("/api/") or "application/json" in (request.headers.get("accept") or ""):
+    if _request_prefers_json_api(request):
         return JSONResponse(status_code=401, content={"detail": exc.detail})
     request.session["flash_messages"] = [{"text": "Te rugăm să te autentifici.", "type": "warning"}]
     return RedirectResponse(url="/auth/login", status_code=303)

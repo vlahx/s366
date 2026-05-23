@@ -1,21 +1,25 @@
 from __future__ import annotations
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-
 from app.utils.blog_db import increment_listing_page_views
 from app.utils.page_views import footer_page_view_key
 
 
-class FooterPageViewMiddleware(BaseHTTPMiddleware):
+class FooterPageViewMiddleware:
     """
     Incrementează page_views pentru rutele care nu au contor dedicat (blog/chat).
-    Nu citește request.session, CSRF sau auth — nu poate produce 403 din „sesiune lipsă”.
+    ASGI pur (fără BaseHTTPMiddleware) — BaseHTTPMiddleware rupe intermitent request.session.
     """
 
-    async def dispatch(self, request: Request, call_next):
-        request.state.footer_view_count = None
-        key = footer_page_view_key(request.url.path, request.method)
-        if key:
-            request.state.footer_view_count = await increment_listing_page_views(key)
-        return await call_next(request)
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            state = scope.setdefault("state", {})
+            state["footer_view_count"] = None
+            path = scope.get("path") or ""
+            method = scope.get("method") or "GET"
+            key = footer_page_view_key(path, method)
+            if key:
+                state["footer_view_count"] = await increment_listing_page_views(key)
+        await self.app(scope, receive, send)

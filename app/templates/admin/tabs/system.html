@@ -6,6 +6,81 @@
         </div>
     </div>
 
+    {% if console_url %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning-subtle shadow-sm">
+                <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                        <h6 class="mb-1 fw-bold"><i class="bi bi-terminal text-warning"></i> Consolă server</h6>
+                        <p class="small text-body-secondary mb-0">Terminal web în modal (serviciu separat, {{ console_url }}).</p>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#adminConsoleModal">
+                            <i class="bi bi-terminal me-1"></i>Deschide consola
+                        </button>
+                        <a href="{{ console_url }}" target="_blank" rel="noopener noreferrer"
+                            class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="adminConsoleModal" tabindex="-1" aria-labelledby="adminConsoleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-lg-down modal-xl modal-dialog-scrollable">
+            <div class="modal-content bg-dark text-light">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" id="adminConsoleModalLabel">
+                        <i class="bi bi-terminal me-2"></i>Consolă server
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Închide"></button>
+                </div>
+                <div class="modal-body p-0 position-relative" style="min-height: 70vh;">
+                    <iframe id="adminConsoleIframe" title="Consolă server" class="d-block w-100 border-0"
+                        style="height: 70vh; min-height: 400px;" data-src="{{ console_url }}"
+                        allow="clipboard-read; clipboard-write"></iframe>
+                    <div id="adminConsoleIframeFallback" class="d-none position-absolute top-50 start-50 translate-middle text-center px-3">
+                        <p class="text-secondary">Consola nu poate fi încărcată în pagină (blocaj iframe).</p>
+                        <a href="{{ console_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-warning btn-sm">
+                            Deschide în tab nou
+                        </a>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary py-2">
+                    <a href="{{ console_url }}" target="_blank" rel="noopener noreferrer"
+                        class="btn btn-sm btn-outline-light">Tab nou</a>
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Închide</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+      (function () {
+        var modal = document.getElementById('adminConsoleModal');
+        var iframe = document.getElementById('adminConsoleIframe');
+        var fallback = document.getElementById('adminConsoleIframeFallback');
+        if (!modal || !iframe) return;
+        modal.addEventListener('shown.bs.modal', function () {
+          if (!iframe.src && iframe.dataset.src) iframe.src = iframe.dataset.src;
+        });
+        modal.addEventListener('hidden.bs.modal', function () {
+          iframe.src = '';
+          if (fallback) fallback.classList.add('d-none');
+        });
+        iframe.addEventListener('error', function () {
+          iframe.classList.add('d-none');
+          if (fallback) fallback.classList.remove('d-none');
+        });
+      })();
+    </script>
+    {% endif %}
+
     <div class="row mb-4">
         <div class="col-12 col-xl-8">
             <div class="card border-primary-subtle shadow-sm">
@@ -49,7 +124,13 @@
         <div class="col-md-6">
             <div class=" card shadow-sm border-0 h-100 stat-card bg-body-tertiary">
                 <div class="card-body">
-                    <h5 class="card-title text-primary mb-3"><i class="bi bi-cpu"></i> Procesor (56 Threads)</h5>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="card-title text-primary mb-0"><i class="bi bi-cpu"></i> Procesor (56 Threads)</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                            onclick="location.reload()" title="Reîncarcă pagina (CPU/RAM din server)">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
                     <div class="display-6 fw-bold mb-2" id="cpu-val">{{ stats.cpu }}%</div>
                     <div class="progress" style="height: 8px;">
                         <div id="cpu-bar" class="progress-bar bg-primary" role="progressbar"
@@ -297,15 +378,4 @@
         }
     }
 
-    // Refresh Live CPU
-    setInterval(async () => {
-        try {
-            const res = await fetch('/admin/api/stats');
-            const data = await res.json();
-            if (data.cpu) {
-                document.getElementById('cpu-val').innerText = data.cpu + '%';
-                document.getElementById('cpu-bar').style.width = data.cpu + '%';
-            }
-        } catch (e) { }
-    }, 5000);
 </script>

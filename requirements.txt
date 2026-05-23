@@ -22,6 +22,7 @@ sentence-transformers>=2.2.2
 scikit-learn
 pandas
 numpy<2
+sympy
 tqdm
 
 # --- PROCESARE DOCUMENTE & WEB ---

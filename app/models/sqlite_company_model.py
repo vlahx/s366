@@ -68,6 +68,104 @@ def ensure_company_rag_layout(cui: str) -> Path:
     return root
 
 
+async def _ensure_prompts_schema(db):
+    """Migrare prompts: type (vechi) → prompt_role + audience."""
+    async with db.execute('PRAGMA table_info("prompts")') as cursor:
+        existing = {row[1] for row in await cursor.fetchall()}
+
+    if "prompt_role" not in existing:
+        await db.execute(
+            'ALTER TABLE "prompts" ADD COLUMN "prompt_role" TEXT NOT NULL DEFAULT \'general\''
+        )
+    if "audience" not in existing:
+        await db.execute(
+            'ALTER TABLE "prompts" ADD COLUMN "audience" TEXT NOT NULL DEFAULT \'toti\''
+        )
+
+    if "type" in existing:
+        from app.utils.prompt_constants import _LEGACY_TYPE_MAP
+
+        async with db.execute('SELECT id, type FROM prompts') as cursor:
+            rows = await cursor.fetchall()
+        for row in rows:
+            pid = row[0] if isinstance(row, tuple) else row["id"]
+            ptype = row[1] if isinstance(row, tuple) else row["type"]
+            legacy = ptype if ptype in _LEGACY_TYPE_MAP else "General"
+            prompt_role, audience = _LEGACY_TYPE_MAP[legacy]
+            await db.execute(
+                """
+                UPDATE prompts SET prompt_role = ?, audience = ?
+                WHERE id = ?
+                """,
+                (prompt_role, audience, pid),
+            )
+        try:
+            await db.execute('ALTER TABLE "prompts" DROP COLUMN "type"')
+        except Exception as e:
+            print(f"ℹ️ [DB] DROP prompts.type omis (SQLite vechi?): {e}", file=sys.stderr)
+
+_PROMPT_ROLE_CHECK = (
+    "'comportament', 'rag_manuale', 'reguli', 'general'"
+)
+
+
+async def _ensure_prompts_role_consolidated(db):
+    """Fără format_raspuns: formatul merge în reguli; migrare prompturi vechi."""
+    async with db.execute(
+        "SELECT value FROM company_settings WHERE key = 'prompts_schema_v3'"
+    ) as cursor:
+        row = await cursor.fetchone()
+    if row and (row[0] if isinstance(row, tuple) else row["value"]) == "1":
+        return
+
+    async with db.execute('PRAGMA table_info("prompts")') as cursor:
+        cols = {r[1] for r in await cursor.fetchall()}
+    if not cols or "prompt_role" not in cols:
+        await db.execute(
+            "INSERT OR REPLACE INTO company_settings (key, value) VALUES ('prompts_schema_v3', '1')"
+        )
+        return
+
+    await db.execute(
+        """
+        UPDATE prompts SET prompt_role = 'reguli'
+        WHERE prompt_role = 'format_raspuns'
+        """
+    )
+
+    check_sql = _PROMPT_ROLE_CHECK
+    await db.execute('DROP TABLE IF EXISTS "prompts_new"')
+    await db.execute(
+        f"""
+        CREATE TABLE "prompts_new" (
+            "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+            "name" TEXT NOT NULL,
+            "content" TEXT NOT NULL,
+            "prompt_role" TEXT NOT NULL CHECK("prompt_role" IN (
+                {check_sql}
+            )) DEFAULT 'general',
+            "audience" TEXT NOT NULL CHECK("audience" IN (
+                'toti', 'studenti', 'profesori', 'intern'
+            )) DEFAULT 'toti',
+            "status" TEXT NOT NULL DEFAULT 'pending',
+            "created_at" TEXT DEFAULT (datetime('now')),
+            "updated_at" TEXT DEFAULT NULL
+        )
+        """
+    )
+    await db.execute(
+        """
+        INSERT INTO prompts_new (id, name, content, prompt_role, audience, status, created_at, updated_at)
+        SELECT id, name, content, prompt_role, audience, status, created_at, updated_at FROM prompts
+        """
+    )
+    await db.execute('DROP TABLE "prompts"')
+    await db.execute('ALTER TABLE "prompts_new" RENAME TO "prompts"')
+    await db.execute(
+        "INSERT OR REPLACE INTO company_settings (key, value) VALUES ('prompts_schema_v3', '1')"
+    )
+
+
 async def _ensure_documents_columns(db):
     """DB-uri vechi: CREATE IF NOT EXISTS nu adaugă coloane noi. Le alterăm aici."""
     async with db.execute('PRAGMA table_info("documents")') as cursor:
@@ -120,18 +218,25 @@ async def init_company_db(cui):
     
     try:
         async with aiosqlite.connect(str(db_path)) as db:
+            db.row_factory = aiosqlite.Row
             # 1. Tabelul de Prompts
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS "prompts" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "name" TEXT NOT NULL,
                     "content" TEXT NOT NULL,
-                    "type" TEXT NOT NULL CHECK("type" IN ('Intern', 'Extern', 'HR', 'SALES', 'TECH', 'General')) DEFAULT 'General',
+                    "prompt_role" TEXT NOT NULL CHECK("prompt_role" IN (
+                        'comportament', 'rag_manuale', 'reguli', 'general'
+                    )) DEFAULT 'general',
+                    "audience" TEXT NOT NULL CHECK("audience" IN (
+                        'toti', 'studenti', 'profesori', 'intern'
+                    )) DEFAULT 'toti',
                     "status" TEXT NOT NULL DEFAULT 'pending',
                     "created_at" TEXT DEFAULT (datetime('now')),
                     "updated_at" TEXT DEFAULT NULL
                 )
             """)
+            await _ensure_prompts_schema(db)
             
             # 2. Tabelul de documente (RAG)
             await db.execute("""
@@ -241,6 +346,8 @@ async def init_company_db(cui):
                     synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+
+            await _ensure_prompts_role_consolidated(db)
             
             await db.commit()
             # Sfârșitul blocului async with - aici se închide db corect
@@ -250,26 +357,6 @@ async def init_company_db(cui):
         print(f"❌ Eroare la init_db async pentru {cui}: {e}")
         return False
 
-async def get_active_prompts(cui):
-    """Exemplu de utilizare a funcției get_db."""
-    db = await get_db(cui)
-    if not db:
-        return ""
-    
-    try:
-        async with db.execute("SELECT name, content, type FROM prompts WHERE status = 'active'") as cursor:
-            rows = await cursor.fetchall()
-            
-            xml_output = ""
-            for row in rows:
-                xml_output += f"<name>{row['name']}</name>\n"
-                xml_output += f"<content>{row['content']}</content>\n"
-                xml_output += f"<Type>{row['type']}</Type>\n\n"
-            return xml_output.strip()
-    finally:
-        await db.close()
-
-        
 async def save_company_settings(cui, settings_dict):
     """
     Salvează un dicționar de setări în DB-ul firmei.

@@ -5,6 +5,7 @@ import {
     removeTypingIndicator,
     setStreamingFollow,
 } from './chat_ui.js';
+import { renderMarkdownWithMath, typesetMathInElement } from './math_markdown.js';
 
 let messageBuffer = "";
 let isPrinting = false;
@@ -58,9 +59,9 @@ export function startTicker(container) {
             }
 
             try {
-                container.innerHTML = marked.parse(rawTextSoFar);
+                container.innerHTML = renderMarkdownWithMath(rawTextSoFar);
             } catch (e) {
-                console.warn('[streaming] marked.parse:', e);
+                console.warn('[streaming] renderMarkdownWithMath:', e);
                 container.textContent = rawTextSoFar;
             }
             enhanceCodeBlocks(container);
@@ -71,6 +72,9 @@ export function startTicker(container) {
             stopTickerInterval();
             isPrinting = false;
             removeTypingIndicator();
+            enhanceCodeBlocks(container);
+            highlightPrismIn(container);
+            typesetMathInElement(container);
             addSaveButton(container.parentElement);
             scrollBottom();
             setStreamingFollow(false);
@@ -112,6 +116,18 @@ export function waitForStreamIdle(maxMs = 120000) {
             setTimeout(tick, 40);
         };
         tick();
+    });
+}
+
+/** Prism rulează la DOMContentLoaded; mesajele din stream / istoric trebuie highlight după HTML nou. */
+export function highlightPrismIn(container) {
+    if (typeof Prism === 'undefined' || !container?.querySelectorAll) return;
+    container.querySelectorAll('code[class*="language-"]').forEach((el) => {
+        try {
+            Prism.highlightElement(el);
+        } catch (e) {
+            console.warn('[streaming] Prism.highlightElement:', e);
+        }
     });
 }
 

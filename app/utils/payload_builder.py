@@ -21,8 +21,10 @@ _GENERAL_PROMPT_TOOLS_SUFFIX = """
 - get_current_weather — vremea pentru un oraș (`city`).
 - search_web — căutare web (`query`).
 - scrape_url — descarcă o pagină web și extrage text curățat (`url`, opțional `selector`).
-- calculate — expresie matematică simplă (`expression`).
+- calculate — expresie numerică (`expression`): + - * / **, sqrt, sin/cos/tan, pi, deg(); nu rezolvă ecuații cu necunoscute.
 - save_user_memory — salvează în memoria L0 a userului (`title`, `content`); **doar** dacă cere explicit (ex. „salvează asta”, „ține minte…”). Poate edita șterge din Setări cont (chat) → Memorie salvată.
+
+La răspunsuri cu **rezultat numeric final** (arii, volume, unghiuri, liste de cote), verifică cifra cu **calculate** înainte de a o afișa utilizatorului.
 """
 
 async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, user_role=None, user_lastname=None, user_firstname=None,
@@ -170,7 +172,7 @@ async def build_llm_payload(user_message, conversation_uuid=None, user_id=None, 
     # Prompturile companiei
     # 1. Extragerea datelor cu Try/Except (Păstrăm siguranța)
     try:
-        company_prompts = await get_prompts_json(cui=company_cui)
+        company_prompts = await get_prompts_json(cui=company_cui, user_role=user_role)
         # Extragem textul structurat pe care l-am pregătit în db_prompts.py
         company_prompt_text = company_prompts.get("company_prompt", "")
     except Exception as e:

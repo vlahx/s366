@@ -4,6 +4,8 @@ import re
 import unicodedata
 import markdown
 
+from app.utils.math_extract import extract_math
+
 # ===================================================================
 # 1. FUNCTIA PENTRU CURATARE TTS (PLAIN TEXT)
 # ===================================================================
@@ -69,7 +71,10 @@ def clean_markdown_to_html(markdown_text: str) -> str:
     cleaned_text = re.sub(r'([.:!])\s*(###)', r'\1\n\n\2', markdown_text)
     cleaned_text = re.sub(r'(### [^\n]+?)\s*(-)', r'\1\n\n\2', cleaned_text)
     cleaned_text = re.sub(r'---', r'\n\n---\n\n', cleaned_text)
-    
+
+    # Formule LaTeX înainte de markdown (nl2br / \ la sfârșit de linie stric cases etc.)
+    cleaned_text, _ = extract_math(cleaned_text)
+
     # 2. Conversia rapidă
     # .convert() e mai rapid decât apelul funcției markdown.markdown() direct
     html_output = md.convert(cleaned_text)

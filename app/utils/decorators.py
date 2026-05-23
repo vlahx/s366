@@ -13,10 +13,12 @@ async def login_required(request: Request):
 
 async def superadmin_required(request: Request):
     await login_required(request)
-    if request.session.get("role") != "superadmin":
+    role = request.session.get("role")
+    # În impersonare rolul devine company_admin, dar original_admin_id rămâne setat
+    if role != "superadmin" and not request.session.get("original_admin_id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acces interzis. Necesită privilegii de Superadmin."
+            detail="Acces interzis. Necesită privilegii de Superadmin.",
         )
     return True
 

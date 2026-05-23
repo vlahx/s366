@@ -1,4 +1,6 @@
 import { fetchSessions, renameSessionRequest, deleteSessionRequest, getConversationMessages } from './sidebar_logic.js';
+import { highlightPrismIn } from './streaming.js';
+import { typesetMathInElement } from './math_markdown.js';
 import { createBubble } from './chat_ui.js';
 import {
     isChatLoggedIn,
@@ -166,7 +168,7 @@ export async function switchConversation(uuid, updateStateCallback) {
     }
 
     messages.forEach((msg) => {
-        createBubble(msg.sender, msg.message, msg.sender === 'assistant', true);
+        createBubble(msg.sender, msg.message, msg.sender === 'assistant');
     });
 
     if (!isChatLoggedIn() && messages.length === 0) {
@@ -177,6 +179,8 @@ export async function switchConversation(uuid, updateStateCallback) {
         chatBox.style.visibility = 'visible';
         chatBox.style.position = '';
         chatBox.scrollTop = chatBox.scrollHeight;
+        highlightPrismIn(chatBox);
+        typesetMathInElement(chatBox);
     });
 
     if (updateStateCallback) updateStateCallback(uuid);

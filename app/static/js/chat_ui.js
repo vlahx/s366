@@ -29,7 +29,7 @@ export function appendTypingIndicator() {
     removeTypingIndicator();
     const typingDiv = document.createElement('div');
     typingDiv.id = 'typing-indicator';
-    typingDiv.className = 'bot-msg msg-bubble';
+    typingDiv.className = 'bot-msg msg-bubble typing-indicator-bubble';
     typingDiv.innerHTML = `
         <div class="typing">
             <div class="typing-dot"></div>
@@ -260,7 +260,8 @@ function initScrollDetection() {
 initScrollDetection();
 
 
-import { enhanceCodeBlocks } from './streaming.js';
+import { enhanceCodeBlocks, highlightPrismIn } from './streaming.js';
+import { typesetMathInElement } from './math_markdown.js';
 
 // 1. Funcția care pornește "Paznicul"
 function startObservingChat() {
@@ -274,7 +275,8 @@ function startObservingChat() {
                 if (node.nodeType === 1) { 
                     // Dacă e un <pre> sau conține unul, îi punem butoane
                     if (node.tagName === 'PRE' || node.querySelector('pre')) {
-                        enhanceCodeBlocks(chatContainer); 
+                        enhanceCodeBlocks(chatContainer);
+                        highlightPrismIn(chatContainer);
                     }
                 }
             });
@@ -286,6 +288,8 @@ function startObservingChat() {
     
     // 2. Executăm o dată MANUAL pentru mesajele care sunt DEJA în pagină la Refresh
     enhanceCodeBlocks(chatContainer);
+    highlightPrismIn(chatContainer);
+    typesetMathInElement(chatContainer);
 }
 
 // Pornim totul când s-a încărcat DOM-ul

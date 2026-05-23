@@ -1,32 +1,48 @@
 :root {
     --bg: #ffffff;
     --text: #0f0f0f;
-    --chat-bg: #f8f9fa;
-    --user-bg: #0066ff;
-    --user-text: white;
-    --bot-bg: #e9ecef;
-    --bot-text: #212529;
-    --input-bg: white;
-    --input-border: #ced4da;
+    /* Chat + zonă principală = aceeași suprafață ca sidebarul (fără „pete” albe/albastre) */
     --sidebar-bg: #f1f3f5;
     --sidebar-text: #212529;
+    --chat-bg: var(--sidebar-bg);
+    --bot-bg: var(--sidebar-bg);
+    --bot-text: var(--sidebar-text);
+    --input-bg: var(--sidebar-bg);
+    --input-border: #ced4da;
     --border: #dee2e6;
+    /* Meniu „⋯” sesiuni — fundal opac (nu se încalecă cu lista) */
+    --sidebar-dropdown-bg: #ffffff;
+    --sidebar-dropdown-text: #212529;
+    --sidebar-dropdown-hover: rgba(33, 37, 41, 0.09);
+    --sidebar-dropdown-shadow: 0 0.4rem 1rem rgba(15, 23, 42, 0.14);
 }
 
 [data-bs-theme="dark"],
 .dark-mode {
     --bg: #0d1117;
     --text: #e6edf3;
-    --chat-bg: #161b22;
-    --user-bg: #1f6feb;
-    --user-text: white;
-    --bot-bg: #21262d;
-    --bot-text: #c9d1d9;
-    --input-bg: #0d1117;
-    --input-border: #30363d;
     --sidebar-bg: #161b22;
     --sidebar-text: #c9d1d9;
+    --chat-bg: var(--sidebar-bg);
+    --bot-bg: var(--sidebar-bg);
+    --bot-text: var(--sidebar-text);
+    --input-bg: var(--sidebar-bg);
+    --input-border: #30363d;
     --border: #30363d;
+    --sidebar-dropdown-bg: #2d333b;
+    --sidebar-dropdown-text: #e6edf3;
+    --sidebar-dropdown-hover: rgba(255, 255, 255, 0.1);
+    --sidebar-dropdown-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.55);
+}
+
+/* Chat: aceeași cromatică ca sidebar-ul pe tot viewport-ul principal */
+html.is-chat-app {
+    background-color: var(--sidebar-bg);
+}
+
+html.is-chat-app body.is-chat-app-body {
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
 }
 
 
@@ -135,6 +151,8 @@ nav.navbar.sticky-top {
 html.is-chat-app #wrapper {
     align-items: stretch;
     z-index: 1;
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
 }
 
 #chat-container {
@@ -146,48 +164,75 @@ html.is-chat-app #wrapper {
     min-height: 0;
     align-self: stretch;
     /* Fără Bootstrap h-100: evită ciclu height % pe mobil când sidebar e fixed */
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+}
+
+html.is-chat-app main.flex-grow-1 {
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
 }
 
 /* Footer chat: sub stratul #wrapper ca să nu acopere sidebar-ul off-canvas */
-html.is-chat-app main.flex-grow-1 > footer {
+html.is-chat-app main.flex-grow-1 > footer.chat-page-footer {
     flex-shrink: 0;
     width: 100%;
     position: relative;
     z-index: 0;
+    background-color: var(--sidebar-bg) !important;
+    border-top-color: var(--border) !important;
 }
 
 
-
 .msg-bubble {
-    max-width: 75%;
-    /* Puțin mai mic, să respire pe mobil */
     padding: 12px 16px;
     border-radius: 18px;
     line-height: 1.45;
     position: relative;
     word-wrap: break-word;
-    /* Să nu iasă textul din bulă */
     margin-bottom: 10px;
     display: inline-block;
-    /* Foarte important: să nu ocupe tot rândul */
+    min-width: 0;
 }
 
 .user-msg {
-    background: var(--user-bg);
-    color: var(--user-text);
+    max-width: 75%;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    border: 1px solid var(--border);
+    border-left: 3px solid color-mix(in srgb, var(--bs-primary) 58%, var(--border));
     border-bottom-right-radius: 4px;
     margin-left: auto !important;
-    /* FORȚĂM trecerea la dreapta */
     align-self: flex-end;
 }
 
+/* Răspuns AI: lățime completă în #chat-box — formule KaTeX lungi au loc pe mobil */
 .bot-msg {
-    background: var(--bot-bg);
-    color: var(--bot-text);
+    max-width: 100%;
+    width: 100%;
+    display: block;
+    box-sizing: border-box;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    border: 1px solid var(--border);
     border-bottom-left-radius: 4px;
     margin-right: auto !important;
-    /* Rămâne la stânga */
+    align-self: stretch;
+}
+
+#typing-indicator,
+.typing-indicator-bubble {
+    max-width: none;
+    width: auto;
+    display: inline-block;
     align-self: flex-start;
+}
+
+/* Fără link-uri albastre în bule — moștenesc culoarea textului conversației */
+#chat-box .msg-content a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 /* Zona scrollabilă: flex-basis 0 + grow = ocupă doar spațiul rămas, nu „împinge” coloana */
@@ -203,10 +248,13 @@ html.is-chat-app main.flex-grow-1 > footer {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    background-color: var(--sidebar-bg);
 }
 
 .chat-input-area {
     flex-shrink: 0;
+    background-color: var(--sidebar-bg);
+    border-top-color: var(--border) !important;
 }
 
 .typing {
@@ -269,9 +317,18 @@ html.is-chat-app main.flex-grow-1 > footer {
 }
 
 #user-input {
-    background: var(--input-bg);
-    border: 1px solid var(--input-border);
-    color: var(--text);
+    background-color: var(--sidebar-bg) !important;
+    border: 1px solid var(--input-border, var(--border));
+    color: var(--sidebar-text) !important;
+}
+
+#user-input::placeholder {
+    color: color-mix(in srgb, var(--sidebar-text) 52%, transparent);
+}
+
+#user-input:focus {
+    background-color: var(--sidebar-bg) !important;
+    color: var(--sidebar-text) !important;
 }
 
 
@@ -279,12 +336,12 @@ html.is-chat-app main.flex-grow-1 > footer {
     position: fixed;
     inset: 0 0 0 auto;
     width: 360px;
-    background: var(--chat-bg);
-    color: var(--text);
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
     transform: translateX(100%);
     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 1050;
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--border, var(--bs-border-color));
 }
 
 #voice-panel.active {
@@ -328,7 +385,7 @@ html.is-chat-app main.flex-grow-1 > footer {
     margin-right: 10px;
 }
 
-/* Dropdown-ul în sine - Folosește variabile Bootstrap */
+/* Dropdown sesiune (⋯): fundal opac, în tema chat/sidebar — nu Bootstrap-only */
 .custom-dropdown-content {
     display: none;
     position: absolute;
@@ -338,10 +395,10 @@ html.is-chat-app main.flex-grow-1 > footer {
     z-index: 1050;
     border-radius: 8px;
     padding: 5px 0;
-    /* Culori dinamice */
-    background-color: var(--bs-dropdown-bg);
-    border: 1px solid var(--bs-border-color);
-    box-shadow: var(--bs-box-shadow);
+    background-color: var(--sidebar-dropdown-bg);
+    color: var(--sidebar-dropdown-text);
+    border: 1px solid var(--border);
+    box-shadow: var(--sidebar-dropdown-shadow);
 }
 
 .custom-dropdown-content.show {
@@ -356,18 +413,18 @@ html.is-chat-app main.flex-grow-1 > footer {
     display: flex;
     align-items: center;
     gap: 10px;
-    color: var(--bs-body-color);
+    color: var(--sidebar-dropdown-text);
     transition: background-color 0.2s;
 }
 
 /* Hover generic */
 .menu-item:hover:not(.disabled) {
-    background-color: var(--bs-dropdown-link-hover-bg);
+    background-color: var(--sidebar-dropdown-hover);
 }
 
 /* Stări speciale */
 .menu-item.disabled {
-    color: var(--bs-secondary-color);
+    color: color-mix(in srgb, var(--sidebar-dropdown-text) 42%, transparent);
     cursor: not-allowed;
 }
 
@@ -393,6 +450,10 @@ html.is-chat-app main.flex-grow-1 > footer {
 .dots-icon:hover {
     transform: scale(1.1);
     color: var(--bs-primary);
+}
+
+#sidebar-left .dots-icon {
+    color: var(--sidebar-text);
 }
 
 /* Efect când butonul PTT este apăsat */
@@ -434,16 +495,103 @@ pre {
     padding-top: 30px !important; /* Loc pentru butoane */
 }
 
+/*
+ * Mesaje cu cod: HTML din DB (markdown Python) poate include Pygments (.codehilite),
+ * GitHub-style (.highlight) sau style="" lumos pe <pre> — rupe dark mode-ul doar în acele sesiuni.
+ * Marked în browser: clasa language-* e pe <code>, nu pe <pre>.
+ */
+#chat-box .msg-content pre,
+#chat-box .msg-content .codehilite,
+#chat-box .msg-content .highlight {
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-body-color);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+}
+
+#chat-box .msg-content .codehilite pre,
+#chat-box .msg-content .highlight pre {
+    background: transparent !important;
+    border: none !important;
+    margin: 0;
+    padding-top: 30px !important;
+}
+
+#chat-box .msg-content pre code[class*="language-"],
+#chat-box .msg-content .codehilite code,
+#chat-box .msg-content .highlight code {
+    background-color: transparent !important;
+    color: inherit;
+}
+
+html[data-bs-theme="dark"] #chat-box .msg-content pre,
+html[data-bs-theme="dark"] #chat-box .msg-content .codehilite,
+html[data-bs-theme="dark"] #chat-box .msg-content .highlight {
+    background-color: #272822 !important;
+    color: #f8f8f2 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+html[data-bs-theme="dark"] #chat-box .msg-content .codehilite pre,
+html[data-bs-theme="dark"] #chat-box .msg-content .highlight pre {
+    background: transparent !important;
+}
+
+/*
+ * Nu forțăm color:inherit !important pe <code> — strica culorile Prism / lasă text alb pe fundal alb
+ * pentru language-html până rulează highlight. Fundal transparent rămâne.
+ */
+html[data-bs-theme="dark"] #chat-box .msg-content pre code,
+html[data-bs-theme="dark"] #chat-box .msg-content .codehilite code,
+html[data-bs-theme="dark"] #chat-box .msg-content .highlight code {
+    background: transparent !important;
+}
+
+/* Text simplu în cod (înainte de Prism sau fără token-uri) — contrast garantat */
+html[data-bs-theme="dark"] #chat-box .msg-content pre code[class*="language-"] {
+    color: #f8f8f2;
+}
+
+#chat-box .msg-content pre code[class*="language-"] {
+    color: var(--bs-body-color);
+}
+
+#chat-box .bot-msg .msg-content {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+
+#chat-box .msg-content .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    padding: 0.35em 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+#chat-box .msg-content .katex {
+    font-size: 1.05em;
+}
+
+html[data-bs-theme="dark"] #chat-box .msg-content .katex {
+    color: #f8f8f2;
+}
+
 .code-actions {
     position: absolute;
     top: 5px;
     right: 5px;
     display: flex;
     gap: 5px;
-    z-index: 10;
+    z-index: 50;
+    pointer-events: none;
 }
 
 .code-actions button {
+    pointer-events: auto;
+    position: relative;
+    z-index: 51;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #ccc;

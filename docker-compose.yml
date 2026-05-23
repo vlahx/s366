@@ -22,6 +22,11 @@ services:
               capabilities: [ gpu ]
     runtime: nvidia
     environment:
+      # Dev: reload=true. Prod: UVICORN_RELOAD=false, UVICORN_WORKERS=1 (vezi comentariu workers mai jos)
+      - UVICORN_RELOAD=true
+      - UVICORN_WORKERS=1
+      # Prod workers: 1 recomandat (embed GPU în db_rags.py per proces + scheduler în lifespan).
+      # 2+ doar după ce scheduler e singleton și încărcarea RAG nu dublează VRAM.
       # Aceeași cale ca volumul companies_data → evită scrieri în /app/data vs /companies_data
       - COMPANIES_DATA_DIR=/companies_data
       - TZ=Europe/Bucharest

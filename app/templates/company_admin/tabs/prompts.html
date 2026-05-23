@@ -1,3 +1,19 @@
+<style>
+    #addPromptModal .prompt-content-editor,
+    #editPromptModal .prompt-content-editor {
+        min-height: min(52vh, 480px);
+        font-size: 0.95rem;
+        line-height: 1.45;
+        resize: vertical;
+    }
+    @media (min-width: 992px) {
+        #addPromptModal .modal-dialog,
+        #editPromptModal .modal-dialog {
+            max-width: min(1140px, 92vw);
+        }
+    }
+</style>
+
 <div class="card shadow-sm border-0 bg-body-emphasis mb-4">
     <div
         class="card-header bg-transparent border-bottom border-secondary-subtle py-3 d-flex justify-content-between align-items-center">
@@ -5,7 +21,9 @@
             <h5 class="fw-bold mb-0 text-body">
                 <i class="bi bi-terminal-fill me-2 text-primary"></i>Instrucțiuni AI (Prompts)
             </h5>
-            <p class="text-muted small mb-0">Configurarea comportamentului LLM pe infrastructura NVMe.</p>
+            <p class="text-muted small mb-0">
+                Rol = ce face promptul. Grup țintă = cine îl primește în chat (filtrat automat).
+            </p>
         </div>
         <button class="btn btn-primary btn-sm px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addPromptModal">
             <i class="bi bi-plus-lg me-1"></i> Adaugă Prompt
@@ -18,7 +36,8 @@
                 <thead class="table-active text-uppercase small fw-bold border-bottom">
                     <tr>
                         <th class="ps-4 py-3">Denumire & Conținut</th>
-                        <th>Departament</th>
+                        <th>Rol prompt</th>
+                        <th>Grup țintă</th>
                         <th>Status</th>
                         <th>Creat la</th>
                         <th class="text-end pe-4">Acțiuni</th>
@@ -35,8 +54,14 @@
                         </td>
                         <td>
                             <span
+                                class="badge rounded-pill bg-info-subtle text-info border border-info-subtle px-3">
+                                {{ prompt_role_choices.get(p.prompt_role, p.prompt_role) }}
+                            </span>
+                        </td>
+                        <td>
+                            <span
                                 class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3">
-                                {{ p.type }}
+                                {{ audience_choices.get(p.audience, p.audience) }}
                             </span>
                         </td>
                         <td>
@@ -55,12 +80,14 @@
                         </td>
                         <td class="text-end pe-4">
                             <div class="btn-group btn-group-sm shadow-sm">
-                                <button
-                                    onclick="prepareEdit('{{ p.id }}', '{{ p.name }}', '{{ p.type }}', `{{ p.content }}`)"
-                                    class="btn btn-outline-secondary border-secondary-subtle" title="Editează">
+                                <button type="button"
+                                    class="btn btn-outline-secondary border-secondary-subtle btn-edit-prompt"
+                                    data-prompt-id="{{ p.id }}"
+                                    title="Editează">
                                     <i class="bi bi-pencil-square text-primary"></i>
                                 </button>
-                                <button onclick="confirmDelete('{{ p.id }}', '{{ p.name }}')"
+                                <button type="button"
+                                    onclick="confirmDelete('{{ p.id }}', {{ p.name|tojson }})"
                                     class="btn btn-outline-secondary border-secondary-subtle text-danger"
                                     title="Șterge">
                                     <i class="bi bi-trash3"></i>
@@ -70,7 +97,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-5">
+                        <td colspan="6" class="text-center py-5">
                             <i class="bi bi-robot display-4 d-block mb-3 text-secondary opacity-50"></i>
                             <p class="text-secondary mb-0">Baza de date de pe NVMe nu conține prompte pentru acest CUI.
                             </p>
@@ -84,7 +111,7 @@
 </div>
 
 <div class="modal fade shadow" id="addPromptModal" tabindex="-1" aria-labelledby="addPromptLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable modal-fullscreen-lg-down">
         <div class="modal-content bg-body-emphasis border-secondary-subtle">
             <div class="modal-header border-bottom border-secondary-subtle">
                 <h5 class="modal-title fw-bold text-primary" id="addPromptLabel">
@@ -96,31 +123,37 @@
             <form action="/company_admin/dashboard/prompts/add" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-secondary">Nume Identificare</label>
+                        <label class="form-label small fw-bold text-secondary">Nume identificare</label>
                         <input type="text" name="name"
                             class="form-control bg-transparent border-secondary-subtle text-body shadow-sm"
-                            placeholder="Ex: Suport Tehnic - Standard" required>
+                            placeholder="Ex: Asistent profesor CAD/NX" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold">Rol prompt</label>
+                            <select name="prompt_role" class="form-select border-secondary-subtle text-body">
+                                {% for value, label in prompt_role_choices.items() %}
+                                <option value="{{ value }}" {% if value == 'comportament' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold">Grup țintă</label>
+                            <select name="audience" class="form-select border-secondary-subtle text-body">
+                                {% for value, label in audience_choices.items() %}
+                                <option value="{{ value }}" {% if value == 'studenti' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Tip (CHECK Constraint)</label>
-                        <select name="p_type" id="edit_p_type" class="form-select border-secondary-subtle text-body">
-                            <option value="General">General</option>
-                            <option value="Intern">Intern</option>
-                            <option value="Extern">Extern</option>
-                            <option value="HR">HR</option>
-                            <option value="SALES">SALES</option>
-                            <option value="TECH">TECH</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-secondary">Instrucțiuni Sisteme (NVMe
-                            Storage)</label>
+                        <label class="form-label small fw-bold text-secondary">Instrucțiuni sistem</label>
                         <textarea name="content"
-                            class="form-control bg-transparent border-secondary-subtle text-body shadow-sm" rows="6"
+                            class="form-control prompt-content-editor bg-transparent border-secondary-subtle text-body shadow-sm"
+                            rows="18"
                             placeholder="Definește aici cum trebuie să se comporte LLM-ul..." required></textarea>
-                        <div class="form-text small opacity-75">Sfat: Fii cât mai specific în instrucțiuni.</div>
                     </div>
                 </div>
 
@@ -138,7 +171,7 @@
 
 
 <div class="modal fade" id="editPromptModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable modal-fullscreen-lg-down">
         <div class="modal-content bg-body-emphasis border-secondary-subtle shadow-lg">
             <div class="modal-header border-bottom border-secondary-subtle">
                 <h5 class="modal-title fw-bold text-primary">
@@ -154,21 +187,31 @@
                         <input type="text" name="name" id="edit_name"
                             class="form-control bg-transparent border-secondary-subtle text-body" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Tip (CHECK Constraint)</label>
-                        <select name="p_type" id="edit_p_type" class="form-select border-secondary-subtle text-body">
-                            <option value="General">General</option>
-                            <option value="Intern">Intern</option>
-                            <option value="Extern">Extern</option>
-                            <option value="HR">HR</option>
-                            <option value="SALES">SALES</option>
-                            <option value="TECH">TECH</option>
-                        </select>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold">Rol prompt</label>
+                            <select name="prompt_role" id="edit_prompt_role"
+                                class="form-select border-secondary-subtle text-body">
+                                {% for value, label in prompt_role_choices.items() %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold">Grup țintă</label>
+                            <select name="audience" id="edit_audience"
+                                class="form-select border-secondary-subtle text-body">
+                                {% for value, label in audience_choices.items() %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Instrucțiuni</label>
                         <textarea name="content" id="edit_content"
-                            class="form-control bg-transparent border-secondary-subtle text-body" rows="6"
+                            class="form-control prompt-content-editor bg-transparent border-secondary-subtle text-body"
+                            rows="18"
                             required></textarea>
                     </div>
                 </div>
@@ -185,28 +228,40 @@
 
 
 <script>
-    // Funcția de ștergere cu confirmare vizuală
     function confirmDelete(id, name) {
         if (confirm(`Ești sigur că vrei să ștergi promptul "${name}"?\nAceastă acțiune este ireversibilă pe NVMe.`)) {
             window.location.href = `/company_admin/dashboard/prompts/delete/${id}`;
         }
     }
 
-    function prepareEdit(id, name, type, content) {
-        // 1. Populăm câmpurile (asigură-te că ID-urile corespund cu ce e în Modal-ul de Edit)
-        document.getElementById('edit_prompt_id').value = id;
-        document.getElementById('edit_name').value = name;
-        document.getElementById('edit_p_type').value = type;
-        document.getElementById('edit_content').value = content;
+    function openEditModal(data) {
+        document.getElementById('edit_prompt_id').value = data.id;
+        document.getElementById('edit_name').value = data.name || '';
+        document.getElementById('edit_prompt_role').value = data.prompt_role || 'general';
+        document.getElementById('edit_audience').value = data.audience || 'toti';
+        document.getElementById('edit_content').value = data.content || '';
 
-        // 2. Luăm elementul modalului
         const modalElement = document.getElementById('editPromptModal');
-
-        // 3. Folosim getOrCreateInstance pentru a evita eroarea de 'backdrop'
         const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
-
-        // 4. Afișăm modalul
         modalInstance.show();
     }
 
+    document.querySelectorAll('.btn-edit-prompt').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-prompt-id');
+            if (!id) return;
+            btn.disabled = true;
+            try {
+                const res = await fetch(`/company_admin/dashboard/prompts/${id}/json`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                openEditModal(data);
+            } catch (e) {
+                console.error('[prompts] edit load:', e);
+                alert('Nu s-a putut încărca promptul pentru editare. Reîncarcă pagina.');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    });
 </script>

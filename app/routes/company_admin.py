@@ -24,6 +24,11 @@ from app.utils.db_prompts import (
     delete_prompt,
     count_prompts
 )
+from app.utils.prompt_constants import (
+    AUDIENCE_LABELS,
+    PROMPT_ROLE_LABELS,
+)
+from app.utils.jinja_setup import register_common_jinja_filters
 
 from app.utils.db_rags import (
     list_docs,
@@ -38,6 +43,7 @@ from app.utils.db_rags import (
 router = APIRouter(dependencies=[Depends(company_admin_required)])
 
 templates = Jinja2Templates(directory="app/templates")
+register_common_jinja_filters(templates.env)
 
 
 # Presupunând că router-ul tău are deja prefix="/company_admin"
@@ -67,8 +73,9 @@ async def company_dashboard(request: Request, tab: str = None):
             "docs": 0   
         }
     elif current_tab == "prompts":
-        # Aici injectăm lista pentru tabelul din tabs/prompts.html
         context["prompts"] = await list_prompts(cui)
+        context["prompt_role_choices"] = PROMPT_ROLE_LABELS
+        context["audience_choices"] = AUDIENCE_LABELS
 
     elif current_tab == "docs": # Corespunde cu href="/company_admin/dashboard/rags" din nav-ul tău
         # Aici injectăm lista din db_rags.py
@@ -179,15 +186,36 @@ async def add_prompt_action(
     request: Request,
     name: str = Form(...),
     content: str = Form(...),
-    p_type: str = Form("General")
+    prompt_role: str = Form("general"),
+    audience: str = Form("toti"),
 ):
     cui = request.session.get('company_cui')
     
     # Acum succesul va fi un dicționar, deci verificăm cheia 'status'
-    result = await insert_prompt(cui, name, content, p_type, "active")
+    result = await insert_prompt(cui, name, content, prompt_role, audience, "active")
     
     # Redirect înapoi la tab-ul de prompts
     return RedirectResponse(url="/company_admin/dashboard/prompts", status_code=303)
+
+@router.get("/dashboard/prompts/{prompt_id}/json")
+async def prompt_edit_json(request: Request, prompt_id: int):
+    """Date prompt pentru modalul de editare (evită onclick-uri HTML fragile)."""
+    cui = request.session.get("company_cui")
+    if not cui:
+        raise HTTPException(status_code=401, detail="Neautentificat")
+    row = await get_prompt_by_id(cui, prompt_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Prompt negăsit")
+    return JSONResponse(
+        {
+            "id": row["id"],
+            "name": row["name"] or "",
+            "content": row["content"] or "",
+            "prompt_role": row["prompt_role"] or "general",
+            "audience": row["audience"] or "toti",
+        }
+    )
+
 
 @router.get("/dashboard/prompts/delete/{prompt_id}")
 async def remove_prompt(request: Request, prompt_id: int):
@@ -203,13 +231,14 @@ async def edit_prompt_action(
     prompt_id: int = Form(...),
     name: str = Form(...),
     content: str = Form(...),
-    p_type: str = Form(...)
+    prompt_role: str = Form("general"),
+    audience: str = Form("toti"),
 ):
     cui = request.session.get('company_cui')
     if not cui: return RedirectResponse(url="/auth/login", status_code=303)
 
     # Update pe NVMe
-    await update_prompt(cui, prompt_id, name, content, p_type, "active")
+    await update_prompt(cui, prompt_id, name, content, prompt_role, audience, "active")
     
     return RedirectResponse(url="/company_admin/dashboard/prompts", status_code=303)
 

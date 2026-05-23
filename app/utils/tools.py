@@ -285,26 +285,71 @@ async def search_company_news(
 
 # --- MATH ---
 
-async def calculate(expression: str):
-    """Evaluates a mathematical expression more safely and intuitively."""
-    try:
-        # 1. Curățăm spațiile și înlocuim ^ cu ** pentru ca 2^3 să devină 2**3
-        safe_expr = expression.replace('^', '**')
-        
-        # 2. Permitem doar caractere matematice (cifre, operatori, paranteze, punct)
-        # Asta previne injectarea de cod periculos
-        allowed_chars = "0123456789+-*/().** "
-        if not all(char in allowed_chars for char in safe_expr.replace(' ', '')):
-             return {"error": "Caractere nepermise în expresie."}
+_SYMPY_LOCALS = None
 
-        # 3. Folosim un dicționar limitat pentru eval (tot eval e, dar cu garduri înalte)
-        result = eval(safe_expr, {"__builtins__": None}, {})
-        
-        # Rotunjim frumos la 4 zecimale să nu avem cârnați de cifre
-        if isinstance(result, (int, float)):
-            result = round(result, 4)
-            
-        return {"result": result}
+
+def _sympy_locals():
+    global _SYMPY_LOCALS
+    if _SYMPY_LOCALS is not None:
+        return _SYMPY_LOCALS
+    import sympy as sp
+
+    _SYMPY_LOCALS = {
+        "sqrt": sp.sqrt,
+        "sin": sp.sin,
+        "cos": sp.cos,
+        "tan": sp.tan,
+        "asin": sp.asin,
+        "acos": sp.acos,
+        "atan": sp.atan,
+        "log": sp.log,
+        "ln": sp.log,
+        "abs": sp.Abs,
+        "pi": sp.pi,
+        "e": sp.E,
+        "deg": lambda x: sp.pi * x / 180,
+    }
+    return _SYMPY_LOCALS
+
+
+def _normalize_math_expression(expression: str) -> str:
+    s = (expression or "").strip()
+    if not s:
+        raise ValueError("Expresie goală.")
+    s = s.replace("^", "**")
+    s = re.sub(r"(\d),(\d)", r"\1.\2", s)
+    return s
+
+
+async def calculate(expression: str):
+    """
+    Evaluează expresii numerice (SymPy). Nu rezolvă ecuații cu necunoscute.
+    """
+    try:
+        from sympy import N, sympify
+        from sympy.core.expr import Expr
+
+        expr_str = _normalize_math_expression(expression)
+        expr = sympify(
+            expr_str,
+            locals=_sympy_locals(),
+            convert_xor=True,
+            rational=False,
+        )
+        if not isinstance(expr, Expr):
+            return {"error": "Expresie invalidă."}
+        if expr.free_symbols:
+            return {
+                "error": "Nu rezolv ecuații sau expresii cu necunoscute (ex. x). Dă doar o expresie numerică.",
+            }
+
+        value = complex(N(expr))
+        if abs(value.imag) < 1e-10:
+            result = round(float(value.real), 6)
+        else:
+            result = {"re": round(value.real, 6), "im": round(value.imag, 6)}
+
+        return {"result": result, "expression": expr_str}
     except Exception as e:
         return {"error": f"Calcul invalid: {str(e)}"}
 
@@ -522,11 +567,19 @@ TOOLS_DESCRIPTION = [
                 "type": "function",
                 "function": {
                     "name": "calculate",
-                    "description": "Evaluates a simple mathematical expression. Use this tool for any mathematical calculations, such as 'what is 2 + 2?', 'solve x^2 + 8x - 25 = 0', etc.",
+                    "description": (
+                        "Evaluează o expresie matematică numerică (NU rezolvă ecuații cu x sau necunoscute). "
+                        "Suportă + - * / ** ^, sqrt, sin, cos, tan, pi, abs, log/ln, deg(grade). "
+                        "Exemple: '2**3 + sqrt(2)', 'sin(pi/4)', 'deg(30)'. "
+                        "Folosește pentru verificarea calculelor numerice, nu pentru derivări simbolice."
+                    ),
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "expression": { "type": "string", "description": "The mathematical expression to evaluate." }
+                            "expression": {
+                                "type": "string",
+                                "description": "Expresia de evaluat, ex. '25*3.14*(12/2)**2' sau 'cos(deg(45))'.",
+                            }
                         },
                         "required": ["expression"],
                     },

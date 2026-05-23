@@ -12,9 +12,7 @@ from app.models.sqlite_company_model import init_company_db
 from app.utils.system import get_system_stats # Importăm mecanica
 from app.utils.session import sync_user_session
 
-router = APIRouter(
-    dependencies=[Depends(superadmin_required)]
-)
+router = APIRouter(dependencies=[Depends(superadmin_required)])
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -34,6 +32,8 @@ async def admin_dashboard(request: Request):
     # Punem status='pending' primele
     companies = await fetch_all("SELECT * FROM companies ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, name ASC")
 
+    console_url = (os.getenv("ADMIN_CONSOLE_URL") or "").strip()
+
     return templates.TemplateResponse(
         request=request,
         name="admin/dashboard.html",
@@ -43,16 +43,9 @@ async def admin_dashboard(request: Request):
             "users": users,
             "companies": companies,
             "title": "Admin — S366 AI",
+            "console_url": console_url,
         },
     )
-
-@router.get("/api/stats")
-async def api_stats(request: Request):
-    if request.session.get("role") != "superadmin":
-        return JSONResponse(content={"error": "Acces interzis!"}, status_code=403)
-
-    stats = get_system_stats()
-    return JSONResponse(content=stats)
 
 
 @router.post("/container/{action}/{container_name}")

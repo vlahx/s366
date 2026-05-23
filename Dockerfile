@@ -9,12 +9,13 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY requirements.txt .
 
-# Instalăm tot în /usr/local ca să le putem muta ulterior
+# Torch separat: layer cache-uit — nu se reinstalează la fiecare mică modificare în requirements.txt
 RUN pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
-    pip3 install --no-cache-dir -r requirements.txt
+    pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # STAGE 2: Runtime (imaginea curată)
 FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
